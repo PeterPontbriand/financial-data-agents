@@ -11,7 +11,7 @@ def auto_monkeypatch(request):
     pass
 
 
-def pytest_configure(config):
+def pytest_configure(config):  # noqa: ARG001
     """Configure pytest settings before tests run."""
     # Create reports directory if it doesn't exist
     os.makedirs("reports", exist_ok=True)

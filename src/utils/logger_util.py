@@ -74,8 +74,7 @@ class ConsoleColorFormatter(logging.Formatter):
 
 # --- CUSTOM CROSS-PLATFORM COMPRESSION FILE HANDLER ---
 class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
-    """
-    A thread-safe, cross-platform handler that rotates files by time and size.
+    """A thread-safe, cross-platform handler that rotates files by time and size.
 
     Fully optimized for Windows, Docker (Linux), and macOS with clean exit hooks.
     """
@@ -89,8 +88,8 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
         max_bytes: int,
         backup_count: int,
         encoding: str | None = None,
-        *args: Any,
-        **kwargs: Any,
+        *_args: Any,
+        **_kwargs: Any,
     ) -> None:
         """Initialize the handler with filename, maxBytes, and backupCount."""
         super().__init__(filename=filename, encoding=encoding, backupCount=backup_count)
@@ -106,9 +105,7 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
 
             if self.maxBytes > 0 and os.path.exists(self.baseFilename):
                 msg = self.format(record)
-                approx_msg_size = (
-                    len(msg.encode("utf-8")) if isinstance(msg, str) else len(msg)
-                )
+                approx_msg_size = len(msg.encode("utf-8")) if isinstance(msg, str) else len(msg)
                 current_size = os.path.getsize(self.baseFilename)
                 if current_size + approx_msg_size >= self.maxBytes:
                     return True
@@ -125,7 +122,8 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
                 zipf.write(source_path, os.path.basename(source_path))
             os.remove(source_path)
         except Exception as e:
-            import sys
+            # Delayed import to avoid circular dependency trees
+            import sys  # noqa: PLC0415
 
             print(f"Error compressing log file {source_path}: {e}", file=sys.stderr)
         finally:
@@ -141,10 +139,7 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
                 self.stream.close()
                 self.stream = None
 
-            if (
-                not os.path.exists(self.baseFilename)
-                or os.path.getsize(self.baseFilename) == 0
-            ):
+            if not os.path.exists(self.baseFilename) or os.path.getsize(self.baseFilename) == 0:
                 if not self.delay:
                     self.stream = self._open()
                 return
@@ -157,24 +152,19 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
             if is_time_rollover:
                 dst_file = f"{self.baseFilename}.{formatted_time}"
                 if os.path.exists(dst_file) or os.path.exists(f"{dst_file}.zip"):
-                    dst_file = self._get_unique_index_path(
-                        f"{self.baseFilename}.{formatted_time}"
-                    )
+                    dst_file = self._get_unique_index_path(f"{self.baseFilename}.{formatted_time}")
             else:
-                dst_file = self._get_unique_index_path(
-                    f"{self.baseFilename}.{formatted_time}"
-                )
+                dst_file = self._get_unique_index_path(f"{self.baseFilename}.{formatted_time}")
 
             try:
                 os.rename(self.baseFilename, dst_file)
-                t = threading.Thread(
-                    target=self._safe_compress, args=(dst_file,), daemon=True
-                )
+                t = threading.Thread(target=self._safe_compress, args=(dst_file,), daemon=True)
                 with self._shutdown_lock:
                     self._active_compression_threads.append(t)
                 t.start()
             except OSError as e:
-                import sys
+                # Delayed import to avoid circular dependency trees
+                import sys  # noqa: PLC0415
 
                 print(f"Failed to rotate log file: {e}", file=sys.stderr)
 
@@ -218,11 +208,10 @@ class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
 def wait_for_log_compression_shutdown() -> None:
     """Block exits cleanly until background compression jobs finish."""
     with ThreadSafeSizeAwareTimedRotatingFileHandler._shutdown_lock:
-        threads_to_join = list(
-            ThreadSafeSizeAwareTimedRotatingFileHandler._active_compression_threads
-        )
+        threads_to_join = list(ThreadSafeSizeAwareTimedRotatingFileHandler._active_compression_threads)
     if threads_to_join:
-        import sys
+        # Delayed import to avoid circular dependency trees
+        import sys  # noqa: PLC0415
 
         print(
             f"Finishing {len(threads_to_join)} background log compressions...",
@@ -234,14 +223,14 @@ def wait_for_log_compression_shutdown() -> None:
 
 
 def setup_global_logging() -> None:
-    """
-    Set up global logging.
+    """Set up global logging.
 
     Called EXACTLY ONCE at the absolute entry point of the application.
     Constructs the thread-safe handler pipeline for both File and Console
     output and starts background queue execution.
     """
-    global _global_logging_initialized, _log_queue, _listeners
+    # global boolean gate; needed to prevent double-initialization hooks from attaching to root loggers.
+    global _global_logging_initialized  # noqa: PLW0603
     if _global_logging_initialized:
         return
 
@@ -268,9 +257,7 @@ def setup_global_logging() -> None:
     console_handler.setFormatter(console_formatter)
 
     # 5. Attach QueueListener to manage BOTH handlers asynchronously
-    listener = QueueListener(
-        _log_queue, file_handler, console_handler, respect_handler_level=True
-    )
+    listener = QueueListener(_log_queue, file_handler, console_handler, respect_handler_level=True)
     listener.start()
     _listeners.append(listener)
 
@@ -294,7 +281,6 @@ def setup_global_logging() -> None:
 
 def teardown_global_logging() -> None:
     """Stop execution hooks, flush pipelines, and join file handles."""
-    global _listeners, _log_queue
     for listener in _listeners:
         if hasattr(listener, "stop"):
             listener.stop()
@@ -328,10 +314,11 @@ class ContextualAdapter(logging.LoggerAdapter):
 
         Return None if no file handler is currently active or registered globally.
         """
-        # Look up our custom thread-safe file handler from the global state
-        import src.utils.logger_util as lu
+        # Delayed import to dynamically modify internal global variables from within an isolated scope.
+        import sys  # noqa: PLC0415
 
-        for listener in lu._listeners:
+        current_module = sys.modules[__name__]
+        for listener in current_module._listeners:
             for handler in listener.handlers:
                 if isinstance(handler, ThreadSafeSizeAwareTimedRotatingFileHandler):
                     return Path(handler.baseFilename)
@@ -371,11 +358,7 @@ class ContextualAdapter(logging.LoggerAdapter):
             msg = f"{msg!s} [{context_string}]"
 
         # 2. Keep support intact for on-the-fly inline log extensions if needed
-        if (
-            "extra" in kwargs
-            and isinstance(kwargs["extra"], dict)
-            and "context_data" in kwargs["extra"]
-        ):
+        if "extra" in kwargs and isinstance(kwargs["extra"], dict) and "context_data" in kwargs["extra"]:
             context_data = kwargs["extra"]["context_data"]
             msg = f"{msg!s} | {context_data}"
 
@@ -413,8 +396,7 @@ def handle_uncaught_exception(
     exc_value: BaseException,
     exc_traceback: TracebackType | None,
 ) -> None:
-    """
-    Intercept uncaught exceptions globally.
+    """Intercept uncaught exceptions globally.
 
     Log them with full stack traces to both the console and file handlers before the
     application finishes crashing.
@@ -435,8 +417,7 @@ def handle_uncaught_exception(
 
 
 def setup_logger(logger_name: str) -> LoggerContext:
-    """
-    Create and configure a logger with the specified name, returning it as a context manager.
+    """Create and configure a logger with the specified name, returning it as a context manager.
 
     Args:
         logger_name: Name of the logger to create
@@ -468,10 +449,7 @@ def get_log_queue_contents() -> list[str]:
             item = _log_queue.get_nowait()
             # If it's already a LogRecord instance, use it directly;
             # otherwise, build it from a dictionary (like worker.py sends)
-            if isinstance(item, logging.LogRecord):
-                record = item
-            else:
-                record = logging.makeLogRecord(item)
+            record = item if isinstance(item, logging.LogRecord) else logging.makeLogRecord(item)
 
             formatter = logging.Formatter(_fmt_str, _datefmt)
             records.append(formatter.format(record))

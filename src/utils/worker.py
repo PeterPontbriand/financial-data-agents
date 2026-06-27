@@ -24,7 +24,7 @@ def worker(
 
     """
 
-    def signal_handler(sig: int, frame: FrameType | None) -> None:
+    def signal_handler(sig: int, frame: FrameType | None) -> None:  # noqa: ARG001
         """Handle interrupt signals."""
         logger.info(f"{logger_name} received signal {sig}: exiting...")
         sys.exit(0)

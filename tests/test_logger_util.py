@@ -23,14 +23,13 @@ from src.utils.logger_util import (
 
 @pytest.fixture(autouse=True)
 def manage_logging_lifecycle(tmp_path):
-    """
-    Scam-isolation fixture.
+    """Scam-isolation fixture.
 
     Overrides settings log pathways to a temporary directory
     and handles clean global environment setup/teardown between every test iteration.
     """
     # 1. Reset utility tracking state variables prior to running tests
-    import src.utils.logger_util as lu
+    import src.utils.logger_util as lu  # noqa: PLC0415
 
     lu._global_logging_initialized = False
     lu._listeners = []
@@ -100,9 +99,7 @@ def test_basic_logging_and_handler_routing():
 def test_console_color_formatter():
     """Verify that ConsoleColorFormatter attaches ANSI tags and rolls back state correctly."""
     formatter = ConsoleColorFormatter(fmt="%(levelname)s: %(message)s")
-    record = logging.LogRecord(
-        "test", logging.INFO, "pathname", 1, "Log message", (), None
-    )
+    record = logging.LogRecord("test", logging.INFO, "pathname", 1, "Log message", (), None)
 
     formatted_text = formatter.format(record)
 

@@ -12,7 +12,7 @@ def main() -> None:
         sys.exit(1)
 
     # Delayed import to avoid circular dependency trees
-    from src.cli import app
+    from src.cli import app  # noqa: PLC0415
 
     app()
 

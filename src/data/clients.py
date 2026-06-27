@@ -27,14 +27,10 @@ class DataSource:
 
         """
         try:
-            logger.info(
-                f"Fetching data for tickers {tickers} starting from {start_date} ..."
-            )
+            logger.info(f"Fetching data for tickers {tickers} starting from {start_date} ...")
             # TODO: Implement actual data fetching logic here
             return {"data": {}, "error": None}
 
         except Exception as e:
             logger.error(f"Error fetching data: {e!s}")
-            raise RuntimeError(
-                f"Failed to fetch data for tickers {tickers}: {e}"
-            ) from e
+            raise RuntimeError(f"Failed to fetch data for tickers {tickers}: {e}") from e
