@@ -1,11 +1,15 @@
-"""Main entry point for the Financial Data Agents analyzer."""
+import sys
 
 from src.utils.logger_util import setup_global_logging
 
 
 def main() -> None:
-    """Entry point for the Financial Data Agents analyzer."""
-    setup_global_logging()
+    """Bootstrap the application and hand off execution to the CLI parser."""
+    try:
+        setup_global_logging()
+    except Exception as e:
+        print(f"Critical initialization failure: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Delayed import to avoid circular dependency trees
     from src.cli import app
