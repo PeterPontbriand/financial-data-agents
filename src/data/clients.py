@@ -2,10 +2,10 @@
 import os
 from typing import Any
 
-from utils.logger_util import setup_logger
+from src.utils.logger_util import setup_logger
 
 # Initialize standardized project logger
-logger = setup_logger(__name__)
+logger_context = setup_logger(__name__)
 
 
 class DataSource:
@@ -16,7 +16,8 @@ class DataSource:
         self.api_key = os.getenv("API_KEY")
 
     def get_data(self, tickers: list[str], start_date: str) -> dict[str, Any]:
-        """Fetch data for the given tickers and start date from the API.
+        """
+        Fetch data for the given tickers and start date from the API.
 
         Args:
             tickers: List of stock ticker symbols
@@ -27,10 +28,12 @@ class DataSource:
 
         """
         try:
-            logger.info(f"Fetching data for tickers {tickers} starting from {start_date} ...")
+            with logger_context as adapter:
+                adapter.info(f"Fetching data for tickers {tickers} starting from {start_date} ...")
             # TODO: Implement actual data fetching logic here
             return {"data": {}, "error": None}
 
         except Exception as e:
-            logger.error(f"Error fetching data: {e!s}")
+            with logger_context as adapter:
+                adapter.error(f"Error fetching data: {e!s}")
             raise RuntimeError(f"Failed to fetch data for tickers {tickers}: {e}") from e

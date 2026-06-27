@@ -13,7 +13,8 @@ def worker(
     log_queue: Queue,
     logger_name: str = "default_logger",
 ) -> None:
-    """Handle queued logging records from child processes.
+    """
+    Handle queued logging records from child processes.
 
     Create a worker process that continuously listens for and handles logging
     records from a shared queue. Implement clean shutdown on SIGINT or SIGTERM.

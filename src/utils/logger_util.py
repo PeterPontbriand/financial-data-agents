@@ -48,7 +48,8 @@ class ConsoleColorFormatter(logging.Formatter):
     }
 
     def format(self, record: logging.LogRecord) -> str:
-        """Format the record.
+        """
+        Format the record.
 
         Args:
             record: The log record to format.
@@ -74,7 +75,8 @@ class ConsoleColorFormatter(logging.Formatter):
 
 # --- CUSTOM CROSS-PLATFORM COMPRESSION FILE HANDLER ---
 class ThreadSafeSizeAwareTimedRotatingFileHandler(TimedRotatingFileHandler):
-    """A thread-safe, cross-platform handler that rotates files by time and size.
+    """
+    A thread-safe, cross-platform handler that rotates files by time and size.
 
     Fully optimized for Windows, Docker (Linux), and macOS with clean exit hooks.
     """
@@ -223,7 +225,8 @@ def wait_for_log_compression_shutdown() -> None:
 
 
 def setup_global_logging() -> None:
-    """Set up global logging.
+    """
+    Set up global logging.
 
     Called EXACTLY ONCE at the absolute entry point of the application.
     Constructs the thread-safe handler pipeline for both File and Console
@@ -310,7 +313,8 @@ class ContextualAdapter(logging.LoggerAdapter):
     # pyright: ignore[reportIncompatibleVariableOverride]
     @property
     def log_file_path(self) -> Path | None:
-        """Get the absolute filesystem path of the active log file destination.
+        """
+        Get the absolute filesystem path of the active log file destination.
 
         Return None if no file handler is currently active or registered globally.
         """
@@ -325,7 +329,8 @@ class ContextualAdapter(logging.LoggerAdapter):
         return None
 
     def read_log_contents(self) -> str:
-        """Read and return the entire current plain-text contents of the active log file.
+        """
+        Read and return the entire current plain-text contents of the active log file.
 
         Return an empty string if the file is missing, empty, or temporarily locked by the OS.
         """
@@ -396,7 +401,8 @@ def handle_uncaught_exception(
     exc_value: BaseException,
     exc_traceback: TracebackType | None,
 ) -> None:
-    """Intercept uncaught exceptions globally.
+    """
+    Intercept uncaught exceptions globally.
 
     Log them with full stack traces to both the console and file handlers before the
     application finishes crashing.
@@ -417,7 +423,8 @@ def handle_uncaught_exception(
 
 
 def setup_logger(logger_name: str) -> LoggerContext:
-    """Create and configure a logger with the specified name, returning it as a context manager.
+    """
+    Create and configure a logger with the specified name, returning it as a context manager.
 
     Args:
         logger_name: Name of the logger to create

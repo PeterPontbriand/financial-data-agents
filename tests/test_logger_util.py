@@ -23,7 +23,8 @@ from src.utils.logger_util import (
 
 @pytest.fixture(autouse=True)
 def manage_logging_lifecycle(tmp_path):
-    """Scam-isolation fixture.
+    """
+    Scam-isolation fixture.
 
     Overrides settings log pathways to a temporary directory
     and handles clean global environment setup/teardown between every test iteration.

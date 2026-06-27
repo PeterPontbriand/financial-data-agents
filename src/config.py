@@ -4,7 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ProjectSettings(BaseSettings):
-    """Application configurations loaded from environment variables.
+    """
+    Application configurations loaded from environment variables.
 
     Inherits from pydantic_settings.BaseSettings.
     """

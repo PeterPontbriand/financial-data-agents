@@ -60,7 +60,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "D", "UP", "B", "A", "C4", "SIM", "ARG", "PT", "PL"]
-ignore = ["D100", "D104", "S101", "PLR2004"]
+ignore = [
+    "D100", "D104",  # Ignore missing docstrings in public modules/packages
+    "S101",          # Allow assert statements (critical for tests)
+    "PLR2004",       # Allow magic values/constants in comparisons
+    "D203",          # Suppress warning: Incompatible with D211 (no-blank-line-before-class)
+    "D212",          # Suppress warning: Incompatible with D213 (multi-line-summary-second-line)
+]
 
 [tool.ruff.format]
 quote-style = "double"
