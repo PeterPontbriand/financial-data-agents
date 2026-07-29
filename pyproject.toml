@@ -69,6 +69,7 @@ ignore = [
     "D212",          # Suppress warning: Incompatible with D213 (multi-line-summary-second-line)
 ]
 extend-select = ["D"]
+fixable = ["ALL"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -114,7 +115,7 @@ python_version = "3.14"
 mypy_path = "."  # Tells mypy to resolve namespace lookups directly from the repository root
 explicit_package_bases = true
 warn_return_any = true
-warn_unused_configs = true
+warn_unused_configs = false
 disallow_untyped_defs = true        # Force signatures to have explicit type hints
 disallow_incomplete_defs = true     # Catch partial hinting
 check_untyped_defs = true           # Look inside un-hinted functions
@@ -122,3 +123,7 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 strict_equality = true              # Prevent comparing unrelated types
+
+[[tool.mypy.overrides]]
+module = ["yfinance", "yfinance.*"]
+ignore_missing_imports = true
