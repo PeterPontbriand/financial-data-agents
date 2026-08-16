@@ -156,6 +156,18 @@ The telemetry recorder will capture and store observable data explicitly exposed
 - [ ] Secrets, API keys, and sensitive tokens are automatically redacted prior to persistence.
 - [ ] Quality gates pass (`mypy --strict`, Ruff, pytest).
 
+**Follow-ups (non-blocking for Step 2.1 merge)**
+
+- **Emit `RECOVERY_ATTEMPTED`:** The event type is defined. When the orchestrator
+  repair/retry path runs, record a `RECOVERY_ATTEMPTED` event on each attempt
+  (component, step_index, span linkage, sanitized error context). If recovery
+  is still minimal, wire this when Step 2.4 circuit-breakers / repair policy
+  lands.
+- **Always set `payload_hash` when a payload is retained:** Confirm
+  `TrajectoryRecorder` sets `payload_hash` for every event that keeps a
+  non-null payload (integrity without storing full bodies). Leave hash null
+  only when payload is omitted.
+  
 ---
 
 ### 4.2 Step 2.2 – Native Schema Enforcement
@@ -227,7 +239,7 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 **Implementation outline**
 1. Centralise limits in the existing Settings / config model (max steps, max transient retries, per-step and overall wall-clock timeouts, max consecutive schema violations, etc.).
 2. Implement a small `CircuitBreaker` (or equivalent) that the orchestrator consults before each planning step and after each tool/LLM call.
-3. On threshold breach: halt cleanly, emit a human-readable diagnostic that includes the `run_id` and last few trajectory events, and return a structured failure result to the CLI.
+3. On threshold breach: halt cleanly, emit a human-readable diagnostic that includes the `run_id` and last few trajectory events, and return a structured failure result to the CLI. Also emit RECOVERY_ATTEMPTED if not already done in 2.1.
 4. Unit tests covering: normal completion, max-steps hit, timeout hit, repeated schema-violation trip.
 
 **Acceptance criteria**
