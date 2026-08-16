@@ -6,7 +6,7 @@ import pytest
 from src.llm.client import LLMClient
 from src.orchestrator.context import ContextConfig, MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
-from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig
+from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from src.orchestrator.prompts import SystemPromptBuilder
 from src.orchestrator.types import (
     ChatMessage,
@@ -301,8 +301,9 @@ async def test_orchestrator_max_steps_exceeded() -> None:
         llm_client=llm_mock,
         dispatcher=dispatcher_mock,
         parser=parser_mock,
-        config=config,
+        options=OrchestratorOptions(config=config),
     )
+
     context = make_context_with_runtime_rules()
 
     steps = []
