@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.llm.client import LLMClient
+from src.llm.client import LLMClient, LLMGenerateResult
 from src.orchestrator.context import ContextConfig, MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
@@ -200,7 +200,7 @@ async def test_dispatcher_duplicate_registration_raises() -> None:
 async def test_orchestrator_single_step_terminal() -> None:
     """Test orchestrator stopping when no tool calls are parsed (direct text response)."""
     llm_mock = MagicMock(spec=LLMClient)
-    llm_mock.generate = AsyncMock(return_value="Direct assistant answer")
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct assistant answer"))
 
     parser_mock = MagicMock(spec=ToolParser)
     parser_mock.parse.side_effect = ToolParsingError("No JSON found")
@@ -234,8 +234,8 @@ async def test_orchestrator_tool_execution_loop() -> None:
     llm_mock = MagicMock(spec=LLMClient)
     llm_mock.generate = AsyncMock(
         side_effect=[
-            '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}',
-            "Apple is currently trading at $180.",
+            LLMGenerateResult(text='{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'),
+            LLMGenerateResult(text="Apple is currently trading at $180."),
         ]
     )
 
@@ -281,7 +281,7 @@ async def test_orchestrator_tool_execution_loop() -> None:
 async def test_orchestrator_max_steps_exceeded() -> None:
     """Test orchestrator stopping cleanly when max_steps threshold is hit."""
     llm_mock = MagicMock(spec=LLMClient)
-    llm_mock.generate = AsyncMock(return_value='{"name": "loop_forever"}')
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text='{"name": "loop_forever"}'))
 
     parser_mock = MagicMock(spec=ToolParser)
     parser_mock.parse.return_value = ParsedToolCall(tool_name="loop_forever", arguments={})

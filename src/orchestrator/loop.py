@@ -226,7 +226,7 @@ class AgentOrchestrator:
         )
 
         try:
-            raw_response = await self.llm_client.generate(
+            result = await self.llm_client.generate(
                 prompt=prompt_payload,
                 model=self.config.model_selection,
                 temperature=self.config.temperature,
@@ -256,10 +256,12 @@ class AgentOrchestrator:
                 model_tag=self.config.model_selection,
                 step_index=step,
                 latency_ms=latency_ms,
-                payload={"response": raw_response},
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
+                payload={"response": result.text},
             )
         )
-        return raw_response
+        return result.text
 
     def _handle_llm_response(
         self,

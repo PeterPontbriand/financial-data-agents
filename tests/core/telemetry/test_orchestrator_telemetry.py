@@ -10,6 +10,7 @@ import pytest
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
 from src.core.telemetry.sinks import JSONLTrajectorySink
+from src.llm.client import LLMGenerateResult
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
@@ -25,15 +26,19 @@ class FakeLLMClient:
 
     async def generate(
         self,
-        prompt: list[dict[str, Any]] | str,  # noqa: ARG002 (unused in test double)
+        prompt: list[dict[str, Any]] | str,  # noqa: ARG002
         model: str | None = None,  # noqa: ARG002
         temperature: float | None = None,  # noqa: ARG002
         response_model: type[Any] | None = None,  # noqa: ARG002
-    ) -> str:
+    ) -> LLMGenerateResult:
         self.calls += 1
         if self.calls == 1:
-            return '{"name":"echo","arguments":{"value":"hello"}}'
-        return "done"
+            return LLMGenerateResult(
+                text='{"name":"echo","arguments":{"value":"hello"}}',
+                prompt_tokens=12,
+                completion_tokens=8,
+            )
+        return LLMGenerateResult(text="done", prompt_tokens=4, completion_tokens=1)
 
 
 class FakeParser:
@@ -96,3 +101,8 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
     assert all(event.session_id == recorder.session_id for event in events)
     step_events = [event for event in events if event.event_type.value == "step_start"]
     assert all(event.parent_span_id == events[0].span_id for event in step_events)
+    llm_events = [e for e in events if e.event_type.value == "llm_response"]
+    assert llm_events[0].prompt_tokens == 12
+    assert llm_events[0].completion_tokens == 8
+    assert llm_events[1].prompt_tokens == 4
+    assert llm_events[1].completion_tokens == 1
