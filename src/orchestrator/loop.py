@@ -1,6 +1,7 @@
 # src/orchestrator/loop.py
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
@@ -24,7 +25,11 @@ from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest
 from src.schema.config import SchemaConfig
-from src.schema.constraint import detect_ollama_schema_support, format_schema_for_ollama
+from src.schema.constraint import (
+    build_schema_constraint,
+    detect_ollama_schema_support,
+    format_schema_for_ollama,
+)
 from src.schema.models import ToolCallResponse
 from src.schema.validator import build_retry_messages, validate_response
 from src.tools.parser import ToolParser
@@ -90,6 +95,57 @@ class AgentOrchestrator:
         # True=supported, False=unsupported, None=unknown/unresolved
         self._schema_capability: bool | None = None
         self._capability_resolved: bool = False
+
+    @staticmethod
+    def _schema_instruction_message(schema_dict: dict[str, Any]) -> dict[str, Any]:
+        """Build a system-role message carrying explicit JSON-schema instructions.
+
+        Used only in the ``prompt`` enforcement mode, where the native Ollama
+        ``format`` constraint is unavailable. The message instructs the model
+        to emit a single JSON object that exactly matches the schema, and it
+        is persisted across retries because ``build_retry_messages`` copies
+        the original message list verbatim.
+
+        Args:
+            schema_dict: JSON Schema (dict) the model must emit.
+
+        Returns:
+            A single Ollama-shaped message dict with ``role="system"``.
+        """
+        body = (
+            "You must respond with a single JSON object that exactly matches "
+            "the following JSON Schema. Do not include any text, markdown, "
+            "comments, or explanation outside the JSON object.\n\n"
+            "Schema:\n"
+            f"{json.dumps(schema_dict, indent=2)}"
+        )
+        return {"role": "system", "content": body}
+
+    @staticmethod
+    def _inject_schema_instruction(
+        messages: list[dict[str, Any]],
+        schema_dict: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Return a copy of ``messages`` with a schema instruction inserted.
+
+        The instruction is inserted immediately after the existing system
+        message (if any) so that the caller's system prompt keeps priority,
+        or at the front otherwise. No other message is modified.
+
+        Args:
+            messages: The original Ollama-shaped message list.
+            schema_dict: JSON Schema the model must emit.
+
+        Returns:
+            New list of message dicts (the input is not mutated).
+        """
+        instruction = AgentOrchestrator._schema_instruction_message(schema_dict)
+        out = list(messages)
+        if out and out[0].get("role") == "system":
+            out.insert(1, instruction)
+        else:
+            out.insert(0, instruction)
+        return out
 
     async def run_stream(self, prompt: str, context: MessageContext) -> AsyncGenerator[AgentStepResult, None]:
         """Run the orchestration loop while recording an ordered causal trajectory."""
@@ -224,39 +280,80 @@ class AgentOrchestrator:
         Returns:
             True if the native ``format`` kwarg should be included in the LLM request.
         """
-        if not self.config.schema_config.use_native_constraint:
-            return False
+        return (await self._resolve_enforcement_mode()) == "native"
+
+    async def _resolve_enforcement_mode(self) -> str:
+        """Resolve the schema-enforcement mode for the next LLM call.
+
+        Deterministic decision policy:
+
+        * ``use_native_constraint=False`` → ``"none"``.
+          Legacy provider-compat path: no native constraint, no prompt
+          fallback, no validation retry loop; the legacy parser is the
+          immediate recovery mechanism. ``fallback_to_prompt`` is not
+          consulted because it is scoped to the native-constraint branch.
+
+        * ``use_native_constraint=True`` AND native capability confirmed
+          (``True``) → ``"native"``. The Ollama ``format`` kwarg is sent
+          and validation retries are enabled.
+
+        * ``use_native_constraint=True`` AND native capability is
+          ``False`` (known-unsupported) or ``None`` (unknown):
+            - if ``fallback_to_prompt=True`` → ``"prompt"``. Explicit
+              JSON-schema instructions are injected into the prompt and the
+              existing Pydantic validation/retry loop is used.
+            - if ``fallback_to_prompt=False`` → ``"none"``. Native
+              enforcement is not pretended; the safe existing
+              provider-compat behaviour (no ``format``, no prompt
+              injection, no retry loop, parser as recovery) is preserved.
+
+        Capability resolution order (idempotent, cached per instance):
+          1. Static ``SchemaConfig.ollama_version`` override if set.
+          2. Otherwise a single remote query via
+             ``LLMClient.get_ollama_version``.
+
+        Returns:
+            One of ``"native"``, ``"prompt"``, or ``"none"``.
+        """
+        cfg = self.config.schema_config
+        if not cfg.use_native_constraint:
+            return "none"
 
         if self._capability_resolved:
-            return self._schema_capability is True
-
-        # Resolve: prefer static config override, then remote query
-        if self.config.schema_config.ollama_version is not None:
-            self._schema_capability = detect_ollama_schema_support(self.config.schema_config.ollama_version)
+            capability = self._schema_capability
         else:
-            version = await self.llm_client.get_ollama_version()
-            self._schema_capability = detect_ollama_schema_support(version)
+            if cfg.ollama_version is not None:
+                capability = detect_ollama_schema_support(cfg.ollama_version)
+            else:
+                capability = detect_ollama_schema_support(await self.llm_client.get_ollama_version())
+            self._schema_capability = capability
+            self._capability_resolved = True
 
-        self._capability_resolved = True
-        return self._schema_capability is True
+        if capability is True:
+            return "native"
+        if cfg.fallback_to_prompt:
+            return "prompt"
+        return "none"
 
     async def _build_generate_kwargs(self, prompt_payload: Any) -> dict[str, Any]:
         """Build the kwargs for an LLM generate call, including schema constraints.
 
-        The native schema ``format`` kwarg is only included when:
-          * ``use_native_constraint`` is enabled AND
-          * the remote Ollama server capability is confirmed (>= 0.5.0).
+        The native ``format`` kwarg is included only when the resolved
+        enforcement mode is ``"native"`` (i.e. ``use_native_constraint`` is
+        enabled AND Ollama native schema capability is confirmed).
 
-        When capability is unknown or unsupported, the request is constructed
-        without the ``format`` key and the existing retry/fallback path handles
-        schema validation.
+        In ``"prompt"`` and ``"none"`` modes the ``format`` key is omitted so
+        the server is not asked to constrain decoding with a key it may not
+        understand. Prompt-level schema instructions (when applicable) are
+        injected separately into the message payload by
+        :meth:`_handle_llm_response`.
         """
         kwargs: dict[str, Any] = {
             "prompt": prompt_payload,
             "model": self.config.model_selection,
             "temperature": self.config.temperature,
         }
-        if await self._resolve_schema_capability():
+        if (await self._resolve_enforcement_mode()) == "native":
             schema_params = format_schema_for_ollama(
                 ToolCallResponse,
                 strict=self.config.schema_config.strict_mode,
@@ -346,12 +443,18 @@ class AgentOrchestrator:
         ``self.parser.parse`` as a gated provider-compatibility fallback.
         """
         strict = self.config.schema_config.strict_mode
-        max_retries = (
-            self.config.schema_config.max_validation_retries if self.config.schema_config.use_native_constraint else 0
-        )
+        mode = await self._resolve_enforcement_mode()
+        max_retries = self.config.schema_config.max_validation_retries if mode in ("native", "prompt") else 0
 
         # --- initial attempt ------------------------------------------------
         payload = context.to_ollama_payload()
+        if mode == "prompt":
+            schema_dict = build_schema_constraint(
+                ToolCallResponse,
+                strict=strict,
+                additional_properties=self.config.schema_config.additional_properties,
+            ).schema_dict
+            payload = self._inject_schema_instruction(payload, schema_dict)
         raw = await self._call_llm(step, payload, step_span_id, request_span_id)
         val = validate_response(raw, ToolCallResponse, strict=strict)
 

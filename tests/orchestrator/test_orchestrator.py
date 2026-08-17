@@ -865,3 +865,341 @@ async def test_provider_compat_parser_fallback_when_native_disabled() -> None:
     user_msgs = [m for m in context.get_messages() if m.role == Role.USER]
     retry_msgs = [m for m in user_msgs if "schema" in m.content.lower() or "did not match" in m.content.lower()]
     assert len(retry_msgs) == 0, "no retry feedback when native constraint is disabled"
+
+
+# ---------------------------------------------------------------------------
+# 7. Prompt-fallback (fallback_to_prompt) behaviour (Step 2.2)
+# ---------------------------------------------------------------------------
+
+
+def _find_schema_instruction(messages: list[dict[str, str]]) -> dict[str, str] | None:
+    """Locate a system-role message that carries the explicit schema instruction."""
+    for msg in messages:
+        if msg.get("role") != "system":
+            continue
+        content = msg.get("content", "")
+        if "JSON Schema" in content and "Schema:" in content:
+            return msg
+    return None
+
+
+@pytest.mark.asyncio
+async def test_prompt_fallback_injects_schema_when_native_unsupported() -> None:
+    """Native capability False + fallback_to_prompt=True → prompt injected, no format.
+
+    The orchestrator must:
+      * NOT send the native ``format`` kwarg (server is known-unsupported).
+      * Inject an explicit JSON-schema instruction message into the prompt.
+      * Reuse the existing Pydantic validation/retry loop.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+    valid_json = '{"tool_name": "get_quote", "tool_args": {"ticker": "AAPL"}}'
+
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(
+        side_effect=[
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=valid_json),
+        ]
+    )
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.3.0")  # known-unsupported
+
+    # Parser must NOT be used as primary recovery; only as last resort if retries exhaust.
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("Parser must not be the recovery path")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-prompt-fb",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        max_steps=1,
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            fallback_to_prompt=True,
+            max_validation_retries=1,
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # Two calls: initial (invalid) + one retry (valid)
+    assert llm_mock.generate.await_count == 2
+    # Tool executed from the valid retry response — parser NOT used.
+    assert steps[0].is_terminal is False
+    assert steps[0].executed_tools[0].result == {"price": 180.0}
+    assert parser_mock.parse.call_count == 0, "parser must NOT be the primary recovery in prompt mode"
+
+    # Native format must NOT be sent (server known-unsupported)
+    first_kwargs = llm_mock.generate.await_args_list[0].kwargs
+    assert "format" not in first_kwargs, "native format must be omitted in prompt-fallback mode"
+
+    # Explicit schema instruction must be present in the prompt payload
+    first_prompt = first_kwargs["prompt"]
+    instr = _find_schema_instruction(first_prompt)
+    assert instr is not None, "schema instruction message must be injected in prompt-fallback mode"
+    assert "tool_name" in instr["content"]
+    assert "tool_args" in instr["content"]
+
+    # The retry call's payload must still carry the instruction (build_retry_messages copies verbatim)
+    second_prompt = llm_mock.generate.await_args_list[1].kwargs["prompt"]
+    assert _find_schema_instruction(second_prompt) is not None, "schema instruction must persist across retries"
+
+
+@pytest.mark.asyncio
+async def test_prompt_fallback_injects_schema_when_capability_unknown() -> None:
+    """Native capability UNKNOWN + fallback_to_prompt=True → prompt injected, no format.
+
+    The unknown-capability safe default (no native constraint) is preserved,
+    but the explicit prompt-level instruction is added.
+    """
+    valid_json = '{"tool_name": "get_quote", "tool_args": {"ticker": "AAPL"}}'
+
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text=valid_json))
+    llm_mock.get_ollama_version = AsyncMock(return_value=None)  # unknown
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("not used")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-unknown-fb",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            fallback_to_prompt=True,
+            max_validation_retries=0,
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("What is Apple price?", context=context):
+        pass
+
+    first_kwargs = llm_mock.generate.await_args_list[0].kwargs
+    assert "format" not in first_kwargs, "unknown capability → native format omitted"
+    first_prompt = first_kwargs["prompt"]
+    instr = _find_schema_instruction(first_prompt)
+    assert instr is not None, "schema instruction must be injected when capability unknown + fallback on"
+    assert "tool_name" in instr["content"]
+
+
+@pytest.mark.asyncio
+async def test_prompt_fallback_disabled_no_injection_no_retries() -> None:
+    """Native capability False + fallback_to_prompt=False → no injection, no retry loop.
+
+    The legacy provider-compat behaviour is preserved: no format kwarg, no
+    prompt injection, no Pydantic retry loop, parser as immediate recovery.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text=invalid_json))
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.3.0")
+
+    # Parser succeeds → tool recovered without retry.
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.return_value = ParsedToolCall(tool_name="get_quote", arguments={"ticker": "AAPL"})
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-no-fb",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        max_steps=1,
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            fallback_to_prompt=False,
+            max_validation_retries=3,  # must be ignored: no retry loop in this mode
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # Only ONE LLM call: no retry loop was entered.
+    assert llm_mock.generate.await_count == 1
+    # Native format is NOT sent (capability unsupported)
+    first_kwargs = llm_mock.generate.await_args_list[0].kwargs
+    assert "format" not in first_kwargs
+    # No prompt-level schema instruction is injected.
+    first_prompt = first_kwargs["prompt"]
+    assert _find_schema_instruction(first_prompt) is None, (
+        "schema instruction must NOT be injected when fallback_to_prompt=False"
+    )
+    # Parser is the immediate recovery (one call).
+    assert parser_mock.parse.call_count == 1
+    assert steps[0].is_terminal is False
+    assert steps[0].executed_tools[0].result == {"price": 180.0}
+
+
+@pytest.mark.asyncio
+async def test_fallback_to_prompt_ignored_when_use_native_constraint_false() -> None:
+    """When use_native_constraint=False, fallback_to_prompt has no effect.
+
+    The flag is scoped to the native-constraint branch; the legacy
+    provider-compat behaviour (parser-as-recovery, no retry loop, no
+    format, no prompt injection) must be preserved unconditionally.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text=invalid_json))
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.6.1")  # would support native if asked
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.return_value = ParsedToolCall(tool_name="get_quote", arguments={"ticker": "AAPL"})
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-legacy",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        max_steps=1,
+        schema_config=SchemaConfig(
+            use_native_constraint=False,
+            fallback_to_prompt=True,  # must be ignored in this branch
+            max_validation_retries=5,  # must be ignored in this branch
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("What is Apple price?", context=context):
+        pass
+
+    # No version query (explicit opt-out)
+    llm_mock.get_ollama_version.assert_not_awaited()
+    # No retry loop
+    assert llm_mock.generate.await_count == 1
+    # No native format
+    first_kwargs = llm_mock.generate.await_args_list[0].kwargs
+    assert "format" not in first_kwargs
+    # No prompt injection
+    first_prompt = first_kwargs["prompt"]
+    assert _find_schema_instruction(first_prompt) is None, (
+        "fallback_to_prompt must NOT take effect when use_native_constraint=False"
+    )
+    # Parser is the immediate recovery
+    assert parser_mock.parse.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_prompt_fallback_retry_persists_instruction_across_retries() -> None:
+    """The prompt-level schema instruction must survive the retry loop.
+
+    ``build_retry_messages`` copies the original message list verbatim, so
+    the schema instruction injected on the initial attempt must still be
+    present on every subsequent retry call.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+    valid_json = '{"tool_name": "get_quote", "tool_args": {"ticker": "AAPL"}}'
+
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(
+        side_effect=[
+            LLMGenerateResult(text=invalid_json),  # attempt 1
+            LLMGenerateResult(text=invalid_json),  # retry 1 (still invalid)
+            LLMGenerateResult(text=valid_json),  # retry 2 (valid)
+        ]
+    )
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.3.0")
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("not used")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-persist",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        max_steps=1,
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            fallback_to_prompt=True,
+            max_validation_retries=2,
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # 3 calls: initial + 2 retries; parser not used
+    assert llm_mock.generate.await_count == 3
+    assert parser_mock.parse.call_count == 0
+    assert steps[0].executed_tools[0].result == {"price": 180.0}
+
+    # Every call (initial + both retries) must carry the schema instruction.
+    for i, call in enumerate(llm_mock.generate.await_args_list):
+        prompt = call.kwargs["prompt"]
+        assert _find_schema_instruction(prompt) is not None, f"schema instruction missing on call #{i}"
+        # Native format must NOT be present on any call
+        assert "format" not in call.kwargs, f"native format leaked on call #{i}"
