@@ -14,6 +14,7 @@ from src.orchestrator.types import (
     ToolCallRequest,
     ToolCallResult,
 )
+from src.schema.config import SchemaConfig
 from src.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
 
 # ---------------------------------------------------------------------------
@@ -313,3 +314,82 @@ async def test_orchestrator_max_steps_exceeded() -> None:
     assert len(steps) == 3
     assert steps[-1].is_terminal is True
     assert "Exceeded maximum iteration steps." in steps[-1].message.content
+
+
+# ---------------------------------------------------------------------------
+# 5. Native schema constraint forwarding (Step 2.2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_forwards_native_schema_format_to_llm() -> None:
+    """When use_native_constraint is enabled, forward a top-level format kwarg.
+
+    The orchestrator must forward a top-level ``format`` kwarg to
+    LLMClient.generate carrying the ToolCallResponse JSON Schema. The call
+    must succeed (no TypeError).
+    """
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(use_native_constraint=True),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    llm_mock.generate.assert_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" in call_kwargs, "orchestrator must forward the format kwarg"
+    fmt = call_kwargs["format"]
+    assert isinstance(fmt, dict), "format must be a JSON Schema dict"
+    assert fmt.get("type") == "object"
+    # Schema for ToolCallResponse must include the required tool_name field.
+    assert "tool_name" in fmt.get("properties", {})
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_omits_format_when_native_constraint_disabled() -> None:
+    """Omit the format kwarg when native constraint is disabled.
+
+    When use_native_constraint is disabled, the orchestrator must not send a
+    ``format`` kwarg to LLMClient.generate.
+    """
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(use_native_constraint=False),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    llm_mock.generate.assert_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" not in call_kwargs, "format must be omitted when native constraint is disabled"
