@@ -1,3 +1,4 @@
+# src/orchestrator/loop.py
 from __future__ import annotations
 
 import time
@@ -8,6 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from src.config import settings
 from src.core.telemetry import (
     RunContext,
     TelemetryMode,
@@ -21,6 +23,10 @@ from src.llm.client import LLMClient
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest
+from src.schema.config import SchemaConfig
+from src.schema.constraint import format_schema_for_ollama
+from src.schema.models import ToolCallResponse
+from src.schema.validator import validate_response
 from src.tools.parser import ToolParser
 
 
@@ -31,6 +37,7 @@ class OrchestratorConfig(BaseModel):
     model_selection: str = "qwen2.5-coder:latest"
     temperature: float = 0.0
     mode: Literal["light", "full"] = "light"
+    schema_config: SchemaConfig = Field(default_factory=lambda: settings.schema_config)
 
 
 @dataclass
@@ -101,8 +108,8 @@ class AgentOrchestrator:
                 prompt_payload = context.to_ollama_payload()
 
                 raw_response = await self._call_llm(step, prompt_payload, step_span_id, request_span_id)
-                if raw_response is None:  # error occurred and raised, but we catch
-                    continue  # not reached
+                if raw_response is None:
+                    continue
 
                 tool_requests, assistant_msg = self._handle_llm_response(
                     (step, step_span_id, request_span_id), raw_response, context
@@ -208,8 +215,24 @@ class AgentOrchestrator:
         step_span_id: UUID,
         request_span_id: UUID,
     ) -> str:
-        """Perform LLM call with telemetry and error handling."""
+        """Perform LLM call with telemetry and schema constraints."""
         request_started = time.perf_counter()
+
+        generate_kwargs: dict[str, Any] = {
+            "prompt": prompt_payload,
+            "model": self.config.model_selection,
+            "temperature": self.config.temperature,
+        }
+
+        # Step 2.2: Pass format=Schema constraint to Ollama client if enabled
+        if self.config.schema_config.use_native_constraint:
+            schema_params = format_schema_for_ollama(
+                ToolCallResponse,
+                strict=self.config.schema_config.strict_mode,
+                additional_properties=self.config.schema_config.additional_properties,
+            )
+            generate_kwargs.update(schema_params)
+
         self.recorder.record(
             TrajectoryRecord(
                 event_type=TrajectoryEventType.PROMPT_SENT,
@@ -221,16 +244,13 @@ class AgentOrchestrator:
                 payload={
                     "messages": prompt_payload,
                     "temperature": self.config.temperature,
+                    "format_constrained": self.config.schema_config.use_native_constraint,
                 },
             )
         )
 
         try:
-            result = await self.llm_client.generate(
-                prompt=prompt_payload,
-                model=self.config.model_selection,
-                temperature=self.config.temperature,
-            )
+            result = await self.llm_client.generate(**generate_kwargs)
         except Exception as exc:
             self.recorder.record_error(
                 TrajectoryErrorRecord(
@@ -265,27 +285,60 @@ class AgentOrchestrator:
 
     def _handle_llm_response(
         self,
-        span_info: tuple[int, UUID, UUID],  # (step, step_span_id, request_span_id)
+        span_info: tuple[int, UUID, UUID],
         raw_response: str,
         context: MessageContext,
     ) -> tuple[list[ToolCallRequest], ChatMessage]:
-        """Parse LLM response and record parser errors."""
+        """Parse LLM response using native Pydantic second-line validation."""
         step, step_span_id, request_span_id = span_info
         tool_requests: list[ToolCallRequest] = []
-        try:
-            parsed = self.parser.parse(raw_response)
-            tool_requests.append(ToolCallRequest(tool_name=parsed.tool_name, arguments=parsed.arguments))
-        except Exception as exc:
+
+        # Step 2.2: Second-line Pydantic validation defense
+        val_result = validate_response(
+            raw_response,
+            ToolCallResponse,
+            strict=self.config.schema_config.strict_mode,
+        )
+
+        if val_result.valid and isinstance(val_result.data, ToolCallResponse):
+            tool_requests.append(
+                ToolCallRequest(
+                    tool_name=val_result.data.tool_name,
+                    arguments=val_result.data.tool_args,
+                )
+            )
+        else:
+            # Record recoverable validation error to telemetry
             self.recorder.record_error(
                 TrajectoryErrorRecord(
-                    component="tool_parser",
-                    message=str(exc),
+                    component="schema_validator",
+                    message=val_result.error_summary(),
                     step_index=step,
                     span_id=request_span_id,
                     parent_span_id=step_span_id,
-                    error_type=type(exc).__name__,
+                    error_type=val_result.error_type.value if val_result.error_type else "SchemaValidationError",
                 )
             )
+            # Fallback to string/regex parser if second-line schema validation fails
+            try:
+                parsed = self.parser.parse(raw_response)
+                tool_requests.append(
+                    ToolCallRequest(
+                        tool_name=parsed.tool_name,
+                        arguments=parsed.arguments,
+                    )
+                )
+            except Exception as exc:
+                self.recorder.record_error(
+                    TrajectoryErrorRecord(
+                        component="tool_parser",
+                        message=str(exc),
+                        step_index=step,
+                        span_id=request_span_id,
+                        parent_span_id=step_span_id,
+                        error_type=type(exc).__name__,
+                    )
+                )
 
         assistant_msg = ChatMessage(
             role=Role.ASSISTANT,

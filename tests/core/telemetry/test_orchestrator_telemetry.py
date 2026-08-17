@@ -30,6 +30,7 @@ class FakeLLMClient:
         model: str | None = None,  # noqa: ARG002
         temperature: float | None = None,  # noqa: ARG002
         response_model: type[Any] | None = None,  # noqa: ARG002
+        **kwargs: type[Any],  # noqa: ARG002
     ) -> LLMGenerateResult:
         self.calls += 1
         if self.calls == 1:
@@ -81,17 +82,23 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
 
     assert results[-1].is_terminal is True
     assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+
+    for event in events:
+        print(f"{event.sequence}: {event.event_type.value} (parent: {event.parent_span_id})")
+
     assert [event.event_type.value for event in events] == [
         "run_start",
         "step_start",
         "prompt_sent",
         "llm_response",
+        "error",
         "tool_call",
         "tool_result",
         "step_end",
         "step_start",
         "prompt_sent",
         "llm_response",
+        "error",
         "error",
         "step_end",
         "run_end",
