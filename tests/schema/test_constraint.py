@@ -112,6 +112,23 @@ def test_detect_ollama_schema_support_with_version_suffix():
     assert detect_ollama_schema_support("0.4.9-dev") is False
 
 
+def test_detect_ollama_schema_support_unknown_states():
+    """Test UNKNOWN state (None) for missing/unparseable versions."""
+    assert detect_ollama_schema_support(None) is None
+    assert detect_ollama_schema_support("") is None
+    assert detect_ollama_schema_support("   ") is None
+    assert detect_ollama_schema_support("abc") is None
+    assert detect_ollama_schema_support("1.x.0") is None
+
+
+def test_detect_ollama_schema_support_edge_cases():
+    """Test edge cases: single component, non-string, prefix variants."""
+    assert detect_ollama_schema_support("0") is None
+    assert detect_ollama_schema_support(123) is None  # type: ignore[arg-type]
+    assert detect_ollama_schema_support("ollama version 0.4.2") is False
+    assert detect_ollama_schema_support("version 1.0.0") is True
+
+
 def test_build_schema_constraint_error():
     """Test error handling when schema building fails."""
 

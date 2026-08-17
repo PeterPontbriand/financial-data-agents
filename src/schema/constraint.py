@@ -164,37 +164,44 @@ def format_schema_for_ollama(
     return constraint.to_ollama_params()
 
 
-def detect_ollama_schema_support(ollama_version: str) -> bool:
-    """Best-effort detection of native JSON-schema (structured outputs) support.
+def detect_ollama_schema_support(ollama_version: str | None) -> bool | None:
+    """Classify Ollama native JSON-schema (structured outputs) capability.
 
     Structured outputs with a schema object were introduced substantially
-    later than basic format="json". Treat anything before 0.5.0 as unsupported
-    for schema-constrained decoding; callers should still run Pydantic
-    validation as the second line of defence.
+    later than basic format="json". Versions before 0.5.0 are classified as
+    known-unsupported for schema-constrained decoding; callers should still
+    run Pydantic validation as the second line of defence in all cases.
 
     Args:
-        ollama_version: Version string (e.g. from `ollama --version`).
+        ollama_version: Version string from the remote Ollama server's
+            ``GET /api/version`` endpoint (e.g. ``"0.5.4"``). May be ``None``
+            when the version could not be retrieved.
 
     Returns:
-        True if schema-constrained generation is expected to work.
+        True if the version is known to support schema-constrained generation
+        (>= 0.5.0 or >= 1.0.0).
+        False if the version is known to be below the threshold.
+        None if the version is missing, empty, or unparseable (UNKNOWN state).
     """
+    if ollama_version is None or not isinstance(ollama_version, str):
+        return None
+    if not ollama_version.strip():
+        return None
     try:
         cleaned = ollama_version.strip().lower()
         for prefix in ("ollama version is ", "ollama version ", "version "):
             cleaned = cleaned.removeprefix(prefix)
         cleaned = cleaned.split()[0]
         parts = cleaned.split(".")
-        if len(parts) >= 2:
-            major = int(parts[0])
-            minor = int(parts[1].split("-")[0])
-            if major >= 1:
-                return True
-            if major == 0 and minor >= 5:
-                return True
-        return False
+        if len(parts) < 2:
+            # Only one component (e.g. "0") – cannot classify with confidence.
+            return None
+        major = int(parts[0])
+        minor = int(parts[1].split("-")[0])
+        return major >= 1 or (major == 0 and minor >= 5)
     except (ValueError, AttributeError, IndexError):
-        logger.warning("Unable to parse Ollama version: %s", ollama_version)
-        return False
+        logger.warning("Unable to parse Ollama version: %r", ollama_version)
+        return None
 
 
 def get_fallback_strategy() -> str:

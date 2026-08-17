@@ -93,6 +93,25 @@ class LLMClient:
             print(f"An unexpected error occurred: {e}")
             raise
 
+    async def get_ollama_version(self) -> str | None:
+        """Query the remote Ollama server for its version.
+
+        Calls ``GET /api/version`` on the configured remote endpoint.
+        Returns the version string (e.g. ``"0.5.4"``) or ``None`` if the
+        request fails or the response is unexpected.
+
+        Returns:
+            The Ollama server version string, or None on failure.
+        """
+        try:
+            response = await self.client.get("/api/version", timeout=5.0)
+            response.raise_for_status()
+            data = response.json()
+            version = data.get("version")
+            return version if isinstance(version, str) and version else None
+        except (httpx.HTTPError, ValueError):
+            return None
+
     async def close(self) -> None:
         """Close the client connection."""
         await self.client.aclose()

@@ -256,7 +256,18 @@ async def test_orchestrator_tool_execution_loop() -> None:
         )
     )
 
-    orchestrator = AgentOrchestrator(llm_client=llm_mock, dispatcher=dispatcher_mock, parser=parser_mock)
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            max_validation_retries=0,
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
     context = make_context_with_runtime_rules()
 
     steps = []
@@ -338,7 +349,7 @@ async def test_orchestrator_forwards_native_schema_format_to_llm() -> None:
     dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
 
     config = OrchestratorConfig(
-        schema_config=SchemaConfig(use_native_constraint=True),
+        schema_config=SchemaConfig(use_native_constraint=True, ollama_version="0.5.4"),
     )
     orchestrator = AgentOrchestrator(
         llm_client=llm_mock,
@@ -393,3 +404,464 @@ async def test_orchestrator_omits_format_when_native_constraint_disabled() -> No
     llm_mock.generate.assert_awaited()
     call_kwargs = llm_mock.generate.call_args.kwargs
     assert "format" not in call_kwargs, "format must be omitted when native constraint is disabled"
+
+
+# ---------------------------------------------------------------------------
+# 5b. Capability resolution (runtime version-driven format decision)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_format_included_when_remote_server_supports() -> None:
+    """Remote server reports a supported version → native format IS sent.
+
+    The LLMClient's get_ollama_version() returns "0.6.1" (supported),
+    so the orchestrator must include the format kwarg.
+    """
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+    # Simulate the remote server reporting a supported version
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.6.1")
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(use_native_constraint=True),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    llm_mock.generate.assert_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" in call_kwargs, "format must be included when server capability is confirmed"
+    assert call_kwargs["format"]["type"] == "object"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_format_omitted_when_remote_server_unsupported() -> None:
+    """Remote server reports an unsupported version → native format NOT sent.
+
+    The LLMClient's get_ollama_version() returns "0.3.0" (below 0.5.0),
+    so the orchestrator must NOT include the format kwarg.
+    """
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+    # Simulate the remote server reporting an old unsupported version
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.3.0")
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(use_native_constraint=True),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    llm_mock.generate.assert_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" not in call_kwargs, "format must be omitted when server is known-unsupported"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_format_omitted_when_capability_unknown() -> None:
+    """Remote capability cannot be determined → safe default: NO format.
+
+    The LLMClient's get_ollama_version() returns None (unreachable/malformed),
+    so the orchestrator must NOT assume support and must omit the format kwarg.
+    """
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+    # Simulate the remote server being unreachable
+    llm_mock.get_ollama_version = AsyncMock(return_value=None)
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(use_native_constraint=True),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    llm_mock.generate.assert_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" not in call_kwargs, (
+        "format must be omitted when capability is UNKNOWN (safe default: do not assume support)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_static_ollama_version_override_works() -> None:
+    """Static ollama_version config bypasses remote query and classifies correctly."""
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+    # get_ollama_version should NOT be called when static override is set
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.3.0")
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            ollama_version="1.0.0",  # static override: supported
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    # Static override used → remote query NOT made
+    llm_mock.get_ollama_version.assert_not_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" in call_kwargs, "static override of supported version → format included"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_get_ollama_version_not_called_when_disabled() -> None:
+    """When use_native_constraint=False, no version query is made at all."""
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(return_value=LLMGenerateResult(text="Direct answer"))
+    llm_mock.get_ollama_version = AsyncMock(return_value="0.5.4")
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("No JSON found")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(use_native_constraint=False),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    async for _step in orchestrator.run_stream("Hello", context=context):
+        pass
+
+    # Version query must NOT be made when native constraint is disabled
+    llm_mock.get_ollama_version.assert_not_awaited()
+    call_kwargs = llm_mock.generate.call_args.kwargs
+    assert "format" not in call_kwargs
+
+
+# ---------------------------------------------------------------------------
+# 6. Schema-violation retry path (Step 2.2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_schema_retry_recovers_after_one_invalid_response() -> None:
+    """When the first response is schema-invalid and the second is valid.
+
+    The orchestrator must re-issue the LLM call with the retry prompt and
+    succeed without falling through to the legacy parser for step 1.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+    valid_json = '{"tool_name": "get_quote", "tool_args": {"ticker": "AAPL"}}'
+    terminal_text = "Apple is currently trading at $180."
+
+    # Step 1: call1=invalid → retry → call2=valid → tool dispatched
+    # Step 2: call3=text → retry → call4=text → parser(raises) → terminal
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(
+        side_effect=[
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=valid_json),
+            LLMGenerateResult(text=terminal_text),
+            LLMGenerateResult(text=terminal_text),
+        ]
+    )
+
+    # Parser raises: proves it was NOT used for step 1 recovery
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = ToolParsingError("Parser must not be the recovery path")
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-retry",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            max_validation_retries=1,
+            ollama_version="0.5.4",
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # Step 1: 2 calls (invalid + valid retry). Step 2: 2 calls (text + retry text).
+    assert llm_mock.generate.await_count == 4
+    # Tool was dispatched from the valid retry response in step 1
+    assert len(steps) == 2
+    assert steps[0].is_terminal is False
+    assert steps[0].executed_tools[0].result == {"price": 180.0}
+    assert steps[1].is_terminal is True
+    # Parser was called (in step 2 after retries exhausted) but step 1 succeeded
+    # via retry — the tool result proves recovery without parser.
+    assert parser_mock.parse.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_schema_retry_exhaustion_falls_to_parser() -> None:
+    """When all retry attempts return schema-invalid responses, the budget exhausts.
+
+    The legacy parser fallback is then invoked as a last resort.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+    terminal_text = "Apple is currently trading at $180."
+
+    # Step 1: call1,2,3 all invalid → retries exhausted → parser succeeds → tool
+    # Step 2: call4,5,6 all text → retries exhausted → parser fails → terminal
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(
+        side_effect=[
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=terminal_text),
+            LLMGenerateResult(text=terminal_text),
+            LLMGenerateResult(text=terminal_text),
+        ]
+    )
+
+    # Step 1: parser succeeds (fallback). Step 2: parser fails (terminal).
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = [
+        ParsedToolCall(tool_name="get_quote", arguments={"ticker": "AAPL"}),
+        ToolParsingError("No JSON in final text"),
+    ]
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-exhaust",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            max_validation_retries=2,
+            ollama_version="0.5.4",
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # Step 1: 3 calls (initial + 2 retries). Step 2: 3 calls (initial + 2 retries).
+    assert llm_mock.generate.await_count == 6
+    # Parser called once per step (after exhaustion)
+    assert parser_mock.parse.call_count == 2
+    # Tool executed in step 1 via parser fallback
+    assert len(steps) == 2
+    assert steps[0].is_terminal is False
+    assert steps[0].executed_tools[0].result == {"price": 180.0}
+    assert steps[1].is_terminal is True
+
+
+@pytest.mark.asyncio
+async def test_schema_retry_does_not_use_parser_as_primary_recovery() -> None:
+    """Even when the parser COULD handle the response, it must NOT be invoked.
+
+    During the retry budget the retry prompt is the primary recovery mechanism.
+    """
+    invalid_json = '{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'
+    terminal_text = "Apple is currently trading at $180."
+
+    # Step 1: call1=invalid → retry → call2=invalid → exhausted → parser(succeeds) → tool
+    # Step 2: call3=text → retry → call4=text → exhausted → parser(fails) → terminal
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(
+        side_effect=[
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=invalid_json),
+            LLMGenerateResult(text=terminal_text),
+            LLMGenerateResult(text=terminal_text),
+        ]
+    )
+
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = [
+        ParsedToolCall(tool_name="get_quote", arguments={"ticker": "AAPL"}),
+        ToolParsingError("No JSON in final text"),
+    ]
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-gate",
+            tool_name="get_quote",
+            success=True,
+            result="ok",
+        )
+    )
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=True,
+            max_validation_retries=1,
+            ollama_version="0.5.4",
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # Step 1: 2 calls (initial + 1 retry). Step 2: 2 calls (initial + 1 retry).
+    assert llm_mock.generate.await_count == 4
+    # Parser called exactly once per step — only AFTER budget exhausted
+    assert parser_mock.parse.call_count == 2
+    # Verify the retry feedback message was injected into context
+    msgs = context.get_messages()
+    user_msgs = [m for m in msgs if m.role == Role.USER]
+    retry_feedback_msgs = [
+        m for m in user_msgs if "schema" in m.content.lower() or "did not match" in m.content.lower()
+    ]
+    assert len(retry_feedback_msgs) >= 1, "retry feedback message must be present in context"
+
+
+@pytest.mark.asyncio
+async def test_provider_compat_parser_fallback_when_native_disabled() -> None:
+    """When use_native_constraint is False, the legacy parser IS the recovery path.
+
+    The provider-compatibility mode expects the parser for non-JSON responses.
+    No retry loop should be triggered (max_retries is forced to 0).
+    """
+    llm_mock = MagicMock(spec=LLMClient)
+    llm_mock.generate = AsyncMock(
+        side_effect=[
+            LLMGenerateResult(text='{"name": "get_quote", "parameters": {"ticker": "AAPL"}}'),
+            LLMGenerateResult(text="Apple is currently trading at $180."),
+        ]
+    )
+
+    # Step 1: parser succeeds → tool. Step 2: parser fails → terminal.
+    parser_mock = MagicMock(spec=ToolParser)
+    parser_mock.parse.side_effect = [
+        ParsedToolCall(tool_name="get_quote", arguments={"ticker": "AAPL"}),
+        ToolParsingError("No JSON in final text"),
+    ]
+
+    dispatcher_mock = MagicMock(spec=AsyncToolDispatcher)
+    dispatcher_mock.dispatch = AsyncMock(
+        return_value=ToolCallResult(
+            call_id="call-compat",
+            tool_name="get_quote",
+            success=True,
+            result={"price": 180.0},
+        )
+    )
+
+    config = OrchestratorConfig(
+        schema_config=SchemaConfig(
+            use_native_constraint=False,
+            max_validation_retries=3,  # must be ignored when native is off
+        ),
+    )
+    orchestrator = AgentOrchestrator(
+        llm_client=llm_mock,
+        dispatcher=dispatcher_mock,
+        parser=parser_mock,
+        options=OrchestratorOptions(config=config),
+    )
+
+    context = make_context_with_runtime_rules()
+    steps = []
+    async for step in orchestrator.run_stream("What is Apple price?", context=context):
+        steps.append(step)
+
+    # Exactly one LLM call per step (no retries when native is disabled)
+    assert llm_mock.generate.await_count == 2
+    # Parser is the immediate fallback (one call per step)
+    assert parser_mock.parse.call_count == 2
+    # Tool executed in step 1
+    assert len(steps) == 2
+    assert steps[0].is_terminal is False
+    assert steps[0].executed_tools[0].result == {"price": 180.0}
+    assert steps[1].is_terminal is True
+    # No retry feedback messages in context (retry loop was never entered)
+    user_msgs = [m for m in context.get_messages() if m.role == Role.USER]
+    retry_msgs = [m for m in user_msgs if "schema" in m.content.lower() or "did not match" in m.content.lower()]
+    assert len(retry_msgs) == 0, "no retry feedback when native constraint is disabled"

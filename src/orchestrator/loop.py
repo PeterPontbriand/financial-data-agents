@@ -24,9 +24,9 @@ from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.types import AgentStepResult, ChatMessage, Role, ToolCallRequest
 from src.schema.config import SchemaConfig
-from src.schema.constraint import format_schema_for_ollama
+from src.schema.constraint import detect_ollama_schema_support, format_schema_for_ollama
 from src.schema.models import ToolCallResponse
-from src.schema.validator import validate_response
+from src.schema.validator import build_retry_messages, validate_response
 from src.tools.parser import ToolParser
 
 
@@ -86,6 +86,11 @@ class AgentOrchestrator:
         if self.recorder.run_context != self.run_context:
             raise ValueError("Orchestrator run_context must match the recorder run_context.")
 
+        # Step 2.2 – Native schema capability (lazy-resolved, cached per-instance)
+        # True=supported, False=unsupported, None=unknown/unresolved
+        self._schema_capability: bool | None = None
+        self._capability_resolved: bool = False
+
     async def run_stream(self, prompt: str, context: MessageContext) -> AsyncGenerator[AgentStepResult, None]:
         """Run the orchestration loop while recording an ordered causal trajectory."""
         run_started = False
@@ -105,14 +110,9 @@ class AgentOrchestrator:
                 self._record_step_start(step, step_span_id, run_span_id)
 
                 request_span_id = self.recorder.start_span(parent_span_id=step_span_id)
-                prompt_payload = context.to_ollama_payload()
 
-                raw_response = await self._call_llm(step, prompt_payload, step_span_id, request_span_id)
-                if raw_response is None:
-                    continue
-
-                tool_requests, assistant_msg = self._handle_llm_response(
-                    (step, step_span_id, request_span_id), raw_response, context
+                tool_requests, assistant_msg = await self._handle_llm_response(
+                    step, step_span_id, request_span_id, context
                 )
 
                 if not tool_requests:
@@ -208,6 +208,63 @@ class AgentOrchestrator:
             )
         )
 
+    async def _resolve_schema_capability(self) -> bool:
+        """Determine whether to send the native JSON Schema constraint.
+
+        Resolution order:
+          1. If ``use_native_constraint`` is False → never send (explicit opt-out).
+          2. If ``SchemaConfig.ollama_version`` is set → classify that static value.
+          3. Otherwise → query the configured remote Ollama endpoint once, cache result.
+
+        Policy for unknown capability (version unresolvable):
+          Do NOT send the native constraint.  This is the safe default:
+          an unsupported ``format`` key may cause the server to reject the
+          entire request, whereas omitting it preserves existing behavior.
+
+        Returns:
+            True if the native ``format`` kwarg should be included in the LLM request.
+        """
+        if not self.config.schema_config.use_native_constraint:
+            return False
+
+        if self._capability_resolved:
+            return self._schema_capability is True
+
+        # Resolve: prefer static config override, then remote query
+        if self.config.schema_config.ollama_version is not None:
+            self._schema_capability = detect_ollama_schema_support(self.config.schema_config.ollama_version)
+        else:
+            version = await self.llm_client.get_ollama_version()
+            self._schema_capability = detect_ollama_schema_support(version)
+
+        self._capability_resolved = True
+        return self._schema_capability is True
+
+    async def _build_generate_kwargs(self, prompt_payload: Any) -> dict[str, Any]:
+        """Build the kwargs for an LLM generate call, including schema constraints.
+
+        The native schema ``format`` kwarg is only included when:
+          * ``use_native_constraint`` is enabled AND
+          * the remote Ollama server capability is confirmed (>= 0.5.0).
+
+        When capability is unknown or unsupported, the request is constructed
+        without the ``format`` key and the existing retry/fallback path handles
+        schema validation.
+        """
+        kwargs: dict[str, Any] = {
+            "prompt": prompt_payload,
+            "model": self.config.model_selection,
+            "temperature": self.config.temperature,
+        }
+        if await self._resolve_schema_capability():
+            schema_params = format_schema_for_ollama(
+                ToolCallResponse,
+                strict=self.config.schema_config.strict_mode,
+                additional_properties=self.config.schema_config.additional_properties,
+            )
+            kwargs.update(schema_params)
+        return kwargs
+
     async def _call_llm(
         self,
         step: int,
@@ -217,21 +274,7 @@ class AgentOrchestrator:
     ) -> str:
         """Perform LLM call with telemetry and schema constraints."""
         request_started = time.perf_counter()
-
-        generate_kwargs: dict[str, Any] = {
-            "prompt": prompt_payload,
-            "model": self.config.model_selection,
-            "temperature": self.config.temperature,
-        }
-
-        # Step 2.2: Pass format=Schema constraint to Ollama client if enabled
-        if self.config.schema_config.use_native_constraint:
-            schema_params = format_schema_for_ollama(
-                ToolCallResponse,
-                strict=self.config.schema_config.strict_mode,
-                additional_properties=self.config.schema_config.additional_properties,
-            )
-            generate_kwargs.update(schema_params)
+        generate_kwargs = await self._build_generate_kwargs(prompt_payload)
 
         self.recorder.record(
             TrajectoryRecord(
@@ -244,7 +287,7 @@ class AgentOrchestrator:
                 payload={
                     "messages": prompt_payload,
                     "temperature": self.config.temperature,
-                    "format_constrained": self.config.schema_config.use_native_constraint,
+                    "format_constrained": "format" in generate_kwargs,
                 },
             )
         )
@@ -283,45 +326,85 @@ class AgentOrchestrator:
         )
         return result.text
 
-    def _handle_llm_response(
+    async def _handle_llm_response(
         self,
-        span_info: tuple[int, UUID, UUID],
-        raw_response: str,
+        step: int,
+        step_span_id: UUID,
+        request_span_id: UUID,
         context: MessageContext,
     ) -> tuple[list[ToolCallRequest], ChatMessage]:
-        """Parse LLM response using native Pydantic second-line validation."""
-        step, step_span_id, request_span_id = span_info
-        tool_requests: list[ToolCallRequest] = []
+        """Parse LLM response with schema validation and bounded retry on violation.
 
-        # Step 2.2: Second-line Pydantic validation defense
-        val_result = validate_response(
-            raw_response,
-            ToolCallResponse,
-            strict=self.config.schema_config.strict_mode,
+        Step 2.2: When the LLM is called with a native schema constraint and
+        the response fails Pydantic validation, the failure is treated as a
+        recoverable schema violation.  The orchestrator builds a retry prompt
+        via ``build_retry_messages``, re-issues the LLM call, and repeats up
+        to ``SchemaConfig.max_validation_retries`` times.
+
+        Only after the retry budget is exhausted (or when native constraint
+        is disabled) does the response fall through to the legacy
+        ``self.parser.parse`` as a gated provider-compatibility fallback.
+        """
+        strict = self.config.schema_config.strict_mode
+        max_retries = (
+            self.config.schema_config.max_validation_retries if self.config.schema_config.use_native_constraint else 0
         )
 
-        if val_result.valid and isinstance(val_result.data, ToolCallResponse):
-            tool_requests.append(
-                ToolCallRequest(
-                    tool_name=val_result.data.tool_name,
-                    arguments=val_result.data.tool_args,
-                )
-            )
-        else:
-            # Record recoverable validation error to telemetry
+        # --- initial attempt ------------------------------------------------
+        payload = context.to_ollama_payload()
+        raw = await self._call_llm(step, payload, step_span_id, request_span_id)
+        val = validate_response(raw, ToolCallResponse, strict=strict)
+
+        # --- bounded retry loop ---------------------------------------------
+        attempts = 0
+        while not val.valid and attempts < max_retries:
             self.recorder.record_error(
                 TrajectoryErrorRecord(
                     component="schema_validator",
-                    message=val_result.error_summary(),
+                    message=val.error_summary(),
                     step_index=step,
                     span_id=request_span_id,
                     parent_span_id=step_span_id,
-                    error_type=val_result.error_type.value if val_result.error_type else "SchemaValidationError",
+                    error_type=val.error_type.value if val.error_type else "SchemaValidationError",
                 )
             )
-            # Fallback to string/regex parser if second-line schema validation fails
+            retry_messages = build_retry_messages(payload, val, assistant_content=raw)
+            delta = retry_messages[len(payload) :]
+            context.append_raw_dicts(delta)
+            payload = retry_messages
+            raw = await self._call_llm(step, payload, step_span_id, request_span_id)
+            val = validate_response(raw, ToolCallResponse, strict=strict)
+            attempts += 1
+
+        # Record final validation failure when the retry loop never ran (max_retries=0)
+        if not val.valid and attempts == 0:
+            self.recorder.record_error(
+                TrajectoryErrorRecord(
+                    component="schema_validator",
+                    message=val.error_summary(),
+                    step_index=step,
+                    span_id=request_span_id,
+                    parent_span_id=step_span_id,
+                    error_type=val.error_type.value if val.error_type else "SchemaValidationError",
+                )
+            )
+
+        # --- resolve tool requests -------------------------------------------
+        tool_requests: list[ToolCallRequest] = []
+        if val.valid and isinstance(val.data, ToolCallResponse):
+            tool_requests.append(
+                ToolCallRequest(
+                    tool_name=val.data.tool_name,
+                    arguments=val.data.tool_args,
+                )
+            )
+        else:
+            # Gated fallback: legacy parser as a provider-compatibility last
+            # resort.  Reached only when:
+            #   * use_native_constraint is False (provider-compat path), OR
+            #   * the retry budget is exhausted on the native-constraint path.
             try:
-                parsed = self.parser.parse(raw_response)
+                parsed = self.parser.parse(raw)
                 tool_requests.append(
                     ToolCallRequest(
                         tool_name=parsed.tool_name,
@@ -342,7 +425,7 @@ class AgentOrchestrator:
 
         assistant_msg = ChatMessage(
             role=Role.ASSISTANT,
-            content=raw_response,
+            content=raw,
             tool_calls=tool_requests if tool_requests else None,
         )
         context.add_message(assistant_msg)

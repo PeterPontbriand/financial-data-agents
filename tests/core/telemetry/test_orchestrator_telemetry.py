@@ -14,6 +14,7 @@ from src.llm.client import LLMGenerateResult
 from src.orchestrator.context import MessageContext
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 from src.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
+from src.schema.config import SchemaConfig
 from src.tools.parser import ParsedToolCall
 
 
@@ -23,6 +24,10 @@ class FakeLLMClient:
     def __init__(self) -> None:
         """Initialize the fake client with a call counter."""
         self.calls = 0
+
+    async def get_ollama_version(self) -> str | None:
+        """Return a supported version to exercise the native-constraint path."""
+        return "0.6.0"
 
     async def generate(
         self,
@@ -63,7 +68,10 @@ async def test_complete_run_writes_reconstructable_jsonl(tmp_path: Path) -> None
     dispatcher.register_tool("echo", lambda value: value)
     recorder = TrajectoryRecorder(RunContext.new(), JSONLTrajectorySink(tmp_path))
     options = OrchestratorOptions(
-        config=OrchestratorConfig(model_selection="test-model"),
+        config=OrchestratorConfig(
+            model_selection="test-model",
+            schema_config=SchemaConfig(use_native_constraint=True, max_validation_retries=0),
+        ),
         recorder=recorder,
     )
     orchestrator = AgentOrchestrator(
