@@ -52,8 +52,9 @@ The project covers local Ollama orchestration, typed deterministic tools/analyze
 
 - **Master Plan** = execution roadmap and milestone intent.
 - **Milestone implementation plan** = active implementation sequencing, guardrails, review gates, and acceptance criteria.
+- **Step 2.3 Graham design** = compact approved implementation specification for the active Graham work; it does not override milestone scope or review gates.
 - **Discovery Workbook** = rationale, trade-offs, long-lived constraints.
-- **Architecture Guide** = current architectural boundaries.
+- **Architecture Guide** = current architectural boundaries and explicitly labeled near-term target seams.
 
 Do not infer implementation scope from this workbook when the active milestone plan explicitly narrows it.
 
@@ -100,9 +101,12 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 ### 4.2 Architecture
 - LLM and data providers sit behind narrow boundaries.
 - `BaseAnalyzer` is the existing analyzer abstraction; do not invent a parallel strategy framework without evidence it is required.
-- `BaseDataClient` is the market-data provider boundary.
-- Historical-series access and current-quote access are distinct capabilities.
+- `BaseDataClient` remains the historical-price provider boundary.
+- Step 2.3 valuation facts use a dedicated provider/resolution boundary rather than enlarging a historical-price-shaped interface.
+- Historical prices, current quotes, company fundamentals, and macro series are distinct capabilities even when a composed façade coordinates them.
 - Different strategies may have different inputs and result models.
+- Financial method names and result meanings are explicit; Graham Number and Graham growth value are not interchangeable.
+- Requested analysis `as_of` and fact-availability dates are correctness boundaries, not decorative metadata.
 - Production persistence, telemetry, fixtures, and evaluation artifacts are separate concerns.
 
 ### 4.3 AI
@@ -171,11 +175,14 @@ CLI
     → structured analysis/tool selection
       → BaseAnalyzer implementations
         ├─ MomentumAnalyzer
-        └─ GrahamValueAnalyzer (Step 2.3)
-      → BaseDataClient
-        ├─ historical series
-        └─ current quote
-      → provider/fixture adapter
+        └─ Graham analysis (Step 2.3 target)
+           ├─ graham_number (default)
+           └─ graham_growth_value (explicit)
+      → data boundaries
+        ├─ BaseDataClient → historical prices
+        └─ ValuationFactsProvider → quote/fundamentals/macro
+             → InputResolver ← override/cache
+      → provider/fixture capabilities
       → deterministic result
   → synthesis/reporting
 ```
@@ -236,11 +243,16 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 
 # 11. Data Strategy
 
-- **Provider boundary:** `BaseDataClient`.
+- **Historical-price boundary:** `BaseDataClient` remains focused on historical market series.
+- **Valuation-input boundary:** Step 2.3 adopts Option A—a dedicated valuation-facts provider boundary, narrow cache seam, input resolver, and typed provenance models.
 - **Current provider:** yfinance is an active adapter; other clients may exist as placeholders/alternatives but are not automatically the production authority.
 - **Historical data:** first-class capability used by Momentum/time-series strategies.
-- **Current quote:** first-class capability introduced in Step 2.3 for Graham/valuation comparison.
-- **Step 2.3 fixtures:** minimal deterministic adapter/data proving both capabilities; no live fallback.
+- **Current quote:** first-class valuation input used for Graham price comparison; it is not a one-day historical request.
+- **Fundamentals:** annual/TTM EPS and BVPS or its components retain their accounting basis, periods, availability dates, transformations, and source fields.
+- **Macro series:** the growth method requires a documented AAA-yield observation; no arbitrary ticker or single-provider assumption is accepted without evidence.
+- **Resolution:** each field uses override → valid cache → provider → unavailable precedence.
+- **Temporal correctness:** requested `as_of` rejects information not yet available; current snapshots do not silently answer historical requests.
+- **Step 2.3 fixtures:** minimal deterministic data proving historical-price and valuation-input contracts plus resolution precedence/provenance; no live fallback.
 - **Step 2.4 fixtures:** Golden evidence using the stable Step 2.3 contract.
 - **Step 3.1 production persistence:** SQLite/WAL/cache-backed implementation of the shared contract.
 - **Provenance:** stored/fixture data carries enough source/date/schema information to audit its origin.
@@ -262,6 +274,7 @@ Light Mode is the default adoption path; Full Dual-Tier remains optional.
 ### Evaluation
 Step 2.4 measures:
 - strategy/tool selection;
+- Graham method selection where applicable;
 - deterministic numerical correctness;
 - overall case success.
 
@@ -290,7 +303,8 @@ Single-node local usage is the primary target. Optimize deterministic local path
 
 Extension points include:
 - new analyzers under `src/analysis/`;
-- new provider adapters behind `BaseDataClient`;
+- new historical-price adapters behind `BaseDataClient`;
+- new valuation quote/fundamentals/macro adapters behind the dedicated Step 2.3 valuation-input boundary;
 - new typed tools through existing registration/dispatch;
 - repository implementations under `src/data/repositories/`.
 
@@ -305,7 +319,8 @@ Current documents:
 - `AGENTS.md`
 - `RUNTIME_AGENTS.md`
 - `docs/MASTER_PLAN.md`
-- `docs/MILESTONE_v0_2_IMPLEMENTATION_PLAN.md`
+- `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`
+- `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` — active compact specification for Step 2.3;
 - `docs/ARCHITECTURE.md`
 - `docs/DISCOVERY_WORKBOOK.md`
 - `docs/FINANCE_MATH.md`
@@ -370,6 +385,11 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - Momentum-specific assumptions embedded in generic orchestration.
 - Speculative strategy registries/plugin systems.
 - Treating a one-day historical download as a quote API when a current quote is a distinct requirement.
+- Conflating the Graham Number with the forecast-dependent Graham growth formula.
+- Burying financial input provenance in untyped metadata.
+- Accepting look-ahead bias by using facts that were not yet filed/published at the requested analysis date.
+- Assuming one upstream provider supplies well-defined quotes, fundamentals, and macro series without verifying field semantics.
+- Letting stale repository documentation compete with an approved active-step design.
 - Telemetry becoming business control flow.
 - Golden expectations generated from the same implementation under test.
 - Live network fallback from deterministic fixtures.
@@ -384,13 +404,20 @@ Finance remains primary. Core layers remain modular enough for possible later re
 1. Will WAL + connection discipline remain sufficient for future denser multi-tool/multi-agent workloads?
 2. Does `fr-CA` localization remain in v0.3 after v0.2.5 user feedback?
 3. Do future additional strategies reveal a genuine need for a richer analyzer registry/plugin mechanism? This remains intentionally unresolved until concrete repetition justifies it.
+4. Which verified provider fields supply three completed fiscal-year EPS observations, TTM EPS, and BVPS or its components with sufficient accounting/temporal metadata?
+5. Which exact AAA corporate-bond-yield series, frequency, provider, retrieval mechanism, and licensing terms should `graham_growth_value` use?
+6. Which provider capabilities can honor historical `as_of` without look-ahead bias, and which must report `input_unavailable`?
 
 ---
 
 # 24. Glossary
 
 - **BaseAnalyzer** — Existing abstract analysis boundary.
-- **BaseDataClient** — Market-data provider boundary.
+- **BaseDataClient** — Historical-price provider boundary.
+- **ValuationFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro inputs required by Graham analysis.
+- **InputResolver** — Field-level override/cache/provider/unavailable resolution with typed provenance and time boundaries.
+- **Graham Number** — Default earnings-and-book-value screening ceiling, not a complete intrinsic-value determination.
+- **Graham growth value** — Explicit secondary, forecast-dependent growth-stock estimate.
 - **Golden Benchmark Suite** — Fixed deterministic cases with verified behavioral/numeric expectations.
 - **Fixture adapter** — Deterministic test implementation of the market-data contract.
 - **Strategy-selection correctness** — Whether the appropriate deterministic analytical capability/tool was selected with valid arguments.
@@ -410,6 +437,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | 2026-08-13 | Positioning, user-validation gate, and Light Mode decisions |
 | 2026-08-16 | Telemetry/persistence sequencing and deterministic Golden-data boundary clarified |
 | 2026-08-19 | Heterogeneous strategy independence adopted; Graham moved into v0.2 Step 2.3; current quote made first-class; Golden Suite separated into Step 2.4; circuit breakers bumped to Step 2.5; speculative strategy framework explicitly rejected |
+| 2026-08-20 | Graham split into default Graham Number and explicit growth-value methods; Option A valuation provider/cache/resolver boundary adopted; provenance, `as_of`, and no-look-ahead rules made explicit; compact Step 2.3 specification added |
 
 ---
 
@@ -439,6 +467,10 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | D20 | 2026-08-19 | Use Momentum + Graham as intentionally heterogeneous early strategies | Tests whether architecture generalizes beyond Momentum | Accepted |
 | D21 | 2026-08-19 | Current quote is a first-class market-data capability distinct from historical series | Avoids one-day-history workaround; supports valuation cleanly | Accepted |
 | D22 | 2026-08-19 | Split Graham/data foundation (2.3) from Golden evaluation (2.4); bump circuit breakers to 2.5; reject speculative strategy registry | Gives Cline/humans a review gate and limits scope creep | Accepted |
+| D23 | 2026-08-20 | Implement two explicit Graham methods: default `graham_number` and secondary `graham_growth_value` | Avoids conflating a defensive screening ceiling with a forecast-dependent growth estimate | Accepted |
+| D24 | 2026-08-20 | Use Option A: keep `BaseDataClient` historical-price focused and add a dedicated valuation-facts provider boundary, cache seam, resolver, and provenance models | Keeps materially different quote/fundamental/macro inputs out of a price-history-shaped interface while preserving narrow contracts | Accepted |
+| D25 | 2026-08-20 | Resolve each valuation input through override → valid cache → provider → unavailable with strict `as_of` and availability-date rules | Makes results reproducible, auditable, and resistant to silent look-ahead bias | Accepted |
+| D26 | 2026-08-20 | Use one `graham` CLI with an explicit method discriminator; omitted method selects the Graham Number | Keeps the user-facing strategy coherent while preventing silent method substitution | Accepted |
 
 ---
 
