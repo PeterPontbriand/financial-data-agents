@@ -1,6 +1,6 @@
 # Step 2.3 Graham Implementation Slice Plan
 
-**Status:** Working implementation sequence; all changes remain local and uncommitted<br/>
+**Status:** Slices A–E2 complete and approved; human-approved checkpoint commit/push permitted; E3 next<br/>
 **Governing design:** `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
 **Last updated:** 2026-08-21
@@ -9,7 +9,7 @@
 
 This document is the concise handoff and execution plan for implementing Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`.
 
-Each slice must be implemented and reviewed independently. Do not begin Step 2.4, create a durable cache, or commit the accumulated Step 2.3 changes until the final Step 2.3 review is approved.
+Each slice must be implemented and reviewed independently. Do not begin Step 2.4 or create Step 3 durable persistence during Step 2.3. Reviewed intermediate checkpoints may be committed/pushed only after explicit human approval and a green agreed gate; such a checkpoint does not declare Step 2.3 complete.
 
 ## 2. Cross-slice rules
 
@@ -24,7 +24,7 @@ The following rules apply to every slice:
 7. No live API or network calls are permitted in automated tests.
 8. Production provider fields are not guessed. They must pass the provider evidence gate in the governing design.
 9. Expected growth remains an explicit user-supplied input for the growth-value method unless a separate growth-estimation policy is approved.
-10. Do not commit at the end of an individual slice.
+10. Do not commit automatically at the end of an individual slice. A human may explicitly authorize a coherent reviewed checkpoint commit/push; Cline must otherwise leave the worktree untouched by Git write actions.
 
 ## 3. Coding-model workflow
 
@@ -46,7 +46,8 @@ At the end of each slice:
 2. Generate a full tracked-and-untracked diff with the local `all_changes.diff.sh` convenience script.
 3. Confirm that no unauthorized files or concepts were introduced.
 4. Resolve only review findings within that slice before proceeding.
-5. Begin the next slice in a fresh Cline task.
+5. If the human designates the state as a checkpoint, rerun the agreed gate and obtain explicit commit/push authorization; a checkpoint does not complete the parent step.
+6. Begin the next slice in a fresh Cline task.
 
 ## 4. Slice status and scope
 
@@ -57,16 +58,19 @@ At the end of each slice:
 | C1 | Provenance models and in-memory cache foundation | Complete and approved |
 | C2 | Provider-neutral fact contracts and field-level input resolution | Completed incrementally through C2D-2 and approved |
 | D | Deterministic valuation fixtures and fixture adapter | Complete and approved |
-| E1 | Production-provider evidence investigation | Next |
-| E2 | Implement only provider capabilities accepted after E1 review | Pending |
-| F | Unified Graham CLI and CLI tests | Pending |
+| E1 | Production-provider evidence investigation | Complete and approved |
+| E2 | Evidence-approved production adapters | Complete and approved |
+| Checkpoint | Preserve coherent foundation through E2 | Human-approved commit/push permitted; Step 2.3 remains incomplete |
+| E3 | User-viable default Graham production data path (BVPS gap) | Next |
+| F1 | Investor-facing result presentation for Graham + Momentum | Pending |
+| F2 | Unified direct-analysis CLI and CLI tests | Pending |
 | G | Documentation synchronization, final cleanup, and full quality gate | Pending |
 
 ## 5. Slice details
 
 ### Slice A — reconnaissance only
 
-Inspect the current uncommitted implementation and synchronized documentation. Identify reusable code, design conflicts, affected files, existing tests, and uncertain provider fields.
+At the time of Slice A, inspect the then-current local implementation and synchronized documentation. Identify reusable code, design conflicts, affected files, existing tests, and uncertain provider fields.
 
 Constraints:
 
@@ -176,56 +180,86 @@ Constraints:
 
 ### Slice E1 — production-provider evidence investigation
 
-Research and report evidence before implementing any live field mapping. For every candidate capability, record the exact upstream field or series, semantics, units, period, update behavior, availability/publication timestamp, historical support, and licensing considerations required by section 9 of the governing design.
+Status: complete and approved.
 
-Capabilities requiring evidence:
-
-- annual EPS;
-- TTM EPS;
-- BVPS or documented derivation components;
-- quote;
-- AAA corporate yield; and
-- historical `as_of` eligibility.
-
-FRED's Moody's Seasoned Aaa Corporate Bond Yield (`AAA`) remains a candidate for investigation, not an automatically approved selection.
-
-Constraints:
-
-- Investigation and report only.
-- Make no implementation changes.
-- Do not infer field meaning from a convenient name alone.
-
-Stop for architectural review before Slice E2.
+The evidence gate established which production capabilities could be implemented without guessing field semantics or historical behavior.
 
 ### Slice E2 — verified production adapters
 
-Implement only the production capabilities explicitly accepted after reviewing E1.
+Status: complete and approved.
+
+Implemented only evidence-approved production capabilities. The current foundation includes a production valuation-provider façade, SEC EDGAR annual diluted EPS, and Massive current TTM diluted EPS/current price. Unsupported capabilities remain explicit unavailable; current snapshots do not masquerade as historical evidence. Tests use deterministic mocked/recorded payloads and no live network calls.
+
+### Human-approved checkpoint after E2
+
+The provider/resolver foundation through E2 is a coherent durability boundary. After the agreed Ruff/mypy/pytest gate and human review, it may be committed and pushed before Investor UX changes begin.
 
 Rules:
+- the commit message must identify it as a Step 2.3 checkpoint through E2;
+- do not describe Step 2.3 as complete;
+- do not begin Step 2.4; and
+- subsequent E3/F1/F2/G work proceeds from that preserved baseline.
 
-- Unsupported capabilities return explicit unavailability.
-- A current snapshot never masquerades as historical evidence.
-- One upstream service need not provide every fact; narrow adapters may be composed.
-- Provider-specific payload details must not leak into calculators or CLI behavior.
-- Tests use mocks or recorded deterministic payloads and perform no live calls.
+### Slice E3 — user-viable default Graham data path
 
-If E1 does not establish sufficient evidence for a capability, leave that capability unsupported rather than guessing.
+**Goal:** make an ordinary ticker-only Graham Number analysis genuinely useful with production data rather than merely prettier.
 
-### Slice F — unified Graham CLI
+The verified E2 adapters do not yet provide BVPS. Research and implement a defensible production path using either:
+- a provider-reported BVPS whose definition is sufficiently documented; or
+- transparent derivation from common shareholders' equity and period-end common shares outstanding.
 
-Replace the transitional CLI surface with the approved unified `graham` command and explicit method selection.
+Required provenance:
+- exact provider fields/concepts and provider identifier;
+- common-vs-total equity semantics and applicable share class;
+- reporting/balance-sheet period;
+- filing/publication/availability timestamp;
+- units/currency;
+- transformations/derivation lineage; and
+- split/share-basis compatibility with EPS and price.
 
-Expected behavior:
+Acceptance:
+- a representative supported US equity can complete `financial-agents graham TICKER` using the default three-year-average Graham Number path without a manual BVPS override;
+- unsupported tickers/capabilities remain explicit unavailable;
+- no provider field is selected merely because its name is convenient;
+- deterministic tests cover direct/derived BVPS, unavailable data, temporal eligibility, and provenance; and
+- if no safe path can be established, stop for human product review rather than fabricating a fallback or hiding the limitation.
 
-- the Graham Number is the default method;
-- method-specific overrides are optional inputs to resolution, not universally required CLI arguments;
-- incompatible method/flag combinations produce clear usage errors;
-- an EPS override inherits the method's default basis unless `--eps-basis` is supplied, and that assumption appears in provenance;
-- optional quote failure preserves the calculated method value while suppressing comparison fields;
-- output identifies the method, status, resolved inputs, provenance, and relevant comparison values; and
-- CLI tests use deterministic providers only.
+### Slice F1 — investor-facing result presentation
 
-Before removing or renaming transitional flags, search all tests and documentation and record the intentional compatibility change.
+**Goal:** separate financial result presentation from operational logging and make Momentum + Graham feel like one coherent product.
+
+Implement strategy-specific presenters or an equivalent narrow presentation seam with four levels:
+
+1. **Default concise:** ticker, analysis/method, `as_of`, status, headline metrics, plain-language comparison, high-level sources/freshness, material warnings, and method limitation.
+2. **`--details`:** resolved inputs, basis, periods/dates, availability, source/provider, derivations, assumptions, and provenance.
+3. **`--diagnostics`:** override/cache/provider resolution trace and classified failures; cache state never erases original financial source identity.
+4. **`--json`:** stable machine-readable typed result/provenance representation.
+
+Rules:
+- user overrides are visually conspicuous, especially expected growth;
+- the Graham Number says maximum indicated price/screening ceiling, not unqualified intrinsic value;
+- raw crossover flags and similar implementation details may remain in details/JSON while the concise view uses investor language;
+- Momentum and Graham share layout/terminology conventions without a generic strategy-result bag;
+- stdout/result rendering is distinct from operational logger output; and
+- no watchlist, SQLite Analysis Run, daemon, TUI, PDF, or executive-report work enters this slice.
+
+Acceptance includes deterministic snapshot/semantic tests for both strategies, warnings/overrides, unavailable quote behavior, and machine-readable output.
+
+### Slice F2 — unified direct-analysis CLI
+
+Wire the presentation layer into the direct commands.
+
+Required behavior:
+- `financial-agents graham TICKER` defaults to Graham Number;
+- explicit `--method growth` gates growth-only options and requires the expected-growth assumption under the approved policy;
+- incompatible flags are usage errors, never silently ignored;
+- an EPS override inherits the method default basis unless explicitly changed, and that assumption is visible in provenance;
+- optional quote failure preserves a valid method value while suppressing comparison fields;
+- `--details`, `--diagnostics`, and `--json` behave consistently;
+- existing Momentum direct analysis uses the same presentation mode vocabulary; and
+- CLI tests use deterministic providers/fixtures only.
+
+Before removing/renaming transitional flags, search tests, README/help text, and code call sites and record the intentional compatibility change.
 
 ### Slice G — documentation, final cleanup, and complete gate
 
@@ -256,7 +290,7 @@ git diff --check
 git status --short --untracked-files=all
 ```
 
-Generate and review a final tracked-and-untracked diff. Stop for human review. Do not commit until that review explicitly approves the complete Step 2.3 change set.
+Generate and review the remaining tracked-and-untracked diff since the last approved checkpoint. Stop for human review. Do not declare Step 2.3 complete or begin Step 2.4 until that review explicitly approves completion; after approval, the remaining Step 2.3 changes may be committed/pushed.
 
 ## 6. Deferred and out-of-scope work
 
@@ -264,6 +298,8 @@ The following are not part of Step 2.3:
 
 - Step 2.4 Golden Suite, evaluator, or reporting work;
 - durable SQLite cache storage, migrations, and eviction policy;
+- watchlists, durable Analysis Run history, user-initiated batch refresh, and run browsing (Step 3.4);
+- daemon/service scheduling, proactive monitoring, notifications, full-screen TUI, and executive report generation;
 - LLM-generated growth estimates;
 - provider or analyst consensus growth without a separately approved policy and evidence review;
 - speculative strategy registry or plugin-framework work;
@@ -272,4 +308,4 @@ The following are not part of Step 2.3:
 
 ## 7. Final completion condition
 
-Step 2.3 is complete only when every slice through G has passed review, the implementation and documentation agree, all required inputs have explicit provenance and temporal semantics, the complete quality gate is clean, the final diff contains no unauthorized files, and the user has explicitly approved committing the accumulated changes.
+Step 2.3 is complete only when every slice through G has passed review, the default production Graham Number path is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the human explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.

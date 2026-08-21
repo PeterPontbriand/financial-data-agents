@@ -1,9 +1,9 @@
 # Step 2.3 Design: Dual-Method Graham Valuation
 
-**Status:** Approved design; implementation is local and uncommitted  
-**Last updated:** 2026-08-20  
-**Scope:** Milestone v0.2, Step 2.3 only  
-**Review gate:** Do not commit Step 2.3 or begin Step 2.4 until the completed diff is reviewed
+**Status:** Slices A–E2 complete and approved; reviewed checkpoint commit/push permitted; Slice E3 next<br/>
+**Last updated:** 2026-08-21<br/>
+**Scope:** Milestone v0.2, Step 2.3 only<br/>
+**Review gate:** Human-approved intermediate checkpoint commits are permitted after review/gates; do not declare Step 2.3 complete or begin Step 2.4 until Slices E3, F1, F2, and G are complete and the final Step 2.3 diff is approved
 
 ---
 
@@ -26,22 +26,20 @@ If two documents conflict, stop and surface the conflict. Do not silently combin
 
 ## 2. Starting point
 
-The local worktree already contains uncommitted Graham growth-formula calculation, validation, quote retrieval, fixtures, CLI, and tests. The current CLI still requires EPS, expected growth, and AAA yield.
+Slices A through E2 are complete and approved. The current implementation now contains the two pure Graham methods, provenance/cache/resolver seams, deterministic fixtures, the production valuation-provider façade, SEC EDGAR filing-dated annual diluted-EPS support, and Massive current TTM diluted EPS/current-price support. Unsupported capabilities correctly return unavailable rather than masquerading as verified evidence.
 
-That code is evidence and reusable work, but it is not a compatibility contract. Step 2.3 must be revised before commit to add:
+This is a coherent architectural checkpoint and may be committed/pushed after explicit human approval. Step 2.3 nevertheless remains incomplete.
 
-- two explicitly named Graham methods;
-- field-level input resolution;
-- provider and cache seams;
-- overrides and provenance;
-- point-in-time `as_of` behavior;
-- deterministic fixtures;
-- an explicit growth policy; and
-- synchronized user and developer documentation.
+The Real-User Validation checkpoint exposes a remaining product gap: the default Graham Number is supposed to work from an ordinary ticker request, but the verified production adapters through E2 do not yet provide a defensible BVPS/direct-or-derived path. Polishing the CLI before closing that gap would produce a good-looking default command that can still fail for a required input.
+
+The remaining Step 2.3 work therefore changes from the original single Slice F into:
+
+- **E3:** establish a user-viable default Graham Number production data path, especially BVPS;
+- **F1:** investor-facing result presentation for Graham and Momentum;
+- **F2:** unified direct-analysis CLI wiring and tests; and
+- **G:** documentation synchronization, final cleanup, full gate, and completion review.
 
 Step 2.4 remains out of scope.
-
----
 
 ## 3. Locked decisions
 
@@ -59,7 +57,10 @@ Step 2.4 remains out of scope.
 | Cache scope | Minimal in-memory/fixture seam in Step 2.3; durable SQLite cache in Step 3.1 |
 | CLI target | One `graham` command with an explicit method discriminator; omitted method means Graham Number |
 | Test data | Deterministic fixtures only; no live provider or LLM calls |
-| Commit gate | Stop after quality checks and diff review; do not commit automatically |
+| Investor presentation | Concise default view; `--details`, `--diagnostics`, and `--json` provide progressive disclosure |
+| Presentation architecture | Momentum and Graham share a visual grammar, not a forced generic internal result model |
+| Durable report model | Not Step 2.3; Step 3.4 persists Analysis Runs and renders views from them |
+| Commit gate | Coding agents never commit automatically. A reviewed intermediate checkpoint may be committed/pushed after explicit human approval; Step 2.3 completion still requires the final review gate |
 
 ---
 
@@ -137,45 +138,59 @@ The reference value is `maximum_indicated_price` for the Graham Number and `grow
 
 ---
 
-## 5. Target CLI contract
+## 5. Target CLI and presentation contract
+
+Direct Graham analysis remains:
 
 ```text
 financial-agents graham TICKER [--method number|growth] [options]
 ```
 
-`--method` defaults to `number`. The CLI must print the selected method, result meaning, input basis, analysis `as_of`, and provenance summary.
+`--method` defaults to `number`. Direct Momentum remains a peer command. A later Light Mode `financial-agents analyze TICKER` entry point may combine default deterministic analyses and bounded synthesis, but it is not required to finish Step 2.3.
 
-Common options:
+Common Graham options include:
 
-- `--as-of DATE_OR_TIMESTAMP`
-- `--data-provider PROVIDER_ID`
-- `--no-cache`
-- `--eps VALUE`
-- `--eps-basis BASIS`
-- `--quote VALUE`
+- `--as-of DATE_OR_TIMESTAMP`;
+- `--data-provider PROVIDER_ID` where supported;
+- `--no-cache`;
+- `--eps VALUE`;
+- `--eps-basis BASIS`; and
+- `--current-price`/quote override (final spelling follows existing CLI conventions).
 
-Number-specific options:
+Number-specific options include `--bvps VALUE` and `--eps-basis three_year_average|ttm` (default `three_year_average`). Growth-specific options include the explicit expected-growth assumption, AAA-yield override, and only the normalized EPS bases actually supported by the implementation. Method-incompatible flags produce clear usage errors.
 
-- `--bvps VALUE`
-- `--eps-basis three_year_average|ttm` (default: `three_year_average`)
+### Presentation levels
 
-Growth-specific options:
+The direct-analysis commands use one coherent terminal grammar while retaining strategy-specific typed results.
 
-- `--expected-growth-rate PERCENTAGE_POINTS`
-- `--aaa-yield PERCENTAGE_POINTS`
-- the normalized EPS bases actually supported by the implementation
+**Default concise view** shows:
+- ticker, analysis/method, requested `as_of`, and status/applicability;
+- headline metrics and their plain-language relationship;
+- high-level source/freshness summary;
+- material warnings and method limitations; and
+- material user overrides prominently, especially expected growth.
 
-Method-incompatible flags must produce a clear usage error. An EPS override inherits the method's default basis unless `--eps-basis` is supplied, and that assumption is recorded in provenance.
+**`--details`** shows the financial audit trail: resolved values, accounting/measurement basis, reporting/observation periods, availability dates, original provider/source identity, derivations/component lineage, and assumptions.
 
-This is the target interface, not a claim about the current uncommitted CLI. Remove or deprecate obsolete flags only after searching tests and documentation and recording the intentional compatibility change.
+**`--diagnostics`** shows software resolution behavior: override state, cache hit/miss/staleness, provider attempts, and classified unavailable/error paths. Cache state is not allowed to replace the original financial source identity.
 
----
+**`--json`** emits stable machine-readable method/result/provenance data suitable for tests and later Analysis Run persistence.
+
+Operational logger output is not the investor-facing rendering mechanism. The presenter writes user results; operational logs retain execution diagnostics.
+
+The Graham Number must say **maximum indicated price** or **screening ceiling**, never unqualified “Intrinsic Value.” The growth method must make the user-supplied growth assumption visually conspicuous.
 
 ## 6. Component boundaries
 
 ### Pure calculators
 
 Pure functions perform validation and arithmetic only. They receive resolved numeric values, return typed method-specific results, and perform no network, cache, filesystem, settings, or clock I/O.
+
+### Investor-facing presentation boundary
+
+Strategy-specific presenters (or an equivalently narrow rendering seam) translate typed Momentum/Graham results into the common concise/details/diagnostics/JSON grammar. They may format and explain already-computed fields but do not fetch providers, resolve inputs, perform financial arithmetic, or invent assumptions.
+
+Do not introduce a giant generic result object merely to share terminal formatting.
 
 ### `BaseDataClient`
 
@@ -319,41 +334,48 @@ Use the repository's existing quality commands and coverage threshold from the a
 
 ## 11. Implementation sequence for a smaller-context coding model
 
-Give the coding model one bounded prompt at a time. At the end of each slice, require a short diff summary and focused tests; do not ask it to redesign later slices.
+Give the coding model one bounded prompt at a time. At the end of each slice, require a short diff summary and focused tests; do not ask it to redesign later slices. A coding model never commits unless the human explicitly authorizes that specific action.
 
 ### Slice A — reconnaissance only
-
-Inspect the current uncommitted Step 2.3 code and synchronized documentation. Report reusable pieces, conflicts with this design, exact affected files, and any uncertain provider fields. Make no changes.
+Complete.
 
 ### Slice B — pure methods and typed results
-
-Implement/refactor the two pure calculators, method-specific validation/statuses, result models, and unit tests. No provider, cache, resolver, or CLI changes.
+Complete and approved.
 
 ### Slice C — provenance and resolver
-
-Implement resolved-input/provenance models, the minimal cache seam, field-level resolution order, `as_of` rules, and focused tests using fakes. No live adapter or CLI changes.
+Complete incrementally (C1/C2 family) and approved.
 
 ### Slice D — deterministic valuation fixtures
+Complete and approved.
 
-Add fixture facts and an adapter that prove both methods, temporal rejection, and resolver branches. No network fallback.
+### Slice E1 — provider evidence
+Complete and approved.
 
-### Slice E — provider feasibility, then adapter
+### Slice E2 — verified production adapters
+Complete and approved. SEC EDGAR annual diluted EPS and Massive current TTM EPS/current price are implemented behind the production valuation façade; unsupported capabilities remain explicit unavailable.
 
-First report documented field/series evidence for section 9. Implement only verified capabilities. Mark unsupported historical behavior unavailable. Do not guess an AAA ticker or silently use current snapshots.
+### Human-approved checkpoint
+The coherent foundation through E2 may be committed/pushed for durability after the agreed quality gate. This does not mark Step 2.3 complete and does not authorize Step 2.4.
 
-### Slice F — unified CLI
+### Slice E3 — user-viable default Graham data path
+Research and implement a defensible production BVPS capability or transparent common-equity/period-end-common-shares derivation sufficient for representative supported ticker-only Graham Number analysis. Preserve exact definition, share class, currency, reporting date, filing/publication availability, transformation, and source fields.
 
-Implement the target `graham` command, method-specific options, override semantics, clear output, and CLI tests. Search for and update affected call sites before removing old flags.
+If no safe production path can be established, return/report unavailable and stop for product review rather than weakening provenance or silently using a semantically different book-value field.
+
+### Slice F1 — investor-facing result presentation
+Build the presentation boundary and tests for concise, `--details`, `--diagnostics`, and `--json` views. Apply the same visual grammar to Momentum and Graham without changing their strategy-specific result models. Make overrides and limitations obvious. Stop using operational logger lines as the primary user result surface.
+
+### Slice F2 — unified direct-analysis CLI
+Wire the approved `graham` method-specific options/validation into the presentation layer and align the existing Momentum direct command with the shared output modes. Search for/update affected tests and documentation before removing transitional flags.
 
 ### Slice G — documentation and full gate
-
-Synchronize README/current-state notes and any remaining code-facing documentation. Run the complete milestone quality gate. Report failures and the final diff, then stop for human review without committing.
-
----
+Synchronize README/current-state notes and remaining code-facing documentation. Run the complete milestone quality gate, review the remaining Step 2.3 diff, then stop for human approval before declaring Step 2.3 complete or beginning Step 2.4.
 
 ## 12. Out of scope
 
-- Golden Suite/evaluator/reporting work owned by Step 2.4;
+- Golden Suite/evaluator reporting owned by Step 2.4;
+- durable watchlists, Analysis Run persistence/history, batch refresh, and run browsing owned by Step 3.4;
+- background daemons, unattended scheduling, proactive monitoring/notifications, full-screen TUI, and executive report generation;
 - durable SQLite cache and migrations owned by Step 3.1;
 - LLM-generated growth estimates;
 - analyst-consensus or provider growth estimates without a separately approved policy;
@@ -366,7 +388,7 @@ Synchronize README/current-state notes and any remaining code-facing documentati
 
 ## 13. Completion and review checklist
 
-Step 2.3 is ready for review only when:
+Step 2.3 is ready for final review only when:
 
 - [ ] both methods are explicitly named and mathematically tested;
 - [ ] the Graham Number is the CLI default and labeled as a screening ceiling;
@@ -377,9 +399,13 @@ Step 2.3 is ready for review only when:
 - [ ] all required inputs follow override → cache → provider → unavailable;
 - [ ] historical `as_of` behavior cannot look ahead silently;
 - [ ] exact live field mappings are evidenced or declared unsupported;
+- [ ] a representative supported production ticker completes the default Graham Number path without a manual BVPS override, or the product promise is explicitly narrowed after human review;
+- [ ] default investor output is concise and truthful; `--details`, `--diagnostics`, and `--json` expose progressively deeper evidence;
+- [ ] material overrides/warnings are conspicuous and operational logs are separate from result rendering;
+- [ ] Momentum and Graham share presentation grammar without a forced generic result model;
 - [ ] fixtures and tests are deterministic and offline;
 - [ ] current-vs-target documentation is truthful and synchronized;
 - [ ] the complete quality gate passes; and
-- [ ] the uncommitted diff is presented for human review.
+- [ ] the remaining diff since the last approved checkpoint is presented for human review.
 
-After this checklist, stop. Do not begin Step 2.4 and do not commit until approval is given.
+After this checklist, stop. Do not begin Step 2.4 until the human explicitly approves Step 2.3 completion. If approved, the remaining Step 2.3 changes may then be committed/pushed.

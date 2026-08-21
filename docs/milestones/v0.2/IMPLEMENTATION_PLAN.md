@@ -1,13 +1,13 @@
 # Milestone v0.2 Implementation Plan
-## Reliability, Observability, Data Persistence & Strategy-General Evaluation
+## Reliability, Observability, Data Persistence, Investor Workflow & Strategy-General Evaluation
 
-**Project:** Financial Data Agents  
-**Repository:** [https://github.com/PeterPontbriand/financial-data-agents](https://github.com/PeterPontbriand/financial-data-agents)  
-**Source of truth:** Current `docs/MASTER_PLAN.md` (Milestone v0.2 section)  
-**Companion rationale:** Current `docs/DISCOVERY_WORKBOOK.md`  
-**Prepared:** 2026-08-15  
-**Revised:** 2026-08-20 — Split Graham analysis into the Graham Number and the forecast-dependent Graham growth-value method, made the Graham Number the proposed default, and expanded Step 2.3 around method-aware input resolution, provenance, as-of semantics, deterministic fixtures, and explicit growth policy.  
-**Status:** Step 2.2 → Implementation complete; Step 2.3 → Implementation in progress — Slices A through D complete; Slice E1 next.; Step 2.4 → Not started
+**Project:** Financial Data Agents<br/>
+**Repository:** [https://github.com/PeterPontbriand/financial-data-agents](https://github.com/PeterPontbriand/financial-data-agents)<br/>
+**Source of truth:** Current `docs/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
+**Companion rationale:** Current `docs/DISCOVERY_WORKBOOK.md`<br/>
+**Prepared:** 2026-08-15<br/>
+**Revised:** 2026-08-21 — Replanned the investor-facing experience before Slice F: added a user-viable production Graham checkpoint (E3), split investor presentation/direct CLI work into F1/F2, added Step 3.4 watchlists and durable Analysis Runs, strengthened the Step 3.5 Light Mode workflow, and clarified bounded v0.2 agentic behavior versus v1.0 unattended autonomy.
+**Status:** Step 2.2 → Implementation complete; Step 2.3 → Slices A–E2 complete and approved, human-approved checkpoint commit/push permitted, Slice E3 next; Step 2.4 → Not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -18,23 +18,24 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 
 **In scope**
 - Step 2 – Agent Reliability, Evaluation & Observability Foundation (2.1 → 2.5)
-- Step 3 – Relational Data Persistence Layer & Data Quality (3.1 → 3.3)
+- Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
 
 **Out of scope (explicit)**
 - Milestone v0.2.5 real-user validation activities (recruitment, feedback sessions)
 - Milestone v0.3 analytics expansion or localization
-- Multi-step autonomy / executive reporting (Milestone v1.0)
-- Any UI / dashboard work
+- Unattended scheduling, proactive monitoring/notifications, autonomous multi-step research, and executive reporting (Milestone v1.0)
+- Graphical UI/dashboard and full-screen TUI work. Rich terminal presentation, CLI workspace commands, and persistent run browsing are in scope where required for v0.2.5 validation.
 
-**Success definition for the milestone**  
+**Success definition for the milestone**<br/>
 A clean, Light-Mode-capable analysis path exists that:
 1. Logs full trajectories (prompts, tool calls, latency, tokens).
 2. Enforces native Ollama JSON schema constraints + Pydantic validation.
 3. Passes a golden-test suite at the ≥ 90 % target.
 4. Has hard circuit-breaker and timeout limits.
-5. Persists data and execution logs in SQLite (WAL) with typed DAOs and basic data-quality checks.
-6. Can be run end-to-end by a new user following only the Light Mode instructions in `docs/HARDWARE.md` and the README.
+5. Persists data, execution logs, and later investor-facing Analysis Run history in SQLite (WAL) with typed repositories and basic data-quality checks.
+6. Presents Momentum and Graham through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings, resolution diagnostics, and machine-readable output.
+7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses, revisit completed runs, and inspect the evidence behind a result.
 
 ---
 
@@ -55,6 +56,9 @@ The following core principles govern all technical decisions across Milestone v0
 | **Heterogeneous Strategy Independence** | Financial-analysis strategies must be independently selectable, deterministic, typed, and swappable. The runtime and data layer must not assume that all financial analysis follows a single analytical pattern. | Step 2.3, Step 2.4, Step 3.1, Step 4 |
 | **Method-Explicit Financial Semantics** | Every financial result identifies the exact method, input convention, output meaning, assumptions, and applicability; related formulas are never silently conflated. | Step 2.3, Step 2.4 |
 | **Traceable, Time-Bounded Inputs** | Resolved values retain provenance, reporting/observation and availability dates, retrieval time, transformations, override/cache state, and the requested analysis `as_of`. | Step 2.3, Step 2.4, Step 3.1, Step 3.3 |
+| **Progressive Investor Disclosure** | Default terminal output is concise and financial; provenance, derivations, resolution diagnostics, and JSON are explicit deeper views. Operational logs are not the presentation surface. | Step 2.3, Step 3.4, Step 3.5 |
+| **Analysis Run as Canonical Product Record** | Persist the requested analysis/configuration, typed result, provenance, warnings, and timestamps; render reports/views from that record rather than generating a competing canonical artifact. | Step 3.4, Step 7 |
+| **Bounded Agentic Workflow** | v0.2 may concurrently execute user-requested work and synthesize completed typed results; unattended scheduling/proactive monitoring remains v1.0 work. | Step 3.4, Step 3.5, Step 6 |
 
 ---
 
@@ -75,6 +79,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Step 3.1 persistence foundation | `feat/step-3.1-sqlite-foundation` | Alembic, schema, SQLite telemetry sink, production data access |
 | Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
 | Step 3.3 data quality | `feat/step-3.3-data-quality` | Validation, staleness, invalidation |
+| Step 3.4 research workspace | `feat/step-3.4-research-workspace` | Watchlists, user-initiated concurrent refresh, durable Analysis Runs, run browsing |
 | Step 3.5 Light Mode | `feat/step-3.5-light-mode` | Adoption path and smoke validation |
 
 **Working agreement**
@@ -83,6 +88,8 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 - Branch names should identify the Master Plan step they implement.
 - Temporary scaffolding must be documented and have an explicit removal point.
 - Documentation-only changes may use `docs/...` branches where that is clearer.
+- A reviewed intermediate checkpoint may be committed and pushed after the human explicitly approves it and the agreed quality gates are green. Such a checkpoint does not declare the owning step complete and does not authorize beginning a later Master Plan step.
+- Cline must never commit automatically; every commit/push remains an explicit human action or authorization.
 
 ---
 
@@ -90,7 +97,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 
 ### 4.1 Step 2.1 – Trajectory Logging & Telemetry
 
-**Goal**  
+**Goal**<br/>
 Establish the project's machine-readable observability foundation without duplicating the existing human-oriented operational logger or blocking on the production SQLite layer.
 
 **Architectural boundary**
@@ -114,10 +121,10 @@ Establish the project's machine-readable observability foundation without duplic
 
 The existing `src/utils/logger_util.py` provides asynchronous queue-based logging, dual console/file routing, rotation, compression, and graceful shutdown. Step 2.1 will **reuse its configuration conventions** rather than replace it.
 
-**Sequencing decision**  
+**Sequencing decision**<br/>
 Step 2.1 defines a narrow `TrajectorySink` abstraction and implements JSONL first. Step 3.1 later adds a SQLite sink satisfying the same abstraction. The orchestrator and telemetry recorder remain decoupled from the specific underlying storage choice.
 
-**Telemetry semantics & Concrete Event Types**  
+**Telemetry semantics & Concrete Event Types**<br/>
 To ensure clarity during implementation, the initial system will emit a closed set of concrete, strongly-typed event types:
 
 * `RUN_START`: Triggered when an overall analysis session or trajectory begins.
@@ -133,7 +140,7 @@ To ensure clarity during implementation, the initial system will emit a closed s
 
 Every telemetry event envelope captures standard metadata fields including `event_id`, `trajectory_id`, `sequence`, `timestamp`, `event_type`, `component`, `schema_version`, latency, parent/correlation identifiers, and payload metadata according to configurable retention rules.
 
-**Observability & Data Boundaries**  
+**Observability & Data Boundaries**<br/>
 The telemetry recorder will capture and store observable data explicitly exposed by the model or provider during execution. This includes prompts, returned completions, tool inputs/outputs, wall-clock timing, and provider token metrics. If specific metrics (such as token counts or extended latency breakdown) are omitted by a local model/provider, the event will explicitly capture these as `null` or missing fields rather than estimating or fabricating metrics.
 
 **Implementation outline**
@@ -171,12 +178,12 @@ The telemetry recorder will capture and store observable data explicitly exposed
   `TrajectoryRecorder` sets `payload_hash` for every event that keeps a
   non-null payload (integrity without storing full bodies). Leave hash null
   only when payload is omitted.
-  
+<br/>
 ---
 
 ### 4.2 Step 2.2 – Native Schema Enforcement
 
-**Goal**  
+**Goal**<br/>
 Prevent unstructured / drifting LLM output by using Ollama's native JSON-schema constraint (`format=Schema` or equivalent) wherever the model is expected to emit structured tool calls or final synthesis objects.
 
 **Implementation outline**
@@ -210,12 +217,12 @@ Prevent unstructured / drifting LLM output by using Ollama's native JSON-schema 
   This validation is intentionally non-blocking for the Step 2.2 merge.
   Record the tested Ollama version, model identifier, schema-constrained
   request, observed response behavior, and pass/fail result when completed.
-  
+<br/>
 ---
 
 ### 4.3 Step 2.3 – Graham Methods, Input Resolution & Data Contracts
 
-**Goal**  
+**Goal**<br/>
 Add Benjamin Graham analysis as the second materially different deterministic strategy family and establish the minimum input-resolution and market-data contracts required to support Momentum and Graham without introducing speculative architecture.
 
 Step 2.3 is an **architectural foundation step**, not the Golden Suite itself. Its purpose is to make heterogeneous deterministic strategies and their data requirements work cleanly through the existing analysis/tool/orchestration architecture.
@@ -254,20 +261,20 @@ The fact that Graham and Momentum have different inputs and outputs is intention
         Momentum analysis                Graham analysis
                  │                             │
        historical prices             resolved typed inputs
-                 │                       ┌─────┴─────┐
-             SMA/trend                  ▼           ▼
-                                Graham Number   Growth value
-                                      │             │
-                                      └──────┬──────┘
-                                             ▼
-                                   typed method result
+                 │                      ┌──────┴─────┐
+             SMA/trend                  ▼            ▼
+                                 Graham Number   Growth value
+                                        │            │
+                                        └─────┬──────┘
+                                              ▼
+                                     typed method result
 ```
 
 Do not make Graham "Momentum-shaped" merely for implementation consistency.
 
 #### 4.3.2 Graham method definitions and output semantics
 
-Treat the uncommitted Graham calculation, validation, quote retrieval, fixtures, CLI, and tests as a **starting point**, not an immutable patch. The current implementation embodies only the growth-value method and must not be committed until it conforms to this reviewed design.
+The approved implementation through Slice E2 already contains both Graham methods, provenance/cache/resolution contracts, deterministic fixtures, and verified production adapters. The method semantics below remain authoritative for E3/F1/F2; transitional CLI/presentation code is not a compatibility constraint when it conflicts with the approved investor-facing contract.
 
 ##### Method A — `graham_number` (proposed default)
 
@@ -381,29 +388,37 @@ The historical CAGR proxy must fail explicitly when its endpoints or periods do 
 
 The current AAA yield must be resolved from a documented provider series with its rating scope, units, observation date, and source identifier. The historical `4.4` baseline is a configurable formula constant, not a current market observation. Both yields must be strictly positive for the growth method.
 
-#### 4.3.5 Typed request, configuration, and CLI contract
+#### 4.3.5 Typed request, configuration, CLI, and presentation contract
 
-Use method-specific typed configuration and result models, preferably a discriminated union keyed by method, so invalid combinations cannot be represented as one object full of optional fields. Exact class names should follow repository conventions after inspection. The existing `GrahamValueAnalyzer`, `GrahamValueConfig`, and `GrahamValueMetrics` may be renamed or wrapped, but the growth formula must not continue to masquerade as the only Graham method.
-
-The intended CLI contract is:
+The direct Graham CLI remains method-explicit:
 
 ```text
-financial-agents graham TICKER
-financial-agents graham TICKER --method number
-financial-agents graham TICKER --method growth
+financial-agents graham TICKER [--method number|growth] [options]
 ```
 
 Requirements:
 
 - omitted `--method` selects `number` and reports that choice prominently;
-- ticker-only Graham Number execution resolves EPS, BVPS, and current price through overrides/cache/provider policy;
-- `--eps`, `--bvps`, and `--current-price` remain field-level overrides and are marked as overrides in provenance;
+- ticker-only Graham Number execution resolves EPS, BVPS, and current price through overrides/cache/provider policy for representative supported production securities;
+- `--eps`, `--bvps`, and `--current-price`/quote remain field-level overrides and are visibly marked as overrides;
 - `--eps-basis three_year_average|ttm` controls the Graham Number earnings convention;
 - growth-specific options are accepted only for `--method growth`;
-- the growth method requires `--expected-growth` under `explicit_override`, unless another explicit configured policy supplies it;
-- `--as-of` provides a reproducible temporal boundary;
-- incompatible options fail with a clear usage error rather than being ignored;
-- structured and human-readable output identify the method, value meaning, assumptions, resolved sources, timestamps, applicability, and warnings.
+- the growth method requires an explicit expected-growth assumption under `explicit_override`, unless another separately approved deterministic policy supplies it;
+- `--as-of` provides a reproducible temporal boundary; and
+- incompatible options fail with a clear usage error rather than being ignored.
+
+Investor-facing presentation uses progressive disclosure:
+
+1. **Default concise view** — ticker, method/analysis, `as_of`, status, headline metrics, plain-language comparison, high-level source/freshness summary, material warnings, and a short method limitation.
+2. **`--details`** — financial audit trail: resolved inputs, bases, periods/observation dates, provider/source identity, availability dates, derivations/component lineage, and visible assumptions.
+3. **`--diagnostics`** — software resolution trace: override supplied/not supplied, cache hit/miss/staleness, provider attempted, and classified failure/unavailability. A cache hit must continue to identify the original financial source rather than pretending “cache” is the economic data source.
+4. **`--json`** — stable machine-readable result/provenance output suitable for later persistence and tooling.
+
+User overrides must be conspicuous in the default view when material to interpretation, especially expected growth. Unqualified `Intrinsic Value` wording is prohibited for the Graham Number. Operational logger output must not be the primary investor-facing renderer.
+
+Momentum and Graham should use the same visual grammar without forcing their internal result models into one generic shape. Strategy-specific presenters or equivalent narrow presentation adapters are preferred to a giant generic `AnalysisResult`.
+
+The general `financial-agents analyze TICKER` research-assistant entry point is not required to complete Step 2.3; it is validated as part of the later Light Mode workflow in Step 3.5.
 
 #### 4.3.6 Market-data contract
 
@@ -509,33 +524,32 @@ Documentation must not claim that the Graham Number is a complete intrinsic-valu
 - Prefer existing abstractions (`BaseAnalyzer`, `BaseDataClient`, current tool registration/dispatch, telemetry) over parallel frameworks.
 - Do not create a strategy/plugin registry unless inspection proves it is required.
 - Do not refactor unrelated production code.
-- Treat the current uncommitted Graham code as a starting point subject to the explicit corrections above.
-- Do not preserve a misleading class, CLI, field, or help-text name merely for compatibility with uncommitted code.
+- Treat the approved A–E2 implementation as the stable checkpoint foundation; do not reopen it without a concrete E3/F1/F2 incompatibility or review finding.
+- Do not preserve a misleading class, CLI, field, or help-text name merely for compatibility with transitional code.
 - Keep deterministic calculations separate from provider/cache/input-resolution I/O.
 - Use method-specific typed models or discriminated unions; do not create ambiguous bags of optional inputs.
 - Do not silently guess growth, substitute TTM EPS for the three-year default, substitute tangible book value, or ignore `as_of`.
 - Implement the smallest change that allows Momentum and Graham to coexist through the existing runtime.
 - Do not begin Golden Suite evaluator/reporting work during Step 2.3.
 - If an architectural choice is ambiguous, inspect existing code and choose the smallest solution consistent with current conventions.
-- Do not commit Step 2.3 code or documentation until this revised design and the resulting implementation are reviewed.
+- Do not commit automatically. A coherent intermediate checkpoint may be committed/pushed only after explicit human approval and the agreed gate; Step 2.3 completion still requires the final review gate.
 - Stop for human review at the Step 2.3 boundary before beginning Step 2.4.
 
 #### 4.3.11 Implementation sequence
 
-1. Review and approve this revised Step 2.3 design before resuming implementation.
-2. Inspect the current uncommitted Graham calculation, validation, quote retrieval, fixtures, CLI, tests, data clients, cache seams, Momentum integration, tool dispatch, telemetry, and configuration.
-3. Record a concise gap map from current code to the approved two-method and input-resolution design.
-4. Separate the existing growth formula into the explicitly named `graham_growth_value` method without losing its deterministic tests.
-5. Add the `graham_number` deterministic calculation, method-specific typed models, applicability status, and reference-value semantics.
-6. Define and implement EPS-basis, BVPS, growth-policy, provenance, and `as_of` models.
-7. Implement field-level input resolution with override/cache/provider precedence and explicit unavailability.
-8. Extend the minimum provider-neutral quote, financial-fact, macro-series, and cache seams required by the methods.
-9. Update provider adapter(s) and add deterministic contract/resolution tests.
-10. Expand the fixture-backed implementation only enough to prove both strategies, both Graham methods, precedence, provenance, timestamps, and no-network behavior.
-11. Update the CLI, help text, structured output, and user-facing documentation.
-12. Confirm Momentum and Graham coexist through the existing generic analysis/tool/orchestration path without strategy-specific orchestrator branches.
-13. Run Ruff, formatting checks, `mypy --strict`, and the complete pytest suite.
-14. Review the complete Step 2.3 diff; do not commit and do not begin Step 2.4 before approval.
+Implement and review Step 2.3 in bounded slices. The authoritative small-context handoff is `STEP_2_3_GRAHAM_SLICE_PLAN.md`.
+
+1. **A — reconnaissance:** reconcile the supplied Graham work and repository contracts.
+2. **B — pure methods/results:** implement the Graham Number and explicitly named growth-value calculators/results.
+3. **C1/C2 — provenance/cache/provider-neutral resolution:** establish immutable provenance, cache primitives, provider-neutral facts, method-aware resolution, and `as_of` behavior.
+4. **D — deterministic valuation fixtures:** prove both methods and resolver branches offline.
+5. **E1 — provider evidence:** investigate exact production fields/series before mapping them.
+6. **E2 — verified production adapters:** implement only evidence-approved capabilities.
+7. **Checkpoint:** after E2 review and a green gate, a human-approved commit/push is permitted to preserve the coherent provider/resolver foundation. Step 2.3 remains incomplete.
+8. **E3 — user-viable default Graham data path:** close the production-data gap that prevents representative ticker-only Graham Number analysis, primarily by establishing a defensible BVPS or derivation path with full accounting/temporal provenance. If the capability cannot be verified safely, report the limitation and revisit the default-user promise rather than fabricate a fallback.
+9. **F1 — investor-facing result presentation:** implement concise/details/diagnostics/JSON presentation, explicit overrides/warnings, correct Graham wording, and a coherent visual grammar for Momentum and Graham. Keep operational logging separate.
+10. **F2 — unified direct-analysis CLI:** wire the approved `graham` command/method validation and align the existing Momentum direct command with the common presentation options. Search call sites/docs before removing transitional flags.
+11. **G — documentation/final gate:** synchronize current-state user/developer docs, run the complete gate, review the remaining Step 2.3 diff, and obtain explicit human approval before declaring the step complete or beginning Step 2.4.
 
 #### 4.3.12 Non-goals
 
@@ -587,15 +601,15 @@ Step 2.3 does **not** include:
 - [ ] `FINANCE_MATH.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, README/CLI examples, and relevant docstrings/configuration documentation agree with implemented behavior.
 - [ ] Existing application behavior is unchanged outside intended Step 2.3 additions.
 - [ ] Ruff, formatting, `mypy --strict`, and pytest pass.
-- [ ] The complete uncommitted Step 2.3 diff is reviewed and approved before commit or Step 2.4 work.
+- [ ] The remaining Step 2.3 diff since the last approved checkpoint is reviewed and approved before Step 2.4 work.
 
-**Definition of done:** Step 2.3 is complete when Momentum and both explicitly named Graham methods coexist cleanly through the existing analysis architecture; Graham inputs resolve reproducibly through typed override/cache/provider paths with provenance and `as_of` semantics; deterministic fixtures prove the contracts without network access; documentation matches behavior; and the complete diff has passed human review before any commit or Step 2.4 work.
+**Definition of done:** Step 2.3 is complete when Momentum and both explicitly named Graham methods coexist cleanly through the existing analysis architecture; the representative production default Graham Number path is user-viable; Graham inputs resolve reproducibly through typed override/cache/provider paths with provenance and `as_of` semantics; deterministic fixtures prove the contracts without network access; investor-facing concise/details/diagnostics/JSON presentation matches the approved semantics; documentation matches behavior; and the remaining diff has passed human review before Step 2.4 work.
 
 ---
 
 ### 4.4 Step 2.4 – Golden-Test Suite & Strategy Evaluation
 
-**Goal**  
+**Goal**<br/>
 Establish a deterministic, fixture-backed benchmark that exercises materially different analytical strategies and separates strategy/tool-selection correctness from deterministic numerical correctness.
 
 Step 2.4 consumes the stable strategy and market-data foundations established in Step 2.3. It must not redesign those foundations unless implementation evidence reveals a concrete defect.
@@ -900,7 +914,7 @@ Step 2.4 does **not** include:
 
 ### 4.5 Step 2.5 – Circuit Breakers & Timeout Limits
 
-**Goal**  
+**Goal**<br/>
 Hard execution caps, wall-clock bounds, and error thresholds that prevent unbounded loops or runaway token spend.
 
 **Implementation outline**
@@ -918,19 +932,19 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 
 ### 4.6 Step 3.1 – SQLite DB & Migration Infrastructure
 
-**Goal**  
-Establish the production SQLite persistence foundation while implementing the SQLite telemetry sink and durable production data/cache access behind the shared contracts established in Step 2.3.
+**Goal**
+Establish the production SQLite persistence foundation while implementing the SQLite telemetry sink and durable production data/cache access behind the contracts established in Step 2.3.
 
 **Implementation outline**
 1. Add Alembic and establish the migration environment using the existing application database configuration.
-2. Create the initial production schema for market prices/OHLCV, instrument/source metadata, required company financial facts, macro-series observations, resolved-input cache metadata, and trajectory telemetry storage.
+2. Create the initial production schema for market prices/OHLCV, instrument/source metadata, required company financial facts, macro-series observations, cache metadata, and trajectory telemetry storage.
 3. Enforce SQLite WAL mode and appropriate busy-timeout/connection settings.
 4. Implement `SQLiteTrajectorySink` against the exact `TrajectorySink` contract established in Step 2.1.
-5. Implement production historical-series, current-quote, company-financial-fact, macro-series, and cache retrieval against the shared contracts consumed by the strategies and Golden Suite.
-6. Place implementation under `src/data/repositories/`.
-7. Ensure cache-first resolution can reuse valid previously fetched observations while preserving source, `as_of`, retrieval time, and freshness metadata.
+5. Implement durable historical-series, valuation-fact, and cache retrieval behind the Step 2.3 provider/resolver contracts.
+6. Place repository implementation under `src/data/repositories/`.
+7. Preserve provider identity, observation/availability timestamps, requested `as_of`, retrieval time, and cache freshness/schema metadata when persisted.
 8. Provide a documented migration command and fresh-database smoke test.
-9. Verify that trajectories can be persisted and reconstructed identically through either JSONL or SQLite sinks.
+9. Verify trajectories can be persisted/reconstructed identically through JSONL or SQLite sinks.
 
 **Acceptance criteria**
 - [ ] `alembic upgrade head` succeeds on a clean environment.
@@ -938,14 +952,12 @@ Establish the production SQLite persistence foundation while implementing the SQ
 - [ ] Schema is migration-controlled.
 - [ ] `SQLiteTrajectorySink` conforms to the Step 2.1 sink contract.
 - [ ] A representative trajectory can be written to and reconstructed from SQLite.
-- [ ] Production data implementation satisfies the shared historical-price, current-quote, company-financial-fact, macro-series, and cache contracts consumed by the strategies and Golden Suite.
-- [ ] Valid previously fetched inputs can be reused without an unnecessary external refetch and without losing provenance or timestamp semantics.
-
----
+- [ ] Production data/cache implementations satisfy the historical-price and valuation-facts contracts used by the strategies.
+- [ ] Valid cached inputs can be reused without unnecessary external refetch and without losing provenance or temporal semantics.
 
 ### 4.7 Step 3.2 – DAO & Repository Layer
 
-**Goal**  
+**Goal**<br/>
 Strongly-typed Python data-access objects for cache inspection, audit logging, and later analytics.
 
 **Implementation outline**
@@ -963,7 +975,7 @@ Strongly-typed Python data-access objects for cache inspection, audit logging, a
 
 ### 4.8 Step 3.3 – Data Quality & Cache Invalidation Pipeline
 
-**Goal**  
+**Goal**<br/>
 Validate incoming financial data (FX adjustments, corporate actions, staleness) and invalidate or refresh cache entries when quality rules fail.
 
 **Implementation outline**
@@ -980,75 +992,116 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 ---
 
-### 4.9 Step 3.5 – Light Mode Support
+### 4.9 Step 3.4 – Local Research Workspace & Analysis Run Library
 
-**Goal**  
-The full single-step analysis path (data fetch → deterministic analytics → basic synthesis/report) runs cleanly under Light Mode configuration with a 14B-class (or smaller) model.
+**Goal**
+Turn the command-line program into a small local research workbench before real-user validation: users maintain ticker/analysis lists, initiate a refresh, and revisit durable completed results without requiring a GUI or unattended service.
+
+**Product model**
+- A **watchlist** is a named local collection of tickers plus supported requested analysis types/configuration.
+- An **Analysis Run** is the durable investor-domain record of one requested analysis: `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, start/completion times, and calculation/version identifiers. It may reference execution/telemetry identity, but does not overload `RunContext`.
+- A **report/view** is a rendering of an Analysis Run. v0.2 does not persist a competing canonical report document.
+- A **refresh** is a user-initiated batch that may execute multiple ticker/analysis jobs concurrently and persist each completed Analysis Run immediately.
+
+**Initial CLI workflow**
+```text
+financial-agents watchlist create core
+financial-agents watchlist add core KO MSFT CNR.TO
+financial-agents watchlist remove core MSFT
+financial-agents watchlist show core
+financial-agents refresh core
+financial-agents runs list
+financial-agents runs show ANALYSIS_RUN_ID [--details|--diagnostics|--json]
+```
+
+Exact command spelling may be refined during implementation, but the user capability must remain equivalent. The initial default watchlist profile uses Momentum and Graham Number because neither requires an invented forward-growth assumption. `graham_growth_value` may be enabled only when an explicit persisted/user-supplied growth configuration is attached and shown as an assumption.
+
+**Concurrency boundary**
+`refresh` may run independent jobs concurrently within the user-started process and write completed runs as they finish; a second CLI invocation may read already-persisted completed results under SQLite/WAL. Step 3.4 does **not** install a daemon/service, schedule unattended work, monitor markets proactively, or send notifications.
+
+**Implementation outline**
+1. Add migration-controlled persistence for watchlists, memberships/configuration, refresh batches if useful, and Analysis Runs.
+2. Add narrow typed repositories/services for watchlist management and Analysis Run storage/query.
+3. Reuse Step 2.3 presenters for `runs show`; do not regenerate financial calculations merely to view a completed run.
+4. Add user-initiated concurrent refresh with bounded worker/concurrency limits and per-job classified status.
+5. Persist each completed/failed/unavailable run independently so one ticker/provider failure does not discard other completed work.
+6. Preserve reproducibility: `as_of`, config, method version, result, provenance, warnings, and source timestamps travel with the Analysis Run.
+7. Add deterministic tests for create/add/remove/show, refresh fan-out, partial failures, persistence/reload, run-list ordering/filtering, and view rendering.
+
+**Acceptance criteria**
+- [ ] Named watchlists can add/remove tickers and show configured supported analyses.
+- [ ] A refresh over multiple ticker/analysis combinations executes with bounded concurrency and independently persisted outcomes.
+- [ ] `runs list` exposes completed/unavailable/failed work without requiring recomputation.
+- [ ] `runs show` renders the same concise/details/diagnostic/JSON information from the stored Analysis Run.
+- [ ] Analysis Run identity is distinct from, but linkable to, execution telemetry identity.
+- [ ] No daemon, unattended scheduler, proactive monitoring, notifications, full-screen TUI, or executive report generator is introduced.
+
+### 4.10 Step 3.5 – Light Mode Support
+
+**Goal**
+The complete investor workflow—data fetch/cache → deterministic analytics → durable Analysis Run → concise/detailed inspection → bounded local-model synthesis—runs cleanly under Light Mode with a 14B-class (or smaller) model.
 
 **Implementation outline**
 1. Make Light Mode the configuration default (model tag, single-tier behaviour).
-2. Ensure README and `docs/HARDWARE.md` give a new user a complete, copy-pasteable path to a first successful analysis under Light Mode.
-3. Add a minimal smoke-test expected to pass under Light Mode resource constraints.
+2. Ensure README and `docs/HARDWARE.md` give a new user a complete path to first analysis/watchlist refresh and stored-run inspection.
+3. Add a minimal smoke test covering direct analysis or watchlist refresh, result persistence, concise rendering, and provenance inspection under Light Mode resource assumptions.
 4. Confirm dual-tier code paths remain available as opt-in features.
-5. Verify trajectory logging, schema enforcement, and circuit breakers function cleanly under the Light Mode model.
+5. Complete the Step 2.2 empirical schema/model compatibility check for the supported Light Mode configuration.
+6. Add or validate a simple `financial-agents analyze TICKER` entry point that can request the default deterministic analyses (initially Momentum + Graham Number) and optionally ask the local LLM to synthesize only their completed typed results.
+7. Ensure synthesis failure, timeout, or schema failure never discards valid deterministic Analysis Runs.
+
+**Synthesis boundary**
+The model may summarize, compare, flag tensions, and suggest what the investor may wish to inspect next. It may not invent financial facts, perform the deterministic arithmetic, silently select a growth assumption, or turn a screening result into an investment recommendation.
 
 **Acceptance criteria (exit criterion for Step 3.5)**
-- [ ] A user following only Light Mode instructions can complete an end-to-end analysis.
-- [ ] Configuration defaults favour Light Mode.
-- [ ] Basic smoke tests pass under Light Mode constraints.
+- [ ] A new user following only Light Mode instructions can analyze/add a real ticker, refresh supported analyses, and revisit stored results.
+- [ ] The user can see a concise result and inspect detailed provenance without developer assistance.
+- [ ] Bounded local-model synthesis works on the supported Light Mode configuration and is clearly downstream of deterministic results.
+- [ ] Synthesis failure leaves deterministic results usable.
+- [ ] Configuration defaults favor Light Mode and dual-tier remains optional.
 - [ ] Documentation is consistent across README, `HARDWARE.md`, Master Plan, and Discovery Workbook.
-
----
 
 ## 5. Suggested Sequencing & Parallelism
 
 ```text
 Phase A — Step 2.1 foundation
-  ├─ 2.1 telemetry model & event types
-  ├─ 2.1 sink abstraction + JSONL sink
-  └─ 2.1 runtime instrumentation
+  └─ telemetry model, sinks, runtime instrumentation
 
-Phase B — Structured-output foundation
-  └─ 2.2 native schema enforcement
+Phase B — Step 2.2 structured-output foundation
+  └─ native schema enforcement + fallback
 
-Phase C — Strategy/data foundation
-  ├─ 2.3 Graham Number + growth-value methods
-  ├─ 2.3 method-aware input resolution
-  ├─ 2.3 quote/fundamental/macro/cache contracts
-  └─ 2.3 deterministic resolution fixtures
+Phase C — Step 2.3 strategy/data/presentation foundation
+  ├─ Graham methods, provenance, resolver, fixtures
+  ├─ E1/E2 verified production adapters
+  ├─ checkpoint commit/push (human-approved; step still incomplete)
+  ├─ E3 user-viable default Graham data path
+  ├─ F1 investor-facing result presentation
+  └─ F2 unified direct-analysis CLI
         │
         ▼
-     review gate
+     Step 2.3 review gate
         │
         ▼
-Phase D — Golden Suite
-  ├─ 2.4 heterogeneous benchmark cases
-  ├─ 2.4 strategy-selection evaluation
-  └─ 2.4 numerical evaluation/reporting
-        │
-        ▼
-     ≥90% target measured honestly
+Phase D — Step 2.4 Golden Suite
+  └─ heterogeneous selection + deterministic numeric evaluation
 
-Phase E — Reliability limits
-  └─ 2.5 circuit breakers & timeout limits
+Phase E — Step 2.5 reliability limits
+  └─ circuit breakers & timeout limits
 
-Phase F — Production persistence
-  ├─ 3.1 Alembic + SQLite schema
-  ├─ 3.1 SQLite telemetry sink
-  └─ 3.1 production market-data/cache implementation
+Phase F — Step 3 production persistence/data quality
+  ├─ 3.1 SQLite + durable cache/data/telemetry
+  ├─ 3.2 typed repositories
+  └─ 3.3 data quality / invalidation
         │
         ▼
-   3.2 repositories
+Phase G — Step 3.4 local research workspace
+  └─ watchlists + user-initiated concurrent refresh + Analysis Run library
         │
         ▼
-   3.3 data quality / cache invalidation
-
-Phase G — Adoption gate
-  └─ 3.5 Light Mode defaults, docs, smoke tests
+Phase H — Step 3.5 adoption gate
+  └─ Light Mode workflow + bounded typed-result synthesis
        → unlocks Milestone v0.2.5 real-user validation
 ```
-
----
 
 ## 6. Quality Gates
 
@@ -1067,9 +1120,9 @@ The following quality checks must pass on every pull request within this milesto
 
 All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
 
-1. Steps 2.1–2.5, 3.1–3.3, and 3.5 are fully implemented and merged.
+1. Steps 2.1–2.5 and 3.1–3.5, including the new Step 3.4 research workspace, are fully implemented and merged.
 2. Step 2.4 Golden-test suite exists, runs headlessly, exercises Momentum plus both Graham methods, and reports strategy-selection, Graham method-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
-3. A fresh repository clone running Light Mode setup instructions completes an end-to-end analysis successfully.
+3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis, refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.
 6. Temporary scaffolding and blocking TODOs are cleaned up or documented.
@@ -1085,7 +1138,7 @@ All of the following must be true before declaring the milestone complete and op
 4. **Branch granularity** — Fine-grained branches mapped to coherent implementation units.
 5. **Telemetry boundaries** — Telemetry captures observable provider output; missing metrics are stored explicitly as `None` rather than estimated.
 6. **Heterogeneous strategy validation** — Momentum and Benjamin Graham are established in Step 2.3 as the initial materially different strategy families; Graham exposes the separately identified `graham_number` and `graham_growth_value` methods; Step 2.4 evaluates both broad strategy selection and Graham method selection.
-7. **Current quote abstraction** — Current market-price retrieval is a first-class capability of the market-data abstraction rather than an implicit one-day historical-data workaround.
+7. **Current quote abstraction** — Current market-price retrieval is a first-class valuation-input capability rather than an implicit one-day historical-data workaround.
 8. **Graham result semantics** — The Graham Number is a screening ceiling/maximum indicated price, while the growth formula is a separate forecast-dependent estimate. An unavailable current price produces an unavailable (`None`) margin of safety rather than numeric zero. Positive margin of safety means price is below the selected method's reference value; negative means it exceeds that value.
 9. **Strategy-specific determinism** — Each analytical strategy owns its deterministic mathematical implementation and typed configuration/result models. The LLM selects and orchestrates strategies but does not perform the underlying financial calculations.
 10. **Step 2.2 enforcement fallback** — Native schema enforcement is preferred when capability is confirmed; prompt-based schema instructions with Pydantic validation/retry provide the configured fallback when native capability is unavailable or unknown; legacy parsing remains the final compatibility fallback.
@@ -1093,7 +1146,10 @@ All of the following must be true before declaring the milestone complete and op
 12. **Graham Number EPS basis** — Three-year-average fiscal EPS is the default; TTM EPS is an explicitly selected and labeled modern variation.
 13. **Growth policy** — The initial growth method requires an explicit expected-growth override unless the user explicitly selects a documented deterministic proxy. No LLM or silent default supplies growth.
 14. **Input resolution** — Inputs resolve field by field using override → valid cache → provider → unavailable precedence, with provenance and `as_of` semantics preserved.
-15. **Step boundary** — The current Graham implementation and documentation remain uncommitted; neither commit nor Step 2.4 work begins until the revised Step 2.3 design and resulting diff are reviewed.
+15. **Checkpoint policy** — Reviewed, coherent intermediate Step 2.3 checkpoints may be committed/pushed after explicit human approval and a green agreed gate. A checkpoint does not mark Step 2.3 complete or authorize Step 2.4.
+16. **Investor-facing presentation** — Default terminal output is concise; `--details`, `--diagnostics`, and `--json` provide progressive disclosure. Momentum and Graham share presentation grammar, not a forced internal result model.
+17. **Durable product record** — Step 3.4 stores Analysis Runs as the canonical investor-domain history; report formats are views of those runs.
+18. **Bounded v0.2 agentic behavior** — User-initiated refresh may fan out concurrently and Light Mode may synthesize completed typed results. Unattended scheduling, proactive monitoring, notifications, and autonomous multi-step research remain v1.0 work.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1104,19 +1160,14 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-The local repository currently contains uncommitted Graham calculation, validation, quote retrieval, fixtures, CLI, and tests based on the growth formula. Preserve that work as the implementation starting point, but do not treat it as an approved design and do not commit it yet.
+Slices A through E2 are complete and approved. The provider/resolver foundation is a coherent human-reviewed checkpoint and may be committed/pushed before the Investor UX revision continues; Step 2.3 itself remains incomplete.
 
-1. Review and approve this revised Step 2.3 design and the accompanying glossary changes.
-2. Inspect the complete uncommitted diff and map each existing Graham change to the approved two-method/input-resolution design.
-3. Revise the current growth calculation into the explicitly named `graham_growth_value` method.
-4. Add the default `graham_number` method with three-year-average EPS by default and an explicit TTM variation.
-5. Implement method-aware input resolution, override/cache/provider precedence, provenance, `as_of` semantics, and explicit growth policy.
-6. Expand provider-neutral contracts and deterministic fixtures only as required by Momentum and the two Graham methods.
-7. Update CLI behavior, tests, `FINANCE_MATH.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, README examples, help text, and relevant docstrings/configuration documentation.
-8. Run all quality gates and review the complete Step 2.3 diff.
-9. **Do not commit Step 2.3 and do not begin Step 2.4 until that review is approved.**
-10. After Step 2.3 approval and commit, implement Step 2.4 from the stable contracts, beginning with the minimum heterogeneous case set.
-11. Complete the empirical Light Mode schema/model compatibility validation before the Step 3.5 exit criterion.
-
-
----
+1. Apply/commit the approved documentation revision recording the new investor-facing direction and checkpoint policy.
+2. Execute **Slice E3**: establish a defensible production BVPS/direct-or-derived path sufficient for representative ticker-only Graham Number analysis, with exact accounting and temporal provenance. If evidence is insufficient, stop and narrow the product promise rather than guessing.
+3. Execute **Slice F1**: build investor-facing terminal presenters with concise/details/diagnostics/JSON modes, visible overrides/warnings, and coherent Momentum/Graham visual grammar; separate operational logging from result rendering.
+4. Execute **Slice F2**: finish the unified direct `graham` CLI and align Momentum output/options with the presentation contract.
+5. Execute **Slice G**: synchronize current-state docs, run the complete Step 2.3 gate, review the remaining diff, and obtain explicit approval before Step 2.4.
+6. Implement Step 2.4 and 2.5 on the stable Step 2.3 contracts.
+7. Implement Step 3.1–3.3 persistence/repositories/data quality, then **Step 3.4** watchlists + Analysis Run library + user-initiated concurrent refresh.
+8. Complete **Step 3.5** Light Mode workflow and bounded synthesis before opening v0.2.5 real-user validation.
+9. Complete the empirical Light Mode schema/model compatibility validation before the Step 3.5 exit criterion.

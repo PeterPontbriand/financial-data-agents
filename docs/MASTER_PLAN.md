@@ -1,11 +1,11 @@
 # Financial Data Agents: Master Plan
 
-**Repository:** github.com/PeterPontbriand/financial-data-agents  
-**Core Strategy:** 100% Local AI (Ollama-Driven Orchestration) with Explicit Reliability Guardrails  
-**Primary Focus:** Quantitative investment analysis and research briefs for personal & professional networks  
-**Secondary Focus:** Production-grade local-first AI systems engineering  
-**Quality Gate:** Ruff, Strict Static Typing (`mypy --strict`), Pytest  
-**Hardware Context:** Two supported modes — **Light Mode** (single-tier, ~8–16 GB VRAM **or** 32 GB+ unified memory) as the default path for most users, and **Full Dual-Tier Mode** (~24–28 GB VRAM) for deeper reasoning. See `docs/HARDWARE.md`.  
+**Repository:** github.com/PeterPontbriand/financial-data-agents<br/>
+**Core Strategy:** 100% Local AI (Ollama-Driven Orchestration) with Explicit Reliability Guardrails<br/>
+**Primary Focus:** Quantitative investment analysis and a local investor research workbench for personal & professional networks<br/>
+**Secondary Focus:** Production-grade local-first AI systems engineering<br/>
+**Quality Gate:** Ruff, Strict Static Typing (`mypy --strict`), Pytest<br/>
+**Hardware Context:** Two supported modes — **Light Mode** (single-tier, ~8–16 GB VRAM **or** 32 GB+ unified memory) as the default path for most users, and **Full Dual-Tier Mode** (~24–28 GB VRAM) for deeper reasoning. See `docs/HARDWARE.md`.<br/>
 **Out of Scope (Separate Project):** Full UI integration (e.g., Osiris or WorldMonitor)
 
 **Companion Document:** Master Plan Discovery Workbook (records *why* decisions were made; this Master Plan records *what* and *when*. References to either document mean the current version unless explicitly qualified as a prior or subsequent version).
@@ -28,7 +28,7 @@ This repository delivers a usable local investment analysis engine while demonst
 - **Production Quality & Security:** Defensive static typing (`mypy --strict`), automated unit testing, dependency auditing, and local network isolation.
 - **Localization (i18n):** Deep internationalization for Canadian financial standards (`en-CA` / `fr-CA`).
 
-Illustrative use case: A long-time retail investor hears a ticker mentioned informally, runs a quick CLI analysis under Light Mode, and decides whether to add it to an ongoing watch list for agent-driven tracking.
+Illustrative use case: A long-time retail investor hears a ticker mentioned informally, adds it to a local watchlist or analyzes it directly under Light Mode, lets the system perform the repetitive quantitative work, and later inspects concise results, detailed provenance, and completed analysis history before deciding what deserves further research.
 
 *(These competencies are the natural output of building something genuinely useful — not a separate target to design toward.)*
 
@@ -37,57 +37,48 @@ Illustrative use case: A long-time retail investor hears a ticker mentioned info
 ## 2. High-Level System Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      User Interfaces (CLI / Reports)                    │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    Agent Orchestrator & Planner Loop                    │
-│      - Context Manager                                                  │
-│      - Structured-output / schema boundary                              │
-│      - Reliability limits (Step 2.5)                                    │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     Typed Tool / Analysis Dispatch                      │
-└────────────────────────────────────┬────────────────────────────────────┘
-                                     │
-                   ┌─────────────────┴─────────────────┐
-                   ▼                                   ▼
-┌─────────────────────────────────┐   ┌─────────────────────────────────┐
-│ MomentumAnalyzer                │   │ Graham analysis                 │
-│ - historical market series      │   │ - number (default)              │
-│ - configurable SMA crossover    │   │ - growth value (explicit)       │
-│ - existing strategy             │   │ - Step 2.3 target               │
-└────────────────┬────────────────┘   └────────────────┬────────────────┘
-                 │                                     │
-                 └──────────────────┬──────────────────┘
-                                    ▼
-                     Existing analyzer abstraction
-                           (`BaseAnalyzer`)
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        Input Resolution Layer                           │
-│ override → valid cache → valuation provider → unavailable              │
-└──────────────────────┬──────────────────────────┬───────────────────────┘
-                       ▼                          ▼
-        Historical-price boundary       Valuation-facts boundary
-            (`BaseDataClient`)          quote / fundamentals / macro
-                       │                          │
-                       └──────────────┬───────────┘
-                                      ▼
-                    Deterministic fixtures (Step 2.3)
+┌────────────────────────────────────────────────────────────────────────────┐
+│              Investor-facing terminal / local research workspace           │
+│ direct analysis · watchlists (Step 3.4) · run history · result views       │
+└───────────────────────────────┬────────────────────────────────────────────┘
+                                │
+              ┌─────────────────┴─────────────────┐
+              ▼                                   ▼
+     direct deterministic path             bounded local-LLM path
+      method-specific requests          planning / selection / synthesis
+              │                                   │
+              └─────────────────┬─────────────────┘
+                                ▼
+                     Typed Tool / Analysis Dispatch
+                                │
+                 ┌──────────────┴──────────────┐
+                 ▼                             ▼
+        Momentum analysis                 Graham analysis
+      historical-price series      number (default) / growth (explicit)
+                 │                             │
+                 │                    resolved typed inputs
+                 │                             ▲
+                 │                    InputResolver
+                 │              override → cache → provider
+                 │                             │
+                 ▼                             ▼
+          BaseDataClient              ValuationFactsProvider
+        historical prices            quote / fundamentals / macro
+                 │                             │
+                 └──────────────┬──────────────┘
+                                ▼
                     SQLite / durable cache (Step 3.1)
+                                │
+                                ▼
+                   Analysis Run library (Step 3.4)
+                                │
+                                ▼
+              concise · details · diagnostics · JSON views
 ```
 
-The initial Momentum and Graham strategies are intentionally **heterogeneous**. They share the existing analyzer/tool/orchestration path, but they do not need identical inputs or outputs. The project must not introduce a speculative strategy/plugin/registry framework merely to make these two analyzers look alike.
+The initial Momentum and Graham strategies are intentionally **heterogeneous**. They share the existing tool/orchestration environment and a coherent investor-facing presentation language, but they do not require a common internal result shape. The project must not introduce a speculative strategy/plugin/registry framework or giant generic `AnalysisResult` merely to make the two strategies look alike.
 
-Step 2.3 keeps `BaseDataClient` focused on historical prices and introduces a dedicated valuation-facts boundary for quote, fundamental, and macro inputs. A field-by-field resolver applies override → valid cache → provider precedence and attaches point-in-time provenance. Step 2.4 consumes those stable contracts for deterministic Golden-Suite evaluation. Step 3.1 later supplies production SQLite/cache-backed implementations.
-
----
+Step 2.3 establishes Graham's method, input-resolution, production-provider, and terminal-presentation foundations. Step 2.4 evaluates the stable deterministic strategy/tool contracts. Step 3.1 adds durable production persistence/cache. Step 3.4 adds the local research workspace: watchlists, user-initiated concurrent refresh, and a durable Analysis Run library. Step 3.5 validates the complete Light Mode investor workflow and adds only bounded local-model synthesis over already-computed typed results.
 
 ## 3. Core Design Principles
 
@@ -101,6 +92,8 @@ Step 2.3 keeps `BaseDataClient` focused on historical prices and introduces a de
 8. **Heterogeneous Strategy Independence:** Financial-analysis strategies remain independently typed and deterministic. The runtime, data layer, and evaluation harness must not assume that every financial-analysis request is a Momentum request or force materially different strategies into one shape.
 9. **Method and Assumption Explicitness:** The Graham Number and forecast-dependent Graham growth value are separate methods. Outputs identify the selected method, input basis, and applicability; the growth method never invents a growth rate.
 10. **Point-in-Time Data Integrity:** Valuation inputs are resolved as of the requested analysis time, carry auditable provenance, and fail unavailable when a provider cannot support the requested historical boundary without look-ahead.
+11. **Progressive Disclosure for Investors:** Default output answers the investment question concisely; detailed provenance, resolution diagnostics, and machine-readable output remain one explicit option away. Operational logs are not the investor-facing presentation surface.
+12. **Bounded Agentic Work Before Unattended Autonomy:** v0.2 may queue and concurrently execute deterministic analyses in response to a user request and retain completed results. Unattended scheduling, proactive monitoring, notifications, and autonomous multi-step research remain later work.
 
 ---
 
@@ -176,40 +169,42 @@ System settings are managed through the project's centralized `ProjectSettings` 
 * **Step 1.2: Pydantic Tool Definition & Parsing Layer** `[COMPLETED]`
 * **Step 1.3: Asynchronous Orchestration Loop & Message Context** `[COMPLETED]`
 
-### **Milestone v0.2: Reliability, Observability, Strategy Generalization & Data Persistence**
+### **Milestone v0.2: Reliability, Observability, Strategy Generalization, Data Persistence & Investor Workflow**
 
 Detailed sequencing, branch strategy, acceptance criteria, implementation guardrails, and review gates for this milestone live in:
 
 → **`docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`**
 
 #### Step 2: Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation
-* **Branch strategy:** Use fine-grained feature branches aligned with coherent implementation units within each step. Do not use one branch spanning the entire milestone.
+* **Branch strategy:** Use fine-grained feature branches aligned with coherent implementation units within each step. Reviewed intermediate checkpoints may be committed/pushed after explicit human approval; an incomplete step must not be represented as complete merely because it has a checkpoint commit.
 * **Step 2.1: Trajectory Logging & Telemetry** `[IMPLEMENTED]`: Typed, sink-independent trajectory telemetry with deterministic JSONL persistence. SQLite is added later in Step 3.1 behind the same sink abstraction.
 * **Step 2.2: Native Schema Enforcement** `[IMPLEMENTATION COMPLETE / MERGE-READY]`: Prefer native Ollama JSON-schema constraints at structured-output boundaries, retain Pydantic validation as an application-level defense, and use the documented fallback path when native capability is unavailable or unknown. **Empirical model-by-model Light Mode compatibility remains a non-blocking validation item and must be completed before the Step 3.5 Light Mode exit criterion.**
-* **Step 2.3: Dual-Method Graham Strategy & Valuation Input Resolution** `[DESIGN APPROVED / IMPLEMENTATION UNCOMMITTED]`: Add the Graham Number screening ceiling as the default method and preserve the forecast-dependent Graham growth value as an explicit alternative. Keep `BaseDataClient` historical-price focused; introduce the dedicated valuation-facts provider/cache/resolver seam, strict as-of behavior, per-input provenance, explicit overrides, deterministic fixtures, and a unified `graham` CLI target. Do not silently estimate growth or select an unverified AAA series. Do not build the Golden evaluator/reporting system. Stop for review before committing; `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact implementation specification.
+* **Step 2.3: Dual-Method Graham Strategy, Valuation Input Resolution & Investor Presentation** `[SLICES A–E2 COMPLETE / E3 NEXT]`: Preserve the Graham Number as the default screening-ceiling method and the forecast-dependent growth value as an explicit alternative. Keep `BaseDataClient` historical-price focused; use the dedicated valuation-facts provider/cache/resolver seam, strict `as_of` behavior, per-input provenance, explicit overrides, and deterministic fixtures. Before Step 2.3 completes, close the production-data gap that prevents a representative ticker-only Graham Number from resolving required BVPS evidence (Slice E3), then add investor-facing result presentation and the unified direct-analysis CLI (F1/F2). Do not silently estimate growth or disguise unsupported provider capabilities. `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact implementation specification.
 * **Step 2.4: Golden-Test Suite & Strategy Evaluation**: Build the fixture-backed Golden Suite on the stable Step 2.3 contracts. Exercise Momentum, the Graham Number, and the Graham growth-value method. Report method/strategy/tool-selection correctness separately from deterministic numerical correctness and from overall case pass/fail. Keep deterministic/no-LLM regression tests separate from optional real-local-Ollama empirical evaluation. Target ≥90% aggregate pass rate without weakening benchmark criteria.
 * **Step 2.5: Circuit Breakers & Timeout Limits**: Enforce hard execution caps, wall-clock bounds, retry/error thresholds, and clean diagnostics.
 
-#### Step 3: Relational Data Persistence Layer & Data Quality (SQLite)
+#### Step 3: Relational Data Persistence, Data Quality & Local Research Workspace (SQLite)
 * **Branch strategy:** Use fine-grained branches aligned with Step 3 implementation units.
 * Repositories live under `src/data/repositories/`.
-* **Step 3.1: SQLite DB & Migration Infrastructure:** Set up Alembic, enforce WAL mode, establish market-data and trajectory storage, add `SQLiteTrajectorySink`, and implement durable cache/persistence behind the historical-price and valuation-facts contracts established in Step 2.3. This step preserves the distinction between telemetry persistence, production market-data persistence, and Golden fixtures.
+* **Step 3.1: SQLite DB & Migration Infrastructure:** Set up Alembic, enforce WAL mode, establish market-data and trajectory storage, add `SQLiteTrajectorySink`, and implement durable cache/persistence behind the historical-price and valuation-facts contracts established in Step 2.3.
 * **Step 3.2: DAO & Repository Layer:** Build strongly typed data-access/repository interfaces and SQLite implementations for market data, trajectory records, and metadata.
 * **Step 3.3: Data Quality & Cache Invalidation Pipeline:** Validate incoming financial data (currency consistency, corporate actions where applicable, continuity/missing data, and staleness) and apply controlled cache refresh/invalidation rules.
+* **Step 3.4: Local Research Workspace & Analysis Run Library:** Add named watchlists, ticker membership and supported analysis selections, durable Analysis Run records, user-initiated concurrent refresh, and commands to list/show completed runs. The initial automatic/default watchlist profile uses analyses that require no invented forecast assumptions (Momentum and Graham Number); the growth method participates only with explicit stored/user-supplied assumptions. An Analysis Run is the durable product artifact; a “report” is a rendering of that run rather than a separately generated canonical object. No background daemon, unattended scheduler, notifications, full-screen TUI, or executive-report generator is introduced here.
 
 #### Step 3.5: Light Mode Support (required before v0.2.5)
-* **Goal:** Ensure the full single-step analysis path (data fetch → deterministic analytics → basic synthesis/report) runs cleanly under Light Mode configuration with a 14B-class (or smaller) model.
-* **Deliverables:** Configuration defaults favor Light Mode; README and `docs/HARDWARE.md` provide the supported path; basic smoke tests pass; Step 2.2 empirical schema/model compatibility is recorded.
-* **Exit criterion:** A user following only the Light Mode instructions can complete a real analysis end-to-end.
+* **Goal:** Ensure the complete investor workflow—data fetch/cache → deterministic analytics → stored Analysis Run → concise/detailed inspection → bounded local-model synthesis—runs cleanly under Light Mode with a 14B-class (or smaller) model.
+* **Deliverables:** Configuration defaults favor Light Mode; README and `docs/HARDWARE.md` provide the supported path; basic smoke tests pass; Step 2.2 empirical schema/model compatibility is recorded; a simple `analyze TICKER` path may combine the default deterministic analyses and optionally synthesize their already-computed typed results.
+* **Synthesis boundary:** The LLM may explain or compare deterministic evidence, but it does not create financial facts, perform valuation arithmetic, or invent growth assumptions. Failure of synthesis must not discard valid deterministic results.
+* **Exit criterion:** A new user following only the Light Mode instructions can add or analyze a real ticker, run/refresh supported analyses, inspect a concise result and its provenance, revisit completed Analysis Runs, and obtain bounded synthesis without developer intervention.
 
 ### **Milestone v0.2.5: Real-User Validation Checkpoint**
 This milestone answers a question none of the technical quality gates can answer: does this help anyone besides the author?
 
 * **Step 0.5.1:** Recruit at least 3 external testers using Light Mode.
-* **Step 0.5.2:** Capture structured feedback about setup, confusion, failures, usefulness, and desired next capabilities.
+* **Step 0.5.2:** Capture structured feedback about setup, watchlist/direct-analysis workflow, confusion, failures, whether concise/detail views expose the right information, whether provenance builds trust, whether the output changed what the tester wanted to investigate next, and desired capabilities.
 * **Step 0.5.3:** Confirm or adjust hardware assumptions using actual tester hardware.
 * **Step 0.5.4:** Re-prioritize Milestone v0.3 using the findings, including whether `fr-CA` localization remains in v0.3.
-* **Exit criterion:** At least 3 completed tester sessions, documented findings, and v0.3 scope confirmed or adjusted before Step 4 begins.
+* **Exit criterion:** At least 3 completed tester sessions using the real Light Mode investor workflow, documented findings, and v0.3 scope confirmed or adjusted before Step 4 begins.
 
 ### **Milestone v0.3: Analytics Expansion & Canadian Localization**
 #### Step 4: Analytical Expansion & Quantitative Modeling
@@ -233,9 +228,9 @@ The initial Momentum and Graham strategies are established earlier as architectu
 * **Entry criterion:** Milestone v0.2.5 exit criteria met, and at least 1 tester has confirmed an output was genuinely useful.
 
 #### Step 6: Autonomous Multi-Step Tool Integration (Hardened)
-* **Step 6.1:** Multi-Step Planner.
-* **Step 6.2:** Argument Sanitization & Self-Correction.
-* **Step 6.3:** Continuous Golden-Suite Evaluation Gate using the Step 2.4 benchmark infrastructure.
+* **Step 6.1:** Multi-Step Planner, including unattended/scheduled research only after the v0.2.5 evidence gate justifies it.
+* **Step 6.2:** Argument Sanitization & Self-Correction, bounded recovery, and proactive-monitoring guardrails.
+* **Step 6.3:** Continuous Golden-Suite Evaluation Gate using the Step 2.4 benchmark infrastructure. Notifications/proactive monitoring must remain opt-in and policy-bounded.
 
 #### Step 7: High-Fidelity Data Visualization & Report Generation
 * **Step 7.1:** Static plotting engine.
@@ -254,8 +249,8 @@ The initial Momentum and Graham strategies are established earlier as architectu
 | **Performance** | CLI Startup Latency | < 500 ms (excluding Ollama/model initialization and network access) |
 | **Performance** | SQLite Query Latency | < 50 ms (indexed local cache lookup under representative single-user workload) |
 | **Reliability** | Unhandled Agent Exceptions | 0 on golden test suite |
-| **Adoption** | Light Mode end-to-end path documented and smoke-tested | Required before Milestone v0.2.5 |
-| **User Validation** | External testers who completed a real analysis under Light Mode | ≥ 3 before Milestone v1.0 begins |
+| **Adoption** | Light Mode investor workflow (analyze/watchlist → refresh → stored run → concise/details/provenance) documented and smoke-tested | Required before Milestone v0.2.5 |
+| **User Validation** | External testers who completed the real Light Mode investor workflow | ≥ 3 before Milestone v1.0 begins |
 | **User Validation** | External testers confirming a genuinely useful output | ≥ 1 before Milestone v1.0 begins |
 
 ---
@@ -271,6 +266,7 @@ The initial Momentum and Graham strategies are established earlier as architectu
 | **Database Lock / Concurrency Latency** | DB timeouts during multi-tool execution | Enforce SQLite Write-Ahead Logging (WAL) mode and single-writer/multi-reader connection pooling. |
 | **Hardware barrier excludes target users** | Dual-tier requirements out of reach for most Primary Users | **Light Mode is the default path.** Full Dual-Tier is optional. Hardware requirements are surfaced early in README and `docs/HARDWARE.md`. External validation (v0.2.5) runs under Light Mode. |
 | **Strategy fixation / analytical monoculture** | Local model repeatedly selects the first/only familiar analytical strategy even when another is appropriate | Maintain materially different deterministic analyzers behind the same existing runtime path; Step 2.4 measures strategy selection separately from numerical correctness; do not special-case the orchestrator around one strategy. |
+| **User-facing architecture remains developer-shaped** | Real testers can run the software but cannot quickly understand or revisit results | Use concise investor-facing presentation, progressive disclosure, durable Analysis Runs, and Step 3.4 watchlist/run browsing before v0.2.5. |
 
 ---
 
@@ -291,11 +287,13 @@ Every Pull Request must pass the following automated GitHub Actions pipeline bef
 The project distinguishes these related but separate concerns:
 
 1. **Operational logs** answer what happened operationally.
-2. **Trajectory telemetry** answers what the agent/runtime did during a specific execution.
+2. **Trajectory telemetry** answers what the agent/runtime did during an execution.
 3. **Historical-price and valuation-facts contracts** define what deterministic analytics may request.
 4. **Golden fixtures** provide immutable deterministic evidence for benchmark execution.
-5. **Production persistence/cache** provides durable market-data storage in Step 3.1.
+5. **Production persistence/cache** provides durable market/fundamental data storage beginning in Step 3.1.
 6. **Evaluation results** record whether a benchmark run selected the correct strategy/tool and produced the correct deterministic result.
+7. **Analysis Runs** are durable investor-domain records of requested analyses, configurations, typed results, provenance, warnings, status, and timestamps; Step 3.4 owns this product-facing history.
+8. **Result views/reports** render an Analysis Run in concise terminal, detailed, diagnostic, JSON, or later Markdown/PDF form. In v0.2 a report is not a second canonical persisted result object.
 
 Step 2.3 establishes the minimum data capabilities required by the initial heterogeneous strategies:
 
@@ -308,6 +306,21 @@ Step 2.3 also supplies only the minimal in-memory/fixture cache and deterministi
 The Golden Suite must never silently fall back to live market data when fixture evidence is missing.
 
 ---
+
+## 11.6 Investor-Facing Presentation Boundary
+
+Investor-facing output is a presentation concern, not an excuse to force heterogeneous strategies into one internal result model. Momentum and Graham retain method-specific typed result objects; strategy-specific presenters map those results into a coherent visual grammar:
+
+- identity: ticker, analysis/method, requested `as_of`;
+- status/applicability;
+- headline metrics and plain-language relationship between them;
+- source/freshness summary;
+- material warnings and visible user overrides;
+- `--details` for financial provenance/derivations;
+- `--diagnostics` for resolution/cache/provider behavior; and
+- `--json` for stable machine-readable output.
+
+Operational logging remains on the diagnostics/logging path and must not be used as the primary investor-facing renderer. The default view favors high-signal financial information; raw provider/cache mechanics are progressively disclosed.
 
 ## 12. Telemetry & Operational Logging Boundary
 
