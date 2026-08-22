@@ -39,13 +39,18 @@ def test_valuation_field_members() -> None:
     assert ValuationField.EPS.value == "eps"
     assert ValuationField.BVPS.value == "bvps"
     assert ValuationField.CURRENT_AAA_YIELD.value == "current_aaa_yield"
-    assert len(list(ValuationField)) == 4
+    assert ValuationField.STOCKHOLDERS_EQUITY.value == "stockholders_equity"
+    assert ValuationField.COMMON_SHARES_OUTSTANDING.value == "common_shares_outstanding"
+    assert ValuationField.PREFERRED_SHARES_OUTSTANDING.value == "preferred_shares_outstanding"
+    assert len(list(ValuationField)) == 7
 
 
 def test_valuation_unit_members() -> None:
     assert ValuationUnit.CURRENCY_PER_SHARE.value == "currency_per_share"
     assert ValuationUnit.PERCENTAGE_POINTS.value == "percentage_points"
-    assert len(list(ValuationUnit)) == 2
+    assert ValuationUnit.CURRENCY.value == "currency"
+    assert ValuationUnit.SHARES.value == "shares"
+    assert len(list(ValuationUnit)) == 4
 
 
 # ===========================================================================
@@ -231,7 +236,14 @@ def test_eps_multiple_observations_allowed() -> None:
 
 @pytest.mark.parametrize(
     "field_name",
-    [ValuationField.CURRENT_PRICE, ValuationField.BVPS, ValuationField.CURRENT_AAA_YIELD],
+    [
+        ValuationField.CURRENT_PRICE,
+        ValuationField.BVPS,
+        ValuationField.CURRENT_AAA_YIELD,
+        ValuationField.STOCKHOLDERS_EQUITY,
+        ValuationField.COMMON_SHARES_OUTSTANDING,
+        ValuationField.PREFERRED_SHARES_OUTSTANDING,
+    ],
 )
 def test_multiple_observations_rejected_for_non_eps(field_name: ValuationField) -> None:
     subject_kind = (
@@ -279,7 +291,7 @@ def test_request_frozen() -> None:
 
 
 # ===========================================================================
-# ProviderFact — valid construction (all four fields)
+# ProviderFact — valid construction
 # ===========================================================================
 
 
@@ -344,6 +356,57 @@ def test_valid_aaa_yield_fact() -> None:
     )
     assert fact.value == 4.4
     assert fact.currency is None
+
+
+def test_valid_stockholders_equity_fact() -> None:
+    fact = ProviderFact(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=ValuationField.STOCKHOLDERS_EQUITY,
+        value=75_000_000_000.0,
+        units=ValuationUnit.CURRENCY,
+        provider_id="sec_edgar",
+        provider_field="us-gaap:StockholdersEquity",
+        retrieved_at=AW,
+        basis="fiscal_year_end",
+        currency="USD",
+        observation_period_end=PERIOD_END,
+    )
+    assert fact.units is ValuationUnit.CURRENCY
+    assert fact.currency == "USD"
+
+
+def test_valid_common_shares_outstanding_fact() -> None:
+    fact = ProviderFact(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+        value=15_000_000_000.0,
+        units=ValuationUnit.SHARES,
+        provider_id="sec_edgar",
+        provider_field="us-gaap:CommonStockSharesOutstanding",
+        retrieved_at=AW,
+        basis="fiscal_year_end",
+        observation_period_end=PERIOD_END,
+    )
+    assert fact.units is ValuationUnit.SHARES
+    assert fact.currency is None
+
+
+def test_zero_preferred_shares_outstanding_is_valid_guard_fact() -> None:
+    fact = ProviderFact(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+        value=0.0,
+        units=ValuationUnit.SHARES,
+        provider_id="sec_edgar",
+        provider_field="us-gaap:PreferredStockSharesOutstanding",
+        retrieved_at=AW,
+        basis="fiscal_year_end",
+        observation_period_end=PERIOD_END,
+    )
+    assert fact.value == 0.0
 
 
 # ===========================================================================
@@ -475,6 +538,34 @@ def test_negative_bvps_remains_valid() -> None:
         )
     )
     assert fact.value == -1.5
+
+
+def test_zero_common_shares_outstanding_rejected() -> None:
+    with pytest.raises(ValueError, match="common_shares_outstanding"):
+        ProviderFact(
+            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_id="AAPL",
+            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            value=0.0,
+            units=ValuationUnit.SHARES,
+            provider_id="sec_edgar",
+            provider_field="us-gaap:CommonStockSharesOutstanding",
+            retrieved_at=AW,
+        )
+
+
+def test_negative_preferred_shares_outstanding_rejected() -> None:
+    with pytest.raises(ValueError, match="preferred_shares_outstanding"):
+        ProviderFact(
+            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_id="AAPL",
+            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            value=-1.0,
+            units=ValuationUnit.SHARES,
+            provider_id="sec_edgar",
+            provider_field="us-gaap:PreferredStockSharesOutstanding",
+            retrieved_at=AW,
+        )
 
 
 # ===========================================================================

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -18,7 +19,13 @@ from src.analysis.graham_value.models import CalculationStatus
 from src.analysis.graham_value.provenance import SourceKind, ValuationSubjectKind
 from src.analysis.graham_value.providers.massive import MASSIVE_PROVIDER_ID, MassiveValuationAdapter
 from src.analysis.graham_value.providers.production import ProductionValuationProvider
-from src.analysis.graham_value.providers.sec_edgar import SEC_PROVIDER_ID, SecEdgarValuationAdapter
+from src.analysis.graham_value.providers.sec_edgar import (
+    SEC_COMMON_SHARES_FIELD,
+    SEC_PREFERRED_SHARES_FIELD,
+    SEC_PROVIDER_ID,
+    SEC_STOCKHOLDERS_EQUITY_FIELD,
+    SecEdgarValuationAdapter,
+)
 from src.analysis.graham_value.resolver import InputResolver
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
@@ -53,7 +60,7 @@ def _sec_request(*, as_of: datetime | None = None) -> ValuationFactRequest:
     )
 
 
-def _sec_payload() -> object:
+def _sec_payload() -> dict[str, Any]:
     return {
         "facts": {
             "us-gaap": {
@@ -123,6 +130,85 @@ def _sec_payload() -> object:
     }
 
 
+def _sec_payload_with_bvps_components(*, preferred_shares: float | None = 0.0) -> dict[str, Any]:
+    payload = _sec_payload()
+    us_gaap = payload["facts"]["us-gaap"]
+    us_gaap["StockholdersEquity"] = {
+        "units": {
+            "USD": [
+                {
+                    "end": "2024-09-28",
+                    "val": 60_000_000_000.0,
+                    "accn": "0001-24",
+                    "fy": 2024,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2024-11-01",
+                },
+                {
+                    "end": "2025-09-27",
+                    "val": 75_000_000_000.0,
+                    "accn": "0001-25",
+                    "fy": 2025,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2025-10-31",
+                },
+            ]
+        }
+    }
+    us_gaap["CommonStockSharesOutstanding"] = {
+        "units": {
+            "shares": [
+                {
+                    "end": "2024-09-28",
+                    "val": 15_000_000_000.0,
+                    "accn": "0001-24",
+                    "fy": 2024,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2024-11-01",
+                },
+                {
+                    "end": "2025-09-27",
+                    "val": 15_000_000_000.0,
+                    "accn": "0001-25",
+                    "fy": 2025,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2025-10-31",
+                },
+            ]
+        }
+    }
+    if preferred_shares is not None:
+        us_gaap["PreferredStockSharesOutstanding"] = {
+            "units": {
+                "shares": [
+                    {
+                        "end": "2024-09-28",
+                        "val": 0.0,
+                        "accn": "0001-24",
+                        "fy": 2024,
+                        "fp": "FY",
+                        "form": "10-K",
+                        "filed": "2024-11-01",
+                    },
+                    {
+                        "end": "2025-09-27",
+                        "val": preferred_shares,
+                        "accn": "0001-25",
+                        "fy": 2025,
+                        "fp": "FY",
+                        "form": "10-K",
+                        "filed": "2025-10-31",
+                    },
+                ]
+            }
+        }
+    return payload
+
+
 def _submissions_payload() -> object:
     return {
         "filings": {
@@ -139,13 +225,24 @@ def _submissions_payload() -> object:
     }
 
 
-def _sec_fetcher() -> FakeJsonFetcher:
+def _sec_fetcher(company_facts: object | None = None) -> FakeJsonFetcher:
     return FakeJsonFetcher(
         {
             "company_tickers.json": {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}},
-            "/companyfacts/": _sec_payload(),
+            "/companyfacts/": company_facts if company_facts is not None else _sec_payload(),
             "/submissions/": _submissions_payload(),
         }
+    )
+
+
+def _sec_component_request(field: ValuationField, *, as_of: datetime | None = None) -> ValuationFactRequest:
+    return ValuationFactRequest(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=field,
+        provider_id=SEC_PROVIDER_ID,
+        basis="fiscal_year_end",
+        as_of=as_of,
     )
 
 
@@ -190,6 +287,130 @@ def test_sec_adapter_unsupported_capability_returns_empty_without_fetching() -> 
 
     assert adapter.fetch_facts(request) == ()
     assert fetcher.calls == []
+
+
+def test_sec_adapter_returns_bvps_components_with_exact_fields_and_period() -> None:
+    fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+
+    equity = adapter.fetch_facts(_sec_component_request(ValuationField.STOCKHOLDERS_EQUITY))
+    common = adapter.fetch_facts(_sec_component_request(ValuationField.COMMON_SHARES_OUTSTANDING))
+    preferred = adapter.fetch_facts(_sec_component_request(ValuationField.PREFERRED_SHARES_OUTSTANDING))
+
+    assert len(equity) == len(common) == len(preferred) == 1
+    assert equity[0].provider_field == SEC_STOCKHOLDERS_EQUITY_FIELD
+    assert common[0].provider_field == SEC_COMMON_SHARES_FIELD
+    assert preferred[0].provider_field == SEC_PREFERRED_SHARES_FIELD
+    assert equity[0].units is ValuationUnit.CURRENCY
+    assert common[0].units is ValuationUnit.SHARES
+    assert preferred[0].value == pytest.approx(0.0)
+    assert {fact.observation_period_end for fact in (equity[0], common[0], preferred[0])} == {
+        datetime(2025, 9, 27, 23, 59, 59, 999999, tzinfo=UTC)
+    }
+    assert all(
+        fact.available_at == datetime(2025, 10, 31, 18, 0, tzinfo=UTC) for fact in (equity[0], common[0], preferred[0])
+    )
+
+
+def test_sec_component_historical_as_of_uses_latest_period_known_at_boundary() -> None:
+    fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
+
+    facts = adapter.fetch_facts(_sec_component_request(ValuationField.STOCKHOLDERS_EQUITY, as_of=as_of))
+
+    assert len(facts) == 1
+    assert facts[0].value == pytest.approx(60_000_000_000.0)
+    assert facts[0].observation_period_end == datetime(2024, 9, 28, 23, 59, 59, 999999, tzinfo=UTC)
+    assert facts[0].available_at == datetime(2024, 11, 1, 18, 0, tzinfo=UTC)
+
+
+def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> None:
+    payload = _sec_payload_with_bvps_components()
+    shares = payload["facts"]["us-gaap"]["CommonStockSharesOutstanding"]["units"]["shares"]
+    shares.append(
+        {
+            "end": "2025-09-27",
+            "val": 5_000_000_000.0,
+            "accn": "0001-25",
+            "fy": 2025,
+            "fp": "FY",
+            "form": "10-K",
+            "filed": "2025-10-31",
+        }
+    )
+    fetcher = _sec_fetcher(payload)
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+
+    assert adapter.fetch_facts(_sec_component_request(ValuationField.COMMON_SHARES_OUTSTANDING)) == ()
+
+
+def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
+    fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    request = ValuationFactRequest(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=ValuationField.BVPS,
+        provider_id=SEC_PROVIDER_ID,
+    )
+
+    result = resolver.resolve_bvps(request)
+
+    assert result.status is CalculationStatus.OK
+    assert result.resolved_input is not None
+    assert result.resolved_input.value == pytest.approx(5.0)
+    assert result.resolved_input.source_kind is SourceKind.DERIVED
+    assert result.resolved_input.lineage is not None
+    assert {component.field_name for component in result.resolved_input.lineage.components} == {
+        ValuationField.STOCKHOLDERS_EQUITY.value,
+        ValuationField.PREFERRED_SHARES_OUTSTANDING.value,
+        ValuationField.COMMON_SHARES_OUTSTANDING.value,
+    }
+
+
+def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
+    fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
+    request = ValuationFactRequest(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=ValuationField.BVPS,
+        provider_id=SEC_PROVIDER_ID,
+        as_of=as_of,
+    )
+
+    result = resolver.resolve_bvps(request)
+
+    assert result.status is CalculationStatus.OK
+    assert result.resolved_input is not None
+    assert result.resolved_input.value == pytest.approx(4.0)
+    assert result.resolved_input.as_of == as_of
+    assert result.resolved_input.observation_period_end == datetime(2024, 9, 28, 23, 59, 59, 999999, tzinfo=UTC)
+    assert result.resolved_input.available_at == datetime(2024, 11, 1, 18, 0, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("preferred_shares", [None, 1_000_000.0])
+def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
+    preferred_shares: float | None,
+) -> None:
+    fetcher = _sec_fetcher(_sec_payload_with_bvps_components(preferred_shares=preferred_shares))
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    request = ValuationFactRequest(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="AAPL",
+        field_name=ValuationField.BVPS,
+        provider_id=SEC_PROVIDER_ID,
+    )
+
+    result = resolver.resolve_bvps(request)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.resolved_input is None
 
 
 def _massive_currency_payload() -> object:
@@ -408,12 +629,10 @@ def test_production_provider_routes_without_rewriting_provider_identity() -> Non
 
 
 def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
-    sec = StaticProvider(
-        (
-            _annual_eps_fact(5.0, 2023),
-            _annual_eps_fact(6.0, 2024),
-            _annual_eps_fact(7.0, 2025),
-        )
+    fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
+    sec = SecEdgarValuationAdapter(
+        json_fetcher=fetcher,
+        clock=lambda: NOW,
     )
     massive = StaticProvider((_massive_quote_fact(),))
     provider = ProductionValuationProvider(sec_edgar=sec, massive=massive)
@@ -423,15 +642,19 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
         security_subject_id="AAPL",
         security_provider_id=SEC_PROVIDER_ID,
         quote_provider_id=MASSIVE_PROVIDER_ID,
-        bvps_override=40.0,
     )
 
     assert result.status is CalculationStatus.OK
     assert result.eps is not None
-    assert result.eps.value == pytest.approx(6.0)
+    assert result.eps.value == pytest.approx(6.41)
     assert result.eps.source_kind is SourceKind.DERIVED
     assert result.eps.lineage is not None
     assert {component.provider_id for component in result.eps.lineage.components} == {SEC_PROVIDER_ID}
+    assert result.bvps is not None
+    assert result.bvps.value == pytest.approx(5.0)
+    assert result.bvps.source_kind is SourceKind.DERIVED
+    assert result.bvps.lineage is not None
+    assert {component.provider_id for component in result.bvps.lineage.components} == {SEC_PROVIDER_ID}
     assert result.current_price is not None
     assert result.current_price.value == pytest.approx(250.5)
     assert result.current_price.provider_id == MASSIVE_PROVIDER_ID

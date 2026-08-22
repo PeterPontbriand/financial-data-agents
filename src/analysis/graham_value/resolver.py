@@ -263,6 +263,32 @@ class InputResolver:
         # 3. Provider fallback.
         return self._resolve_provider(request, use_cache)
 
+    def resolve_bvps(
+        self,
+        request: ValuationFactRequest,
+        *,
+        override: float | None = None,
+        use_cache: bool = True,
+    ) -> InputResolutionResult:
+        """Resolve direct BVPS first, then conservatively derive it from SEC-style components.
+
+        The derived path requires parent stockholders' equity, period-end common
+        shares outstanding, and an explicit same-period zero preferred-share
+        observation. Missing preferred-share data is never interpreted as zero.
+        """
+        if request.field_name is not ValuationField.BVPS:
+            return InputResolutionResult(
+                status=CalculationStatus.INVALID_INPUT,
+                reason=f"resolve_bvps requires a BVPS request (received {request.field_name.value}).",
+            )
+
+        direct = self.resolve(request, override=override, use_cache=use_cache)
+        if direct.status is not CalculationStatus.INPUT_UNAVAILABLE or override is not None:
+            return direct
+        if request.basis is not None:
+            return direct
+        return self._derive_bvps_from_components(request, use_cache=use_cache)
+
     def resolve_three_year_average_eps(  # noqa: PLR0911, PLR0912, PLR0915
         self,
         request: ValuationFactRequest,
@@ -539,7 +565,7 @@ class InputResolver:
             provider_id=security_provider_id,
             as_of=as_of,
         )
-        bvps_result = self.resolve(bvps_request, override=bvps_override, use_cache=use_cache)
+        bvps_result = self.resolve_bvps(bvps_request, override=bvps_override, use_cache=use_cache)
         if bvps_result.status is not CalculationStatus.OK:
             return GrahamNumberInputAssembly(
                 status=bvps_result.status,
@@ -800,6 +826,94 @@ class InputResolver:
             as_of=as_of,
         )
         return InputResolutionResult(status=CalculationStatus.OK, resolved_input=ri)
+
+    def _derive_bvps_from_components(  # noqa: PLR0911
+        self,
+        request: ValuationFactRequest,
+        *,
+        use_cache: bool,
+    ) -> InputResolutionResult:
+        equity_result = self.resolve(
+            _bvps_component_request(request, ValuationField.STOCKHOLDERS_EQUITY),
+            use_cache=use_cache,
+        )
+        if equity_result.status is not CalculationStatus.OK:
+            return _bvps_component_failure("stockholders_equity", equity_result)
+        equity = equity_result.resolved_input
+        assert equity is not None
+
+        preferred_result = self.resolve(
+            _bvps_component_request(request, ValuationField.PREFERRED_SHARES_OUTSTANDING),
+            use_cache=use_cache,
+        )
+        if preferred_result.status is not CalculationStatus.OK:
+            return _bvps_component_failure("preferred_shares_outstanding", preferred_result)
+        preferred = preferred_result.resolved_input
+        assert preferred is not None
+
+        shares_result = self.resolve(
+            _bvps_component_request(request, ValuationField.COMMON_SHARES_OUTSTANDING),
+            use_cache=use_cache,
+        )
+        if shares_result.status is not CalculationStatus.OK:
+            return _bvps_component_failure("common_shares_outstanding", shares_result)
+        shares = shares_result.resolved_input
+        assert shares is not None
+
+        alignment_error = _bvps_component_alignment_error(equity, preferred, shares)
+        if alignment_error is not None:
+            return InputResolutionResult(status=CalculationStatus.INPUT_UNAVAILABLE, reason=alignment_error)
+        if preferred.value > 0:
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=(
+                    "BVPS unavailable: stockholders_equity cannot be treated as common shareholders' equity "
+                    "because same-period preferred_shares_outstanding is non-zero."
+                ),
+            )
+
+        value = equity.value / shares.value
+        if not math.isfinite(value):
+            return InputResolutionResult(
+                status=CalculationStatus.PROVIDER_ERROR,
+                reason="BVPS derivation produced a non-finite value.",
+            )
+
+        components = (equity, preferred, shares)
+        available_ats = [component.available_at for component in components if component.available_at is not None]
+        available_at = max(available_ats) if len(available_ats) == len(components) else None
+        retrieved_ats = [component.retrieved_at for component in components if component.retrieved_at is not None]
+        retrieved_at = max(retrieved_ats) if retrieved_ats else None
+        resolved_at = self._clock()
+        lineage = ComponentLineage(
+            transformation=("stockholders_equity / common_shares_outstanding; preferred_shares_outstanding == 0 guard"),
+            components=components,
+        )
+        derived = ResolvedInput(
+            field_name=ValuationField.BVPS.value,
+            value=value,
+            source_kind=SourceKind.DERIVED,
+            resolved_at=resolved_at,
+            basis=request.basis,
+            units=ValuationUnit.CURRENCY_PER_SHARE.value,
+            currency=equity.currency,
+            provider_id=request.provider_id,
+            observation_period_end=equity.observation_period_end,
+            available_at=available_at,
+            as_of=request.as_of,
+            retrieved_at=retrieved_at,
+            lineage=lineage,
+            notes=(
+                "measurement_basis=common equity per period-end common share",
+                "stockholders_equity accepted as common equity only because preferred shares outstanding is zero",
+                "no independent split normalization applied; source filing share/EPS "
+                "restatement semantics are retained",
+            ),
+        )
+
+        if use_cache and self._cache is not None:
+            self._cache.put(self._build_cache_key(request), derived)
+        return InputResolutionResult(status=CalculationStatus.OK, resolved_input=derived)
 
     def _resolve_optional_quote(
         self,
@@ -1075,7 +1189,56 @@ def _field_unit(field_name: ValuationField) -> ValuationUnit:
     """Map a semantic field to its required unit."""
     if field_name is ValuationField.CURRENT_AAA_YIELD:
         return ValuationUnit.PERCENTAGE_POINTS
+    if field_name is ValuationField.STOCKHOLDERS_EQUITY:
+        return ValuationUnit.CURRENCY
+    if field_name in (ValuationField.COMMON_SHARES_OUTSTANDING, ValuationField.PREFERRED_SHARES_OUTSTANDING):
+        return ValuationUnit.SHARES
     return ValuationUnit.CURRENCY_PER_SHARE
+
+
+def _bvps_component_request(request: ValuationFactRequest, field_name: ValuationField) -> ValuationFactRequest:
+    """Build a fiscal-year-end component request inheriting the BVPS analysis boundary."""
+    return ValuationFactRequest(
+        subject_kind=request.subject_kind,
+        subject_id=request.subject_id,
+        field_name=field_name,
+        provider_id=request.provider_id,
+        basis="fiscal_year_end",
+        as_of=request.as_of,
+    )
+
+
+def _bvps_component_failure(name: str, result: InputResolutionResult) -> InputResolutionResult:
+    """Wrap a component-resolution failure with BVPS derivation context."""
+    return InputResolutionResult(
+        status=result.status,
+        reason=f"BVPS unavailable: required {name} component could not be resolved: {result.reason}",
+    )
+
+
+def _bvps_component_alignment_error(
+    equity: ResolvedInput,
+    preferred: ResolvedInput,
+    shares: ResolvedInput,
+) -> str | None:
+    """Return a reason when BVPS derivation components are not safely compatible."""
+    components = (equity, preferred, shares)
+    period_ends = {component.observation_period_end for component in components}
+    if None in period_ends or len(period_ends) != 1:
+        return "BVPS unavailable: equity and share-count components do not share one reporting-period end."
+    if equity.currency is None:
+        return "BVPS unavailable: stockholders_equity component has no currency."
+    if equity.units != ValuationUnit.CURRENCY.value:
+        return "BVPS unavailable: stockholders_equity component is not a currency amount."
+    if preferred.units != ValuationUnit.SHARES.value or shares.units != ValuationUnit.SHARES.value:
+        return "BVPS unavailable: share-count components are not expressed in shares."
+
+    error = None
+    if preferred.value < 0:
+        error = "BVPS unavailable: preferred_shares_outstanding is negative."
+    elif shares.value <= 0:
+        error = "BVPS unavailable: common_shares_outstanding must be strictly positive."
+    return error
 
 
 def _validate_provider_response(

@@ -5,8 +5,10 @@ provider-fact payloads, the operational provider-failure exception, and the
 structural ``ValuationFactsProvider`` protocol for C2 field-level resolution.
 
 These contracts are *provider-neutral*: they name semantic fields
-(``current_price``, ``eps``, ``bvps``, ``current_aaa_yield``) and units, not
-any specific vendor's field identifiers.  No resolver, cache, fallback, or
+(``current_price``, ``eps``, ``bvps``, ``current_aaa_yield``) plus the narrow
+accounting/share-count components required for a transparent BVPS derivation.
+They name semantic units rather than any specific vendor's field identifiers.
+No resolver, cache, fallback, or
 provider adapter is implemented here — only the contracts a later C2
 sub-slice will fulfil.
 
@@ -88,6 +90,10 @@ def _expected_unit(field_name: ValuationField) -> ValuationUnit:
     """Return the unit a given field must carry."""
     if field_name is ValuationField.CURRENT_AAA_YIELD:
         return ValuationUnit.PERCENTAGE_POINTS
+    if field_name is ValuationField.STOCKHOLDERS_EQUITY:
+        return ValuationUnit.CURRENCY
+    if field_name in (ValuationField.COMMON_SHARES_OUTSTANDING, ValuationField.PREFERRED_SHARES_OUTSTANDING):
+        return ValuationUnit.SHARES
     return ValuationUnit.CURRENCY_PER_SHARE
 
 
@@ -114,6 +120,9 @@ class ValuationField(StrEnum):
     EPS = "eps"
     BVPS = "bvps"
     CURRENT_AAA_YIELD = "current_aaa_yield"
+    STOCKHOLDERS_EQUITY = "stockholders_equity"
+    COMMON_SHARES_OUTSTANDING = "common_shares_outstanding"
+    PREFERRED_SHARES_OUTSTANDING = "preferred_shares_outstanding"
 
 
 class ValuationUnit(StrEnum):
@@ -121,6 +130,8 @@ class ValuationUnit(StrEnum):
 
     CURRENCY_PER_SHARE = "currency_per_share"
     PERCENTAGE_POINTS = "percentage_points"
+    CURRENCY = "currency"
+    SHARES = "shares"
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +171,7 @@ class ValuationFactRequest:
     Attributes:
         subject_kind: SECURITY or MACRO.
         subject_id: Security symbol (normalized) or macro identifier.
-        field_name: One of the four semantic ``ValuationField`` values.
+        field_name: One of the supported semantic ``ValuationField`` values.
         provider_id: Non-empty provider identifier (normalized lowercase).
         basis: Basis/variant label, or None.
         as_of: None = current; timezone-aware = historical boundary.
@@ -223,7 +234,7 @@ class ProviderFact:
     Attributes:
         subject_kind: SECURITY or MACRO.
         subject_id: Security symbol (normalized) or macro identifier.
-        field_name: One of the four semantic ``ValuationField`` values.
+        field_name: One of the supported semantic ``ValuationField`` values.
         value: Finite numeric value.
         units: Unit of measurement; must match the field.
         provider_id: Non-empty provider identifier (normalized lowercase).
@@ -236,7 +247,8 @@ class ProviderFact:
         observation_period_end: Timezone-aware end of a reporting period.
         observed_at: Timezone-aware point-observation timestamp.
         available_at: Timezone-aware time when fact became publicly knowable.
-        notes: Immutable additional provenance annotations.
+        notes: Immutable additional provenance annotations. Narrow BVPS derivation
+            components use monetary or share-count units rather than per-share units.
     """
 
     subject_kind: ValuationSubjectKind
@@ -286,17 +298,17 @@ class ProviderFact:
             raise ValueError(msg)
 
         # Currency rules depend on unit.
-        if self.units is ValuationUnit.CURRENCY_PER_SHARE:
+        if self.units in (ValuationUnit.CURRENCY_PER_SHARE, ValuationUnit.CURRENCY):
             if self.currency is None:
-                msg = f"{self.field_name.name} (currency_per_share) requires a currency."
+                msg = f"{self.field_name.name} ({self.units.value}) requires a currency."
                 raise ValueError(msg)
             normalized_currency = self.currency.strip().upper()
             if not normalized_currency:
-                msg = "currency must be non-empty for currency_per_share facts."
+                msg = f"currency must be non-empty for {self.units.value} facts."
                 raise ValueError(msg)
         else:
             if self.currency is not None:
-                msg = f"{self.field_name.name} (percentage_points) must not carry a currency."
+                msg = f"{self.field_name.name} ({self.units.value}) must not carry a currency."
                 raise ValueError(msg)
             normalized_currency = None
 
@@ -306,6 +318,12 @@ class ProviderFact:
             raise ValueError(msg)
         if self.field_name is ValuationField.CURRENT_AAA_YIELD and self.value <= 0:
             msg = f"current_aaa_yield must be strictly positive (received {self.value})."
+            raise ValueError(msg)
+        if self.field_name is ValuationField.COMMON_SHARES_OUTSTANDING and self.value <= 0:
+            msg = f"common_shares_outstanding must be strictly positive (received {self.value})."
+            raise ValueError(msg)
+        if self.field_name is ValuationField.PREFERRED_SHARES_OUTSTANDING and self.value < 0:
+            msg = f"preferred_shares_outstanding must be non-negative (received {self.value})."
             raise ValueError(msg)
 
         object.__setattr__(self, "subject_id", normalized_subject)
