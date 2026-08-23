@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-21 — Replanned the investor-facing experience before Slice F: added a user-viable production Graham checkpoint (E3), split investor presentation/direct CLI work into F1/F2, added Step 3.4 watchlists and durable Analysis Runs, strengthened the Step 3.5 Light Mode workflow, and clarified bounded v0.2 agentic behavior versus v1.0 unattended autonomy.
-**Status:** Step 2.2 → Implementation complete; Step 2.3 → Slices A–E2 complete and approved, human-approved checkpoint commit/push permitted, Slice E3 next; Step 2.4 → Not started
+**Revised:** 2026-08-22 — Locked the approved F1 presentation/diagnostics/JSON semantics, recorded pre-F2 live-validation requirements, and made the Step 2.3 slice plan the sole live slice-status tracker.
+**Status:** Step 2.2 → Implementation complete; Step 2.3 → detailed live status is tracked in `docs/milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md`; Step 2.4 → Not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -406,6 +406,14 @@ Requirements:
 - the growth method requires an explicit expected-growth assumption under `explicit_override`, unless another separately approved deterministic policy supplies it;
 - `--as-of` provides a reproducible temporal boundary; and
 - incompatible options fail with a clear usage error rather than being ignored.
+
+Pre-F2 live validation adds these acceptance requirements:
+- ordinary `graham TICKER` must exercise the default Graham Number data/resolution path rather than requiring legacy growth-formula inputs;
+- override-driven arithmetic must not masquerade as provider-validated analysis of an unverified security subject;
+- invalid/missing tickers and provider failures must produce one clear user-facing error surface without framework/provider-library implementation leakage;
+- material overrides and forecast assumptions must be conspicuous;
+- normal result output must come from the presenter rather than operational logger lines; and
+- deterministic CLI tests must cover invalid ticker, unavailable quote, override-heavy growth input, insufficient Momentum history, and JSON `null` for unavailable numeric metrics.
 
 Investor-facing presentation uses progressive disclosure:
 

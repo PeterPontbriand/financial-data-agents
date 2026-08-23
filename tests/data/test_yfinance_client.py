@@ -1,14 +1,33 @@
-"""Unit tests for the YFinanceClient quote boundary.
+"""Unit tests for the YFinanceClient market-data and quote boundaries.
 
 All yfinance access is mocked so no network calls are ever made.
 """
 
+import logging
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
 from src.data.base_client import DataFetchError
 from src.data.yfinance_client import YFinanceClient
+
+
+class TestFetchData:
+    """Historical market-data validation and error mapping."""
+
+    def test_empty_result_raises_friendly_error_without_error_level_internal_log(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with (
+            patch("src.data.yfinance_client.yf.download", return_value=pd.DataFrame()),
+            caplog.at_level(logging.DEBUG, logger="src.data.yfinance_client"),
+            pytest.raises(DataFetchError, match="No market data was returned for ticker 'BAD'"),
+        ):
+            YFinanceClient().fetch_data("BAD", "2026-01-01")
+
+        assert not any(record.levelno >= logging.ERROR for record in caplog.records)
 
 
 class TestFetchCurrentPrice:
@@ -36,8 +55,18 @@ class TestFetchCurrentPrice:
             with pytest.raises(DataFetchError, match="Unable to resolve"):
                 YFinanceClient().fetch_current_price("TEST")
 
-    def test_provider_lookup_failure_wrapped_as_data_fetch_error(self) -> None:
-        with patch("src.data.yfinance_client.yf.Ticker") as mock_ticker:
-            mock_ticker.side_effect = ConnectionError("simulated network failure")
-            with pytest.raises(DataFetchError, match="Unable to resolve"):
-                YFinanceClient().fetch_current_price("TEST")
+    def test_provider_lookup_failure_wrapped_without_error_level_internal_log(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with (
+            patch(
+                "src.data.yfinance_client.yf.Ticker",
+                side_effect=ConnectionError("simulated network failure"),
+            ),
+            caplog.at_level(logging.DEBUG, logger="src.data.yfinance_client"),
+            pytest.raises(DataFetchError, match="Unable to resolve"),
+        ):
+            YFinanceClient().fetch_current_price("TEST")
+
+        assert not any(record.levelno >= logging.ERROR for record in caplog.records)

@@ -34,6 +34,12 @@ from src.analysis.graham_value.provenance import (
     SourceKind,
     ValuationSubjectKind,
 )
+from src.analysis.graham_value.resolution_trace import (
+    ResolutionEvent,
+    ResolutionOutcome,
+    ResolutionStage,
+    ResolutionTrace,
+)
 
 # ---------------------------------------------------------------------------
 # InputResolutionResult
@@ -54,11 +60,13 @@ class InputResolutionResult:
         status: The resolution outcome.
         resolved_input: Present only when status is ``OK``.
         reason: Non-empty explanation when status is not ``OK``.
+        resolution_trace: Ordered resolver events actually observed for this resolution.
     """
 
     status: CalculationStatus
     resolved_input: ResolvedInput | None = None
     reason: str | None = None
+    resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
 
     def __post_init__(self) -> None:
         """Enforce status/value invariants."""
@@ -113,6 +121,7 @@ class GrahamNumberInputAssembly:
             quote was requested and did not return OK).
         quote_reason: Human-readable reason for a non-OK quote.
         reason: Explanation when assembly ``status`` is not OK.
+        resolution_trace: Ordered resolver events across attempted method inputs.
         method: Always ``GrahamMethod.NUMBER``.
     """
 
@@ -123,6 +132,7 @@ class GrahamNumberInputAssembly:
     quote_status: CalculationStatus | None = None
     quote_reason: str | None = None
     reason: str | None = None
+    resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     method: GrahamMethod = field(init=False, default=GrahamMethod.NUMBER)
 
 
@@ -152,6 +162,7 @@ class GrowthValueInputAssembly:
             quote was requested and did not return OK).
         quote_reason: Human-readable reason for a non-OK quote.
         reason: Explanation when assembly ``status`` is not OK.
+        resolution_trace: Ordered resolver events across attempted method inputs.
         method: Always ``GrahamMethod.GROWTH_VALUE``.
     """
 
@@ -163,6 +174,7 @@ class GrowthValueInputAssembly:
     quote_status: CalculationStatus | None = None
     quote_reason: str | None = None
     reason: str | None = None
+    resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     method: GrahamMethod = field(init=False, default=GrahamMethod.GROWTH_VALUE)
 
 
@@ -223,26 +235,20 @@ class InputResolver:
         override: float | None = None,
         use_cache: bool = True,
     ) -> InputResolutionResult:
-        """Resolve a single valuation fact for *request*.
+        """Resolve a single valuation fact and retain the path actually taken."""
+        field_name = request.field_name.value
 
-        Precedence: explicit override, then cache, then provider.
-
-        Args:
-            request: The valuation fact request (single observation).
-            override: Caller-supplied numeric value; short-circuits cache and provider.
-            use_cache: When False, skip both cache read and cache write.
-
-        Returns:
-            An ``InputResolutionResult`` describing the outcome.
-        """
-        # 0. Single-observation contract: this resolver handles exactly one
-        #    observation.  A multi-observation request must be rejected before
-        #    any override, cache, or provider work.
+        # 0. Single-observation contract.
         if request.observation_count != 1:
+            reason = f"This single-fact resolver requires observation_count=1 (received {request.observation_count})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=(
-                    f"This single-fact resolver requires observation_count=1 (received {request.observation_count})."
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
                 ),
             )
 
@@ -250,18 +256,73 @@ class InputResolver:
         if override is not None:
             return self._resolve_override(request, override)
 
+        trace = _trace_event(
+            field_name,
+            ResolutionStage.OVERRIDE,
+            ResolutionOutcome.NOT_USED,
+            "No explicit override was supplied.",
+        )
+
         # 2. Cache lookup.
-        if use_cache and self._cache is not None:
+        if not use_cache:
+            trace = trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.CACHE,
+                    ResolutionOutcome.NOT_USED,
+                    "Cache use was disabled for this resolution.",
+                )
+            )
+        elif self._cache is None:
+            trace = trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.CACHE,
+                    ResolutionOutcome.NOT_USED,
+                    "No valuation cache is configured.",
+                )
+            )
+        else:
             key = self._build_cache_key(request)
             entry = self._cache.get(key)
-            if entry is not None:
+            if entry is None:
+                trace = trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.CACHE,
+                        ResolutionOutcome.MISS,
+                        (
+                            "Cache returned no usable entry; its get() contract does not "
+                            "distinguish absent, stale, or temporally ineligible entries."
+                        ),
+                    )
+                )
+            else:
                 ri = self._try_cache_hit(request, entry.resolved_input, key)
                 if ri is not None:
-                    return InputResolutionResult(status=CalculationStatus.OK, resolved_input=ri)
-                # Temporal rejection: fall through to provider.
+                    return InputResolutionResult(
+                        status=CalculationStatus.OK,
+                        resolved_input=ri,
+                        resolution_trace=trace.append(
+                            _event(
+                                field_name,
+                                ResolutionStage.CACHE,
+                                ResolutionOutcome.HIT,
+                                "Cache entry passed resolver temporal checks and was accepted.",
+                            )
+                        ),
+                    )
+                trace = trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.CACHE,
+                        ResolutionOutcome.REJECTED,
+                        "Cache returned an entry that failed resolver temporal eligibility.",
+                    )
+                )
 
         # 3. Provider fallback.
-        return self._resolve_provider(request, use_cache)
+        return _prepend_trace(self._resolve_provider(request, use_cache), trace)
 
     def resolve_bvps(
         self,
@@ -277,9 +338,16 @@ class InputResolver:
         observation. Missing preferred-share data is never interpreted as zero.
         """
         if request.field_name is not ValuationField.BVPS:
+            reason = f"resolve_bvps requires a BVPS request (received {request.field_name.value})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"resolve_bvps requires a BVPS request (received {request.field_name.value}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    request.field_name.value,
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
 
         direct = self.resolve(request, override=override, use_cache=use_cache)
@@ -287,7 +355,9 @@ class InputResolver:
             return direct
         if request.basis is not None:
             return direct
-        return self._derive_bvps_from_components(request, use_cache=use_cache)
+
+        derived = self._derive_bvps_from_components(request, use_cache=use_cache)
+        return _prepend_trace(derived, direct.resolution_trace)
 
     def resolve_three_year_average_eps(  # noqa: PLR0911, PLR0912, PLR0915
         self,
@@ -297,62 +367,168 @@ class InputResolver:
     ) -> InputResolutionResult:
         """Resolve the three-year average EPS.
 
-        Validates the request, checks the derived cache, calls the provider once,
-        selects the three most recent distinct eligible completed fiscal-year EPS
-        observations, composes their arithmetic mean, and optionally caches the
-        derived result.
-
-        Args:
-            request: The valuation fact request (EPS, observation_count=3,
-                basis="fiscal_year").
-            use_cache: When False, skip both cache read and cache write.
-
-        Returns:
-            An ``InputResolutionResult`` describing the outcome.
+        The financial selection/composition behavior is unchanged; this method
+        additionally retains the cache/provider/derivation path actually taken.
         """
+        field_name = ValuationField.EPS.value
+
         # --- 1. Request validation (before any cache/provider work) ---
         if request.field_name is not ValuationField.EPS:
+            reason = f"resolve_three_year_average_eps requires field_name=EPS (received {request.field_name.name})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"resolve_three_year_average_eps requires field_name=EPS (received {request.field_name.name}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
         if request.observation_count != 3:
+            reason = (
+                f"resolve_three_year_average_eps requires observation_count=3 (received {request.observation_count})."
+            )
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=(
-                    f"resolve_three_year_average_eps requires observation_count=3 "
-                    f"(received {request.observation_count})."
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
                 ),
             )
         if request.basis != "fiscal_year":
+            reason = f'resolve_three_year_average_eps requires basis="fiscal_year" (received {request.basis!r}).'
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f'resolve_three_year_average_eps requires basis="fiscal_year" (received {request.basis!r}).',
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
 
+        trace = _trace_event(
+            field_name,
+            ResolutionStage.OVERRIDE,
+            ResolutionOutcome.NOT_USED,
+            "No explicit EPS override was supplied.",
+        )
+
         # --- 2. Derived cache lookup ---
-        if use_cache and self._cache is not None:
+        if not use_cache:
+            trace = trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.CACHE,
+                    ResolutionOutcome.NOT_USED,
+                    "Cache use was disabled for the derived EPS resolution.",
+                )
+            )
+        elif self._cache is None:
+            trace = trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.CACHE,
+                    ResolutionOutcome.NOT_USED,
+                    "No valuation cache is configured.",
+                )
+            )
+        else:
             key = self._build_derived_cache_key(request)
             entry = self._cache.get(key)
-            if entry is not None:
+            if entry is None:
+                trace = trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.CACHE,
+                        ResolutionOutcome.MISS,
+                        (
+                            "Cache returned no usable derived EPS entry; its get() "
+                            "contract does not distinguish absent, stale, or "
+                            "temporally ineligible entries."
+                        ),
+                    )
+                )
+            else:
                 ri = self._try_derived_cache_hit(entry.resolved_input, key)
                 if ri is not None:
-                    return InputResolutionResult(status=CalculationStatus.OK, resolved_input=ri)
+                    return InputResolutionResult(
+                        status=CalculationStatus.OK,
+                        resolved_input=ri,
+                        resolution_trace=trace.append(
+                            _event(
+                                field_name,
+                                ResolutionStage.CACHE,
+                                ResolutionOutcome.HIT,
+                                "Derived EPS cache entry passed eligibility checks and was accepted.",
+                            )
+                        ),
+                    )
+                trace = trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.CACHE,
+                        ResolutionOutcome.REJECTED,
+                        "Derived EPS cache entry failed resolver eligibility checks.",
+                    )
+                )
 
         # --- 3. Provider call (exactly once) ---
+        trace = trace.append(
+            _event(
+                field_name,
+                ResolutionStage.PROVIDER,
+                ResolutionOutcome.ATTEMPTED,
+                "Requested completed fiscal-year EPS observations from the configured provider.",
+            )
+        )
         try:
             facts = self._provider.fetch_facts(request)
         except ValuationProviderError as exc:
+            reason = f"Provider error: {exc}"
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
-                reason=f"Provider error: {exc}",
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.ERROR,
+                        reason,
+                    )
+                ),
             )
+
+        trace = trace.append(
+            _event(
+                field_name,
+                ResolutionStage.PROVIDER,
+                ResolutionOutcome.SUCCESS,
+                f"Provider returned {len(facts)} fiscal-year EPS candidate(s).",
+            )
+        )
 
         # --- 4. Validate every candidate ---
         for fact in facts:
             err = self._validate_candidate(fact, request)
             if err is not None:
-                return InputResolutionResult(status=CalculationStatus.PROVIDER_ERROR, reason=err)
+                return InputResolutionResult(
+                    status=CalculationStatus.PROVIDER_ERROR,
+                    reason=err,
+                    resolution_trace=trace.append(
+                        _event(
+                            field_name,
+                            ResolutionStage.PROVIDER,
+                            ResolutionOutcome.REJECTED,
+                            f"Rejected provider candidate before composition: {err}",
+                        )
+                    ),
+                )
 
         # --- 5. Temporal eligibility (capture one clock value) ---
         resolver_now = self._clock()
@@ -361,37 +537,59 @@ class InputResolver:
             if self._is_temporally_eligible(fact, request, resolver_now):
                 eligible.append(fact)
 
+        trace = trace.append(
+            _event(
+                field_name,
+                ResolutionStage.DERIVATION,
+                ResolutionOutcome.ATTEMPTED,
+                "Selecting three compatible, temporally eligible fiscal-year EPS observations.",
+            )
+        )
+
         # --- 6. Selection ---
-        # Group by observation_period_end
         by_period_end: dict[datetime, list[ProviderFact]] = {}
         for fact in eligible:
             assert fact.observation_period_end is not None
             by_period_end.setdefault(fact.observation_period_end, []).append(fact)
 
-        # Sort distinct period ends newest to oldest
         sorted_ends = sorted(by_period_end.keys(), reverse=True)
 
-        # Fewer than three distinct eligible periods
         if len(sorted_ends) < 3:
+            reason = (
+                "Insufficient eligible fiscal-year EPS observations: "
+                f"found {len(sorted_ends)} distinct period(s), need 3."
+            )
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
-                reason=(
-                    f"Insufficient eligible fiscal-year EPS observations: "
-                    f"found {len(sorted_ends)} distinct period(s), need 3."
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.DERIVATION,
+                        ResolutionOutcome.UNAVAILABLE,
+                        reason,
+                    )
                 ),
             )
 
-        # Select newest three
         selected_ends = sorted_ends[:3]
 
-        # Duplicate/ambiguous in any selected period => PROVIDER_ERROR
         for end in selected_ends:
             if len(by_period_end[end]) > 1:
+                reason = (
+                    f"Ambiguous: {len(by_period_end[end])} candidates share "
+                    f"observation_period_end={end.isoformat()} in a selected period."
+                )
                 return InputResolutionResult(
                     status=CalculationStatus.PROVIDER_ERROR,
-                    reason=(
-                        f"Ambiguous: {len(by_period_end[end])} candidates share "
-                        f"observation_period_end={end.isoformat()} in a selected period."
+                    reason=reason,
+                    resolution_trace=trace.append(
+                        _event(
+                            field_name,
+                            ResolutionStage.DERIVATION,
+                            ResolutionOutcome.ERROR,
+                            reason,
+                        )
                     ),
                 )
 
@@ -404,30 +602,37 @@ class InputResolver:
         common_basis = selected_facts[0].basis
         for fact in selected_facts[1:]:
             if fact.provider_field != common_provider_field:
+                reason = f"Incompatible provider_field: {fact.provider_field!r} != {common_provider_field!r}."
                 return InputResolutionResult(
                     status=CalculationStatus.PROVIDER_ERROR,
-                    reason=f"Incompatible provider_field: {fact.provider_field!r} != {common_provider_field!r}.",
+                    reason=reason,
+                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
                 )
             if fact.units is not common_units:
+                reason = f"Incompatible units: {fact.units.name} != {common_units.name}."
                 return InputResolutionResult(
                     status=CalculationStatus.PROVIDER_ERROR,
-                    reason=f"Incompatible units: {fact.units.name} != {common_units.name}.",
+                    reason=reason,
+                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
                 )
             if fact.currency != common_currency:
+                reason = f"Incompatible currency: {fact.currency!r} != {common_currency!r}."
                 return InputResolutionResult(
                     status=CalculationStatus.PROVIDER_ERROR,
-                    reason=f"Incompatible currency: {fact.currency!r} != {common_currency!r}.",
+                    reason=reason,
+                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
                 )
             if fact.basis != common_basis:
+                reason = f"Incompatible basis: {fact.basis!r} != {common_basis!r}."
                 return InputResolutionResult(
                     status=CalculationStatus.PROVIDER_ERROR,
-                    reason=f"Incompatible basis: {fact.basis!r} != {common_basis!r}.",
+                    reason=reason,
+                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
                 )
 
         # --- 8. Composition ---
-        # Order oldest -> newest by observation_period_end
         def _end_key(f: ProviderFact) -> datetime:
-            assert f.observation_period_end is not None  # guaranteed by prior validation
+            assert f.observation_period_end is not None
             return f.observation_period_end
 
         selected_facts_sorted = sorted(selected_facts, key=_end_key)
@@ -458,7 +663,6 @@ class InputResolver:
         values = [f.value for f in selected_facts_sorted]
         mean_value = sum(values) / 3.0
 
-        # Derive temporal metadata
         oldest = components[0]
         newest = components[-1]
         available_ats = [c.available_at for c in components if c.available_at is not None]
@@ -494,7 +698,18 @@ class InputResolver:
             key = self._build_derived_cache_key(request)
             self._cache.put(key, derived_ri)
 
-        return InputResolutionResult(status=CalculationStatus.OK, resolved_input=derived_ri)
+        return InputResolutionResult(
+            status=CalculationStatus.OK,
+            resolved_input=derived_ri,
+            resolution_trace=trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.DERIVATION,
+                    ResolutionOutcome.SUCCESS,
+                    "Derived three-year-average EPS from three compatible fiscal-year observations.",
+                )
+            ),
+        )
 
     # ------------------------------------------------------------------
     # C2D method-level assembly
@@ -513,35 +728,20 @@ class InputResolver:
         as_of: datetime | None = None,
         use_cache: bool = True,
     ) -> GrahamNumberInputAssembly:
-        """Assemble the inputs required by the Graham Number method.
-
-        Resolves required EPS and BVPS, then optionally resolves the current
-        price.  Does **not** perform the Graham Number calculation.
-
-        Args:
-            security_subject_id: Security symbol for EPS/BVPS/quote.
-            security_provider_id: Provider identifier for security fields.
-            eps_basis: ``"three_year_average"`` (default) or ``"ttm"``.
-            eps_override: Explicit EPS value; bypasses cache/provider.
-            bvps_override: Explicit BVPS value; bypasses cache/provider.
-            quote_override: Explicit current price; bypasses cache/provider.
-            quote_provider_id: Optional provider identifier for the quote.
-                Defaults to ``security_provider_id`` for backward compatibility.
-            as_of: Optional historical boundary (timezone-aware).
-            use_cache: When False, skip cache read and write for all fields.
-
-        Returns:
-            A ``GrahamNumberInputAssembly`` with resolved inputs or a failure
-            status with a field-specific reason.
-        """
-        # --- 1. Validate EPS basis ---
+        """Assemble the inputs required by the Graham Number method."""
         if eps_basis not in ("three_year_average", "ttm"):
+            reason = f"eps_basis must be 'three_year_average' or 'ttm' (received {eps_basis!r})."
             return GrahamNumberInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"eps_basis must be 'three_year_average' or 'ttm' (received {eps_basis!r}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    "eps",
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
 
-        # --- 2. Resolve EPS (required) ---
         eps_result = self._resolve_eps(
             security_subject_id=security_subject_id,
             security_provider_id=security_provider_id,
@@ -550,14 +750,15 @@ class InputResolver:
             as_of=as_of,
             use_cache=use_cache,
         )
+        trace = eps_result.resolution_trace
         if eps_result.status is not CalculationStatus.OK:
             return GrahamNumberInputAssembly(
                 status=eps_result.status,
                 reason=f"eps: {eps_result.reason}",
+                resolution_trace=trace,
             )
         eps_input = eps_result.resolved_input
 
-        # --- 3. Resolve BVPS (required) ---
         bvps_request = ValuationFactRequest(
             subject_kind=ValuationSubjectKind.SECURITY,
             subject_id=security_subject_id,
@@ -566,15 +767,16 @@ class InputResolver:
             as_of=as_of,
         )
         bvps_result = self.resolve_bvps(bvps_request, override=bvps_override, use_cache=use_cache)
+        trace = trace.extend(bvps_result.resolution_trace)
         if bvps_result.status is not CalculationStatus.OK:
             return GrahamNumberInputAssembly(
                 status=bvps_result.status,
                 eps=eps_input,
                 reason=f"bvps: {bvps_result.reason}",
+                resolution_trace=trace,
             )
         bvps_input = bvps_result.resolved_input
 
-        # --- 4. Resolve optional quote ---
         quote_result = self._resolve_optional_quote(
             security_subject_id=security_subject_id,
             security_provider_id=quote_provider_id or security_provider_id,
@@ -582,16 +784,16 @@ class InputResolver:
             as_of=as_of,
             use_cache=use_cache,
         )
+        trace = trace.extend(quote_result.resolution_trace)
         if quote_result.status is CalculationStatus.INVALID_INPUT:
-            # Invalid explicit quote override: fail assembly.
             return GrahamNumberInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 eps=eps_input,
                 bvps=bvps_input,
                 reason=f"current_price: {quote_result.reason}",
+                resolution_trace=trace,
             )
         if quote_result.status is not CalculationStatus.OK:
-            # INPUT_UNAVAILABLE / PROVIDER_ERROR: non-fatal degradation.
             return GrahamNumberInputAssembly(
                 status=CalculationStatus.OK,
                 eps=eps_input,
@@ -599,13 +801,14 @@ class InputResolver:
                 current_price=None,
                 quote_status=quote_result.status,
                 quote_reason=quote_result.reason,
+                resolution_trace=trace,
             )
-        # Quote resolved OK.
         return GrahamNumberInputAssembly(
             status=CalculationStatus.OK,
             eps=eps_input,
             bvps=bvps_input,
             current_price=quote_result.resolved_input,
+            resolution_trace=trace,
         )
 
     def assemble_growth_value(  # noqa: PLR0911, PLR0913
@@ -624,39 +827,18 @@ class InputResolver:
         as_of: datetime | None = None,
         use_cache: bool = True,
     ) -> GrowthValueInputAssembly:
-        """Assemble the inputs required by the Graham Growth Value method.
-
-        Resolves required EPS (explicit basis), expected growth rate
-        (override only), current AAA yield, then optionally resolves the
-        current price.  Does **not** perform the growth-value calculation.
-
-        Args:
-            security_subject_id: Security symbol for EPS/quote.
-            security_provider_id: Provider identifier for security fields.
-            eps_basis: Explicit EPS basis (e.g. ``"ttm"``,
-                ``"three_year_average"``).  Required; no default.
-            eps_override: Explicit EPS value; bypasses cache/provider.
-            expected_growth: Expected growth rate in percentage points
-                (required; override-only policy).
-            aaa_subject_id: MACRO subject identifier for the AAA yield.
-            aaa_provider_id: Provider identifier for the AAA yield.
-            aaa_yield_override: Explicit AAA yield value in percentage points;
-                bypasses cache/provider for that field.
-            quote_override: Explicit current price; bypasses cache/provider.
-            quote_provider_id: Optional provider identifier for the quote.
-                Defaults to ``security_provider_id`` for backward compatibility.
-            as_of: Optional historical boundary (timezone-aware).
-            use_cache: When False, skip cache read and write for all fields.
-
-        Returns:
-            A ``GrowthValueInputAssembly`` with resolved inputs or a failure
-            status with a field-specific reason.
-        """
-        # --- 1. Resolve EPS (required, explicit basis) ---
+        """Assemble the inputs required by the Graham Growth Value method."""
         if not eps_basis.strip():
+            reason = "eps_basis must be a non-empty string."
             return GrowthValueInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
-                reason="eps_basis must be a non-empty string.",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    "eps",
+                    ResolutionStage.VALIDATION,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
 
         eps_result = self._resolve_eps(
@@ -667,24 +849,26 @@ class InputResolver:
             as_of=as_of,
             use_cache=use_cache,
         )
+        trace = eps_result.resolution_trace
         if eps_result.status is not CalculationStatus.OK:
             return GrowthValueInputAssembly(
                 status=eps_result.status,
                 reason=f"eps: {eps_result.reason}",
+                resolution_trace=trace,
             )
         eps_input = eps_result.resolved_input
 
-        # --- 2. Resolve expected growth (required, override-only) ---
         growth_result = self._resolve_expected_growth(expected_growth, as_of=as_of)
+        trace = trace.extend(growth_result.resolution_trace)
         if growth_result.status is not CalculationStatus.OK:
             return GrowthValueInputAssembly(
                 status=growth_result.status,
                 eps=eps_input,
                 reason=f"expected_growth: {growth_result.reason}",
+                resolution_trace=trace,
             )
         growth_input = growth_result.resolved_input
 
-        # --- 3. Resolve current AAA yield (required) ---
         aaa_request = ValuationFactRequest(
             subject_kind=ValuationSubjectKind.MACRO,
             subject_id=aaa_subject_id,
@@ -693,16 +877,17 @@ class InputResolver:
             as_of=as_of,
         )
         aaa_result = self.resolve(aaa_request, override=aaa_yield_override, use_cache=use_cache)
+        trace = trace.extend(aaa_result.resolution_trace)
         if aaa_result.status is not CalculationStatus.OK:
             return GrowthValueInputAssembly(
                 status=aaa_result.status,
                 eps=eps_input,
                 expected_growth=growth_input,
                 reason=f"current_aaa_yield: {aaa_result.reason}",
+                resolution_trace=trace,
             )
         aaa_input = aaa_result.resolved_input
 
-        # --- 4. Resolve optional quote ---
         quote_result = self._resolve_optional_quote(
             security_subject_id=security_subject_id,
             security_provider_id=quote_provider_id or security_provider_id,
@@ -710,17 +895,17 @@ class InputResolver:
             as_of=as_of,
             use_cache=use_cache,
         )
+        trace = trace.extend(quote_result.resolution_trace)
         if quote_result.status is CalculationStatus.INVALID_INPUT:
-            # Invalid explicit quote override: fail assembly.
             return GrowthValueInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 eps=eps_input,
                 expected_growth=growth_input,
                 current_aaa_yield=aaa_input,
                 reason=f"current_price: {quote_result.reason}",
+                resolution_trace=trace,
             )
         if quote_result.status is not CalculationStatus.OK:
-            # INPUT_UNAVAILABLE / PROVIDER_ERROR: non-fatal degradation.
             return GrowthValueInputAssembly(
                 status=CalculationStatus.OK,
                 eps=eps_input,
@@ -729,14 +914,15 @@ class InputResolver:
                 current_price=None,
                 quote_status=quote_result.status,
                 quote_reason=quote_result.reason,
+                resolution_trace=trace,
             )
-        # Quote resolved OK.
         return GrowthValueInputAssembly(
             status=CalculationStatus.OK,
             eps=eps_input,
             expected_growth=growth_input,
             current_aaa_yield=aaa_input,
             current_price=quote_result.resolved_input,
+            resolution_trace=trace,
         )
 
     # ------------------------------------------------------------------
@@ -796,36 +982,50 @@ class InputResolver:
         return self.resolve(request, use_cache=use_cache)
 
     def _resolve_expected_growth(self, value: float | None, *, as_of: datetime | None = None) -> InputResolutionResult:
-        """Validate and construct an OVERRIDE ResolvedInput for expected growth.
-
-        Growth is override-only: there is no cache or provider path.
-        ``None`` (missing) yields ``INPUT_UNAVAILABLE``; a non-finite value
-        yields ``INVALID_INPUT``; a finite value becomes an OVERRIDE
-        ``ResolvedInput`` with ``percentage_points`` units.
-
-        Args:
-            value: The expected growth rate in percentage points, or ``None``.
-            as_of: Optional historical boundary preserved in provenance.
-        """
+        """Validate and construct an OVERRIDE ResolvedInput for expected growth."""
+        field_name = "expected_growth"
         if value is None:
+            reason = "expected_growth is required but was not provided."
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
-                reason="expected_growth is required but was not provided.",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.OVERRIDE,
+                    ResolutionOutcome.UNAVAILABLE,
+                    reason,
+                ),
             )
         if not math.isfinite(value):
+            reason = f"expected_growth must be finite (received {value!r})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"expected_growth must be finite (received {value!r}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.OVERRIDE,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
         ri = ResolvedInput(
-            field_name="expected_growth",
+            field_name=field_name,
             value=value,
             source_kind=SourceKind.OVERRIDE,
             resolved_at=self._clock(),
             units="percentage_points",
             as_of=as_of,
         )
-        return InputResolutionResult(status=CalculationStatus.OK, resolved_input=ri)
+        return InputResolutionResult(
+            status=CalculationStatus.OK,
+            resolved_input=ri,
+            resolution_trace=_trace_event(
+                field_name,
+                ResolutionStage.OVERRIDE,
+                ResolutionOutcome.SUCCESS,
+                "Explicit expected-growth assumption was accepted.",
+            ),
+        )
 
     def _derive_bvps_from_components(  # noqa: PLR0911
         self,
@@ -833,12 +1033,20 @@ class InputResolver:
         *,
         use_cache: bool,
     ) -> InputResolutionResult:
+        trace = _trace_event(
+            ValuationField.BVPS.value,
+            ResolutionStage.DERIVATION,
+            ResolutionOutcome.ATTEMPTED,
+            "Direct BVPS was unavailable; attempting conservative component derivation.",
+        )
+
         equity_result = self.resolve(
             _bvps_component_request(request, ValuationField.STOCKHOLDERS_EQUITY),
             use_cache=use_cache,
         )
+        trace = trace.extend(equity_result.resolution_trace)
         if equity_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("stockholders_equity", equity_result)
+            return _bvps_component_failure("stockholders_equity", equity_result, trace)
         equity = equity_result.resolved_input
         assert equity is not None
 
@@ -846,8 +1054,9 @@ class InputResolver:
             _bvps_component_request(request, ValuationField.PREFERRED_SHARES_OUTSTANDING),
             use_cache=use_cache,
         )
+        trace = trace.extend(preferred_result.resolution_trace)
         if preferred_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("preferred_shares_outstanding", preferred_result)
+            return _bvps_component_failure("preferred_shares_outstanding", preferred_result, trace)
         preferred = preferred_result.resolved_input
         assert preferred is not None
 
@@ -855,28 +1064,52 @@ class InputResolver:
             _bvps_component_request(request, ValuationField.COMMON_SHARES_OUTSTANDING),
             use_cache=use_cache,
         )
+        trace = trace.extend(shares_result.resolution_trace)
         if shares_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("common_shares_outstanding", shares_result)
+            return _bvps_component_failure("common_shares_outstanding", shares_result, trace)
         shares = shares_result.resolved_input
         assert shares is not None
 
         alignment_error = _bvps_component_alignment_error(equity, preferred, shares)
         if alignment_error is not None:
-            return InputResolutionResult(status=CalculationStatus.INPUT_UNAVAILABLE, reason=alignment_error)
-        if preferred.value > 0:
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
-                reason=(
-                    "BVPS unavailable: stockholders_equity cannot be treated as common shareholders' equity "
-                    "because same-period preferred_shares_outstanding is non-zero."
+                reason=alignment_error,
+                resolution_trace=_derivation_outcome_trace(
+                    trace,
+                    ValuationField.BVPS.value,
+                    ResolutionOutcome.UNAVAILABLE,
+                    alignment_error,
+                ),
+            )
+        if preferred.value > 0:
+            reason = (
+                "BVPS unavailable: stockholders_equity cannot be treated as common shareholders' equity "
+                "because same-period preferred_shares_outstanding is non-zero."
+            )
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=reason,
+                resolution_trace=_derivation_outcome_trace(
+                    trace,
+                    ValuationField.BVPS.value,
+                    ResolutionOutcome.UNAVAILABLE,
+                    reason,
                 ),
             )
 
         value = equity.value / shares.value
         if not math.isfinite(value):
+            reason = "BVPS derivation produced a non-finite value."
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
-                reason="BVPS derivation produced a non-finite value.",
+                reason=reason,
+                resolution_trace=_derivation_outcome_trace(
+                    trace,
+                    ValuationField.BVPS.value,
+                    ResolutionOutcome.ERROR,
+                    reason,
+                ),
             )
 
         components = (equity, preferred, shares)
@@ -913,7 +1146,16 @@ class InputResolver:
 
         if use_cache and self._cache is not None:
             self._cache.put(self._build_cache_key(request), derived)
-        return InputResolutionResult(status=CalculationStatus.OK, resolved_input=derived)
+        return InputResolutionResult(
+            status=CalculationStatus.OK,
+            resolved_input=derived,
+            resolution_trace=_derivation_outcome_trace(
+                trace,
+                ValuationField.BVPS.value,
+                ResolutionOutcome.SUCCESS,
+                "Derived BVPS from compatible same-period components with an explicit zero preferred-share guard.",
+            ),
+        )
 
     def _resolve_optional_quote(
         self,
@@ -1042,26 +1284,48 @@ class InputResolver:
         override: float,
     ) -> InputResolutionResult:
         """Validate and construct an OVERRIDE resolution."""
+        field_name = request.field_name.value
         if not math.isfinite(override):
+            reason = f"Override value must be finite (received {override!r})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"Override value must be finite (received {override!r}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.OVERRIDE,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
 
         if request.field_name is ValuationField.CURRENT_PRICE and override <= 0:
+            reason = f"current_price override must be strictly positive (received {override})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"current_price override must be strictly positive (received {override}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.OVERRIDE,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
         if request.field_name is ValuationField.CURRENT_AAA_YIELD and override <= 0:
+            reason = f"current_aaa_yield override must be strictly positive (received {override})."
             return InputResolutionResult(
                 status=CalculationStatus.INVALID_INPUT,
-                reason=f"current_aaa_yield override must be strictly positive (received {override}).",
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name,
+                    ResolutionStage.OVERRIDE,
+                    ResolutionOutcome.INVALID,
+                    reason,
+                ),
             )
 
         resolved_at = self._clock()
         ri = ResolvedInput(
-            field_name=request.field_name.value,
+            field_name=field_name,
             value=override,
             source_kind=SourceKind.OVERRIDE,
             resolved_at=resolved_at,
@@ -1069,7 +1333,16 @@ class InputResolver:
             units=_field_unit(request.field_name).value,
             as_of=request.as_of,
         )
-        return InputResolutionResult(status=CalculationStatus.OK, resolved_input=ri)
+        return InputResolutionResult(
+            status=CalculationStatus.OK,
+            resolved_input=ri,
+            resolution_trace=_trace_event(
+                field_name,
+                ResolutionStage.OVERRIDE,
+                ResolutionOutcome.SUCCESS,
+                "Explicit override was accepted; cache and provider were bypassed.",
+            ),
+        )
 
     def _build_cache_key(self, request: ValuationFactRequest) -> ValuationCacheKey:
         """Construct the cache key from the request and configured schema version."""
@@ -1125,36 +1398,85 @@ class InputResolver:
         use_cache: bool,
     ) -> InputResolutionResult:
         """Call the provider, validate the response, and optionally cache it."""
+        field_name = request.field_name.value
+        trace = _trace_event(
+            field_name,
+            ResolutionStage.PROVIDER,
+            ResolutionOutcome.ATTEMPTED,
+            f"Requested {field_name} from provider {request.provider_id!r}.",
+        )
         try:
             facts = self._provider.fetch_facts(request)
         except ValuationProviderError as exc:
+            reason = f"Provider error: {exc}"
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
-                reason=f"Provider error: {exc}",
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.ERROR,
+                        reason,
+                    )
+                ),
             )
 
         if len(facts) == 0:
+            reason = "Provider returned no data for the requested field."
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
-                reason="Provider returned no data for the requested field.",
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.UNAVAILABLE,
+                        reason,
+                    )
+                ),
             )
 
         if len(facts) > 1:
+            reason = f"Provider returned {len(facts)} facts for a single-observation request; expected exactly 1."
             return InputResolutionResult(
                 status=CalculationStatus.PROVIDER_ERROR,
-                reason=(f"Provider returned {len(facts)} facts for a single-observation request; expected exactly 1."),
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.ERROR,
+                        reason,
+                    )
+                ),
             )
 
         fact = facts[0]
 
-        # Validate coherence and temporal eligibility before accepting or caching.
         validation = _validate_provider_response(request, fact, self._clock())
         if validation is not None:
-            return InputResolutionResult(status=validation[0], reason=validation[1])
+            status, reason = validation
+            outcome = (
+                ResolutionOutcome.UNAVAILABLE
+                if status is CalculationStatus.INPUT_UNAVAILABLE
+                else ResolutionOutcome.REJECTED
+            )
+            return InputResolutionResult(
+                status=status,
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        outcome,
+                        reason,
+                    )
+                ),
+            )
 
-        # Convert to a PROVIDER-sourced ResolvedInput.
         ri = ResolvedInput(
-            field_name=request.field_name.value,
+            field_name=field_name,
             value=fact.value,
             source_kind=SourceKind.PROVIDER,
             resolved_at=self._clock(),
@@ -1172,17 +1494,98 @@ class InputResolver:
             notes=fact.notes,
         )
 
-        # Cache after full validation passes.
         if use_cache and self._cache is not None:
             key = self._build_cache_key(request)
             self._cache.put(key, ri)
 
-        return InputResolutionResult(status=CalculationStatus.OK, resolved_input=ri)
+        return InputResolutionResult(
+            status=CalculationStatus.OK,
+            resolved_input=ri,
+            resolution_trace=trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.PROVIDER,
+                    ResolutionOutcome.SUCCESS,
+                    "Provider fact passed resolver validation and was accepted.",
+                )
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
+
+def _event(
+    field_name: str,
+    stage: ResolutionStage,
+    outcome: ResolutionOutcome,
+    message: str,
+) -> ResolutionEvent:
+    """Construct one resolver trace event."""
+    return ResolutionEvent(
+        field_name=field_name,
+        stage=stage,
+        outcome=outcome,
+        message=message,
+    )
+
+
+def _trace_event(
+    field_name: str,
+    stage: ResolutionStage,
+    outcome: ResolutionOutcome,
+    message: str,
+) -> ResolutionTrace:
+    """Construct a one-event resolver trace."""
+    return ResolutionTrace(events=(_event(field_name, stage, outcome, message),))
+
+
+def _prepend_trace(
+    result: InputResolutionResult,
+    prefix: ResolutionTrace,
+) -> InputResolutionResult:
+    """Return a result with earlier trace events prepended in execution order."""
+    if not prefix:
+        return result
+    return InputResolutionResult(
+        status=result.status,
+        resolved_input=result.resolved_input,
+        reason=result.reason,
+        resolution_trace=prefix.extend(result.resolution_trace),
+    )
+
+
+def _derivation_outcome_trace(
+    trace: ResolutionTrace,
+    field_name: str,
+    outcome: ResolutionOutcome,
+    message: str,
+) -> ResolutionTrace:
+    """Append one derivation outcome event."""
+    return trace.append(
+        _event(
+            field_name,
+            ResolutionStage.DERIVATION,
+            outcome,
+            message,
+        )
+    )
+
+
+def _derivation_error_trace(
+    trace: ResolutionTrace,
+    field_name: str,
+    message: str,
+) -> ResolutionTrace:
+    """Append one derivation error event."""
+    return _derivation_outcome_trace(
+        trace,
+        field_name,
+        ResolutionOutcome.ERROR,
+        message,
+    )
 
 
 def _field_unit(field_name: ValuationField) -> ValuationUnit:
@@ -1208,11 +1611,26 @@ def _bvps_component_request(request: ValuationFactRequest, field_name: Valuation
     )
 
 
-def _bvps_component_failure(name: str, result: InputResolutionResult) -> InputResolutionResult:
+def _bvps_component_failure(
+    name: str,
+    result: InputResolutionResult,
+    trace: ResolutionTrace,
+) -> InputResolutionResult:
     """Wrap a component-resolution failure with BVPS derivation context."""
+    reason = f"BVPS unavailable: required {name} component could not be resolved: {result.reason}"
+    outcome = {
+        CalculationStatus.PROVIDER_ERROR: ResolutionOutcome.ERROR,
+        CalculationStatus.INVALID_INPUT: ResolutionOutcome.INVALID,
+    }.get(result.status, ResolutionOutcome.UNAVAILABLE)
     return InputResolutionResult(
         status=result.status,
-        reason=f"BVPS unavailable: required {name} component could not be resolved: {result.reason}",
+        reason=reason,
+        resolution_trace=_derivation_outcome_trace(
+            trace,
+            ValuationField.BVPS.value,
+            outcome,
+            reason,
+        ),
     )
 
 

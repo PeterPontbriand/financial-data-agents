@@ -63,16 +63,16 @@ def momentum(
             adapter.info(f"Analysis Complete for {metrics.ticker}")
             adapter.info(f"Current Price: ${metrics.current_price:,.2f}")
             adapter.info(f"Trend Status: {metrics.status.name}")
-            adapter.info(f"SMA({config.short_window}): {metrics.short_sma_val:.2f}")
-            adapter.info(f"SMA({config.long_window}): {metrics.long_sma_val:.2f}")
-            adapter.info(f"Crossover Signal: {metrics.crossover_signal}")
+            adapter.info(f"SMA({config.short_window}): {_display_optional_metric(metrics.short_sma_val)}")
+            adapter.info(f"SMA({config.long_window}): {_display_optional_metric(metrics.long_sma_val)}")
+            adapter.info(f"Crossover Signal: {_display_optional_metric(metrics.crossover_signal)}")
 
     except DataFetchError as err:
         with logger_context as adapter:
             adapter.error(
                 f"Market data retrieval failed: Ticker symbol '{ticker or analyzer._fallback_ticker}' "
-                "appears to be delisted, invalid, or returned empty data. "
-                "Please verify the ticker spelling and try again."
+                "appears to be invalid, unavailable, delisted, or returned no market data. "
+                "Please verify the ticker symbol and try again."
             )
         raise typer.Exit(code=1) from err
 
@@ -85,6 +85,11 @@ def momentum(
         with logger_context as adapter:
             adapter.error(f"An unexpected error occurred during execution: {err}")
         raise typer.Exit(code=1) from err
+
+
+def _display_optional_metric(value: float | None) -> str:
+    """Render a transitional CLI metric without exposing non-finite sentinels."""
+    return "unavailable" if value is None else f"{value:.2f}"
 
 
 @app.command(name="graham")

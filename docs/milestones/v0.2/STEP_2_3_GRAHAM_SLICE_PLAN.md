@@ -1,9 +1,9 @@
 # Step 2.3 Graham Implementation Slice Plan
 
-**Status:** Slices A–E2 complete and approved; human-approved checkpoint commit/push permitted; E3 next<br/>
+**Status:** Slices A–F1 complete and approved; F2 next<br/>
 **Governing design:** `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
-**Last updated:** 2026-08-21
+**Last updated:** 2026-08-22
 
 ## 1. Purpose
 
@@ -61,9 +61,9 @@ At the end of each slice:
 | E1 | Production-provider evidence investigation | Complete and approved |
 | E2 | Evidence-approved production adapters | Complete and approved |
 | Checkpoint | Preserve coherent foundation through E2 | Human-approved commit/push permitted; Step 2.3 remains incomplete |
-| E3 | User-viable default Graham production data path (BVPS gap) | Next |
-| F1 | Investor-facing result presentation for Graham + Momentum | Pending |
-| F2 | Unified direct-analysis CLI and CLI tests | Pending |
+| E3 | User-viable default Graham production data path (BVPS gap) | Complete and approved |
+| F1 | Investor-facing result presentation for Graham + Momentum | Complete and approved |
+| F2 | Unified direct-analysis CLI and CLI tests | Next |
 | G | Documentation synchronization, final cleanup, and full quality gate | Pending |
 
 ## 5. Slice details
@@ -228,6 +228,20 @@ Acceptance:
 
 **Goal:** separate financial result presentation from operational logging and make Momentum + Graham feel like one coherent product.
 
+**Status:** complete and approved.
+
+Locked implementation outcomes:
+- default/details/diagnostics/JSON rendering uses strategy-specific presenters with a shared terminal grammar rather than a generic strategy-result model;
+- details mode uses fixed labels for v0.2; table-oriented terminal rendering is deferred until real-user feedback justifies it;
+- JSON establishes `schema_version = 1` before F2;
+- Graham diagnostics render an explicit immutable resolver execution trace that is separate from financial provenance;
+- cache diagnostics report only what the current cache contract can know; a returned `None` is not fabricated into a precise stale/absent cause;
+- Momentum market-source/freshness/currency metadata remains execution/presentation context rather than being added to the pure `MomentumMetrics` calculation result;
+- unavailable Momentum SMA/crossover values are represented as `None`/JSON `null`, never `NaN`; an unsupported window therefore produces `UNKNOWN` with explicit unavailable metrics; and
+- ordinary lower-layer provider failures raise typed/domain errors while user-facing wording remains the responsibility of the command/presentation boundary.
+
+The F1 live-validation hardening explicitly prevents non-finite numeric sentinels and provider-library implementation details from becoming ordinary investor-facing output.
+
 Implement strategy-specific presenters or an equivalent narrow presentation seam with four levels:
 
 1. **Default concise:** ticker, analysis/method, `as_of`, status, headline metrics, plain-language comparison, high-level sources/freshness, material warnings, and method limitation.
@@ -248,6 +262,15 @@ Acceptance includes deterministic snapshot/semantic tests for both strategies, w
 ### Slice F2 — unified direct-analysis CLI
 
 Wire the presentation layer into the direct commands.
+
+Pre-F2 live-validation requirements:
+- the default Graham path must behave as a ticker analysis, not as a legacy formula calculator that first demands EPS, growth, and AAA-yield flags;
+- a successful arithmetic calculation driven entirely by overrides must not be presented as provider-validated analysis of a security whose identity/evidence was never established; either make the override-driven/unverified nature conspicuous or reject it under a documented subject-validation policy;
+- normal investor-facing output must not expose Pydantic tracebacks/documentation links, provider-library keys such as `currentTradingPeriod`, or operational logger prefixes as the primary result surface;
+- missing or invalid tickers must fail with one clear user-facing message rather than producing authoritative-looking valuation output merely because unrelated manual inputs were supplied;
+- material overrides must be conspicuous in concise output, especially forecast growth and any manually supplied financial fact;
+- the Graham Number must use the approved maximum-indicated-price/screening-ceiling wording, while the growth method must remain visibly forecast-dependent; and
+- deterministic CLI tests must include the live-probe classes that motivated F1/F2: invalid ticker, unavailable quote, override-heavy growth analysis, insufficient Momentum history, and JSON `null` rather than `NaN`.
 
 Required behavior:
 - `financial-agents graham TICKER` defaults to Graham Number;

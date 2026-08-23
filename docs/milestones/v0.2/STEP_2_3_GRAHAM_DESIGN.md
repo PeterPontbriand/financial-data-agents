@@ -1,9 +1,9 @@
 # Step 2.3 Design: Dual-Method Graham Valuation
 
-**Status:** Slices A–E2 complete and approved; reviewed checkpoint commit/push permitted; Slice E3 next<br/>
-**Last updated:** 2026-08-21<br/>
+**Status:** Approved Step 2.3 design; live implementation status is tracked only in `STEP_2_3_GRAHAM_SLICE_PLAN.md`<br/>
+**Last updated:** 2026-08-22<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
-**Review gate:** Human-approved intermediate checkpoint commits are permitted after review/gates; do not declare Step 2.3 complete or begin Step 2.4 until Slices E3, F1, F2, and G are complete and the final Step 2.3 diff is approved
+**Review gate:** Human-approved intermediate checkpoint commits are permitted after review/gates; do not declare Step 2.3 complete or begin Step 2.4 until F2 and G are complete and the final Step 2.3 diff is approved
 
 ---
 
@@ -26,16 +26,13 @@ If two documents conflict, stop and surface the conflict. Do not silently combin
 
 ## 2. Starting point
 
-Slices A through E2 are complete and approved. The current implementation now contains the two pure Graham methods, provenance/cache/resolver seams, deterministic fixtures, the production valuation-provider façade, SEC EDGAR filing-dated annual diluted-EPS support, and Massive current TTM diluted EPS/current-price support. Unsupported capabilities correctly return unavailable rather than masquerading as verified evidence.
+Entering F2, Slices A through F1 are complete and approved. The implementation contains the two pure Graham methods; provenance, cache, resolver, and immutable resolver-trace seams; deterministic fixtures; production valuation adapters; the conservative SEC-backed BVPS derivation required by the default Graham Number path; and strategy-specific investor presenters for Graham and Momentum.
 
-This is a coherent architectural checkpoint and may be committed/pushed after explicit human approval. Step 2.3 nevertheless remains incomplete.
+F1 established concise/details/diagnostics/JSON presentation, `schema_version = 1`, explicit separation of financial provenance from software resolution trace, temporal coherence at the presentation boundary, and explicit unavailable/null Momentum metrics rather than non-finite sentinels. Step 2.3 nevertheless remains incomplete.
 
-The Real-User Validation checkpoint exposes a remaining product gap: the default Graham Number is supposed to work from an ordinary ticker request, but the verified production adapters through E2 do not yet provide a defensible BVPS/direct-or-derived path. Polishing the CLI before closing that gap would produce a good-looking default command that can still fail for a required input.
+Live CLI probes after F1 confirmed that the remaining product gap is the transitional direct-command orchestration itself: the legacy Graham command still behaves like an override-driven formula calculator, leaks framework/provider-oriented errors, and can produce authoritative-looking results for an unverified ticker. These are F2 acceptance failures, not reasons to reopen the approved F1 presentation design.
 
-The remaining Step 2.3 work therefore changes from the original single Slice F into:
-
-- **E3:** establish a user-viable default Graham Number production data path, especially BVPS;
-- **F1:** investor-facing result presentation for Graham and Momentum;
+The remaining Step 2.3 work is therefore:
 - **F2:** unified direct-analysis CLI wiring and tests; and
 - **G:** documentation synchronization, final cleanup, full gate, and completion review.
 
@@ -59,6 +56,11 @@ Step 2.4 remains out of scope.
 | Test data | Deterministic fixtures only; no live provider or LLM calls |
 | Investor presentation | Concise default view; `--details`, `--diagnostics`, and `--json` provide progressive disclosure |
 | Presentation architecture | Momentum and Graham share a visual grammar, not a forced generic internal result model |
+| Terminal details | Fixed labels for v0.2; table-oriented rendering is deferred pending real-user feedback |
+| JSON contract | `schema_version = 1` is established in F1; breaking semantic/structural changes require explicit version review |
+| Diagnostics | Immutable resolver execution trace is distinct from financial provenance and records only behavior actually observed |
+| Momentum unavailable metrics | SMA/crossover unavailability is `None`/JSON `null`, never `NaN`; insufficient history yields `UNKNOWN` |
+| Momentum market metadata | Source/freshness/currency are supplied by execution/presentation context, not added to pure `MomentumMetrics` |
 | Durable report model | Not Step 2.3; Step 3.4 persists Analysis Runs and renders views from them |
 | Commit gate | Coding agents never commit automatically. A reviewed intermediate checkpoint may be committed/pushed after explicit human approval; Step 2.3 completion still requires the final review gate |
 
@@ -172,13 +174,15 @@ The direct-analysis commands use one coherent terminal grammar while retaining s
 
 **`--details`** shows the financial audit trail: resolved values, accounting/measurement basis, reporting/observation periods, availability dates, original provider/source identity, derivations/component lineage, and assumptions.
 
-**`--diagnostics`** shows software resolution behavior: override state, cache hit/miss/staleness, provider attempts, and classified unavailable/error paths. Cache state is not allowed to replace the original financial source identity.
+**`--diagnostics`** shows software resolution behavior from the explicit resolver trace: override state, cache behavior, provider attempts, derivation steps, and classified unavailable/error paths. Cache state is not allowed to replace the original financial source identity, and diagnostics must not infer a more precise cache-miss/staleness cause than the cache contract actually exposes.
 
-**`--json`** emits stable machine-readable method/result/provenance data suitable for tests and later Analysis Run persistence.
+**`--json`** emits stable machine-readable method/result/provenance data suitable for tests and later Analysis Run persistence. F1 establishes `schema_version = 1`; unavailable numeric fields are emitted as JSON `null`, never non-standard `NaN`.
 
 Operational logger output is not the investor-facing rendering mechanism. The presenter writes user results; operational logs retain execution diagnostics.
 
 The Graham Number must say **maximum indicated price** or **screening ceiling**, never unqualified “Intrinsic Value.” The growth method must make the user-supplied growth assumption visually conspicuous.
+
+For v0.2, details use fixed labels. Richer table-oriented terminal rendering is deliberately deferred until real-user feedback demonstrates that it is worth the additional presentation complexity.
 
 ## 6. Component boundaries
 
@@ -358,15 +362,15 @@ Complete and approved. SEC EDGAR annual diluted EPS and Massive current TTM EPS/
 The coherent foundation through E2 may be committed/pushed for durability after the agreed quality gate. This does not mark Step 2.3 complete and does not authorize Step 2.4.
 
 ### Slice E3 — user-viable default Graham data path
-Research and implement a defensible production BVPS capability or transparent common-equity/period-end-common-shares derivation sufficient for representative supported ticker-only Graham Number analysis. Preserve exact definition, share class, currency, reporting date, filing/publication availability, transformation, and source fields.
-
-If no safe production path can be established, return/report unavailable and stop for product review rather than weakening provenance or silently using a semantically different book-value field.
+Complete and approved. The production default Graham Number path includes the conservative SEC-backed BVPS derivation with explicit zero preferred-share evidence and full component lineage; unsupported filings remain unavailable rather than weakening the rule.
 
 ### Slice F1 — investor-facing result presentation
-Build the presentation boundary and tests for concise, `--details`, `--diagnostics`, and `--json` views. Apply the same visual grammar to Momentum and Graham without changing their strategy-specific result models. Make overrides and limitations obvious. Stop using operational logger lines as the primary user result surface.
+Complete and approved. Strategy-specific presenters implement concise, `--details`, `--diagnostics`, and `--json` views with shared grammar; `schema_version = 1`, explicit resolver trace, temporal-coherence guards, and unavailable/null Momentum metrics are established.
 
 ### Slice F2 — unified direct-analysis CLI
-Wire the approved `graham` method-specific options/validation into the presentation layer and align the existing Momentum direct command with the shared output modes. Search for/update affected tests and documentation before removing transitional flags.
+Next. Wire the approved `graham` method-specific options/validation into the presentation layer and align the existing Momentum direct command with the shared output modes. Search for/update affected tests and documentation before removing transitional flags.
+
+F2 must also close the live-validation gaps demonstrated by the transitional CLI: ticker-only default Graham analysis, one user-facing invalid-ticker/error surface, conspicuous override-driven assumptions, no framework/provider implementation leakage, and no authoritative presentation of an unverified subject merely because override arithmetic succeeded.
 
 ### Slice G — documentation and full gate
 Synchronize README/current-state notes and remaining code-facing documentation. Run the complete milestone quality gate, review the remaining Step 2.3 diff, then stop for human approval before declaring Step 2.3 complete or beginning Step 2.4.
