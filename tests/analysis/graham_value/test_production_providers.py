@@ -8,25 +8,25 @@ from typing import Any
 
 import pytest
 
-from src.analysis.graham_value.facts import (
-    ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
-)
-from src.analysis.graham_value.models import CalculationStatus
-from src.analysis.graham_value.provenance import SourceKind, ValuationSubjectKind
-from src.analysis.graham_value.providers.massive import MASSIVE_PROVIDER_ID, MassiveValuationAdapter
-from src.analysis.graham_value.providers.production import ProductionValuationProvider
-from src.analysis.graham_value.providers.sec_edgar import (
+from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.core.analysis_status import CalculationStatus
+from src.data.massive.valuation import MASSIVE_PROVIDER_ID, MassiveValuationAdapter
+from src.data.sec_edgar.valuation import (
     SEC_COMMON_SHARES_FIELD,
     SEC_PREFERRED_SHARES_FIELD,
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
     SecEdgarValuationAdapter,
 )
-from src.analysis.graham_value.resolver import InputResolver
+from src.data.valuation.facts import (
+    ProviderFact,
+    ValuationFactRequest,
+    ValuationField,
+    ValuationProviderError,
+    ValuationUnit,
+)
+from src.data.valuation.production import ProductionValuationProvider
+from src.data.valuation.provenance import SourceKind, ValuationSubjectKind
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
 
@@ -348,7 +348,7 @@ def test_sec_component_ambiguous_latest_share_class_values_are_unavailable() -> 
 def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     request = ValuationFactRequest(
         subject_kind=ValuationSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -373,7 +373,7 @@ def test_resolver_derives_bvps_only_with_explicit_zero_preferred_share_guard() -
 def test_resolver_historical_bvps_uses_components_known_at_as_of() -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components())
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     as_of = datetime(2024, 12, 31, 23, 59, tzinfo=UTC)
     request = ValuationFactRequest(
         subject_kind=ValuationSubjectKind.SECURITY,
@@ -399,7 +399,7 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
 ) -> None:
     fetcher = _sec_fetcher(_sec_payload_with_bvps_components(preferred_shares=preferred_shares))
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
-    resolver = InputResolver(provider=adapter, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
     request = ValuationFactRequest(
         subject_kind=ValuationSubjectKind.SECURITY,
         subject_id="AAPL",
@@ -636,7 +636,7 @@ def test_graham_number_assembly_can_use_sec_eps_and_massive_quote() -> None:
     )
     massive = StaticProvider((_massive_quote_fact(),))
     provider = ProductionValuationProvider(sec_edgar=sec, massive=massive)
-    resolver = InputResolver(provider=provider, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=provider, clock=lambda: NOW)
 
     result = resolver.assemble_graham_number(
         security_subject_id="AAPL",

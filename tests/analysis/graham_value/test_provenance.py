@@ -1,4 +1,4 @@
-"""Tests for src.analysis.graham_value.provenance models."""
+"""Tests for src.data.valuation.provenance models."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from math import inf, nan
 
 import pytest
 
-from src.analysis.graham_value.provenance import (
+from src.data.valuation.provenance import (
     ComponentLineage,
     ResolvedInput,
     SourceKind,

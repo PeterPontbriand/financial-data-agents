@@ -1,4 +1,4 @@
-"""Provenance models for resolved Graham valuation inputs.
+"""Provenance models for resolved valuation inputs.
 
 Defines the subject and source discriminators, component lineage, and the
 frozen ``ResolvedInput`` record that carries a single resolved numeric value

@@ -1,4 +1,4 @@
-"""Provider-neutral valuation-fact contracts for Graham analysis.
+"""Provider-neutral valuation-fact contracts for deterministic valuation analysis.
 
 Defines the closed semantic field/unit enumerations, the request and
 provider-fact payloads, the operational provider-failure exception, and the
@@ -25,7 +25,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
-from src.analysis.graham_value.provenance import ValuationSubjectKind
+from src.data.valuation.provenance import ValuationSubjectKind
 
 # ---------------------------------------------------------------------------
 # Shared helpers

@@ -1,4 +1,4 @@
-"""Minimal in-memory valuation cache primitives for Graham analysis.
+"""Minimal in-memory cache primitives for resolved valuation inputs.
 
 Defines the cache key, entry, protocol, and the concrete
 ``InMemoryValuationCache`` implementation.
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol, runtime_checkable
 
-from src.analysis.graham_value.provenance import (
+from src.data.valuation.provenance import (
     ResolvedInput,
     SourceKind,
     ValuationSubjectKind,

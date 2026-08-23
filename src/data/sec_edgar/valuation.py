@@ -8,15 +8,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, time
 from typing import cast
 
-from src.analysis.graham_value.facts import (
+from src.data.http_json import JsonFetcher, fetch_json
+from src.data.valuation.facts import (
     ProviderFact,
     ValuationFactRequest,
     ValuationField,
     ValuationProviderError,
     ValuationUnit,
 )
-from src.analysis.graham_value.provenance import ValuationSubjectKind
-from src.analysis.graham_value.providers.http_json import JsonFetcher, fetch_json
+from src.data.valuation.provenance import ValuationSubjectKind
 
 SEC_PROVIDER_ID = "sec_edgar"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
@@ -49,7 +49,7 @@ class _BalanceSheetParseContext:
 
 
 class SecEdgarValuationAdapter:
-    """Provide verified SEC observations used by the Graham production path.
+    """Provide verified SEC observations for deterministic valuation analysis.
 
     Supported facts are fiscal-year diluted EPS plus three fiscal-year-end balance-sheet
     components used by ``InputResolver`` to derive BVPS conservatively:

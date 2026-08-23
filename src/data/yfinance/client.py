@@ -10,12 +10,22 @@ import pandas as pd
 import yfinance as yf
 
 from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.market_data import HistoricalMarketData, MarketDataContext, latest_observation_date
 
 logger = logging.getLogger(__name__)
+
+YFINANCE_PROVIDER_ID = "yfinance"
+YFINANCE_HISTORICAL_INTERVAL = "1d"
+YFINANCE_PRICE_ADJUSTMENT = "adjusted"
 
 
 class YFinanceClient(BaseDataClient):
     """Concrete data client for acquiring market vectors from yfinance."""
+
+    @property
+    def provider_id(self) -> str:
+        """Return the stable provider identity owned by this adapter."""
+        return YFINANCE_PROVIDER_ID
 
     def fetch_data(self, ticker: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
         """Download and sanitize historical datasets from yfinance.
@@ -28,7 +38,15 @@ class YFinanceClient(BaseDataClient):
         stderr_buffer = io.StringIO()
         try:
             with contextlib.redirect_stderr(stderr_buffer):
-                df = yf.download(ticker, start=start_date, end=end_date, progress=False, threads=False)
+                df = yf.download(
+                    ticker,
+                    start=start_date,
+                    end=end_date,
+                    interval=YFINANCE_HISTORICAL_INTERVAL,
+                    auto_adjust=True,
+                    progress=False,
+                    threads=False,
+                )
         except Exception as err:
             logger.error(f"Low-level connection error during yfinance download for '{ticker}': {err}")
             logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
@@ -42,6 +60,24 @@ class YFinanceClient(BaseDataClient):
             df.columns = df.columns.get_level_values(0)
 
         return cast(pd.DataFrame, df)
+
+    def fetch_data_with_context(
+        self,
+        ticker: str,
+        start_date: str,
+        end_date: str | None = None,
+    ) -> HistoricalMarketData:
+        """Return explicitly adjusted daily historical prices with retained yfinance metadata."""
+        frame = self.fetch_data(ticker, start_date, end_date)
+        context = MarketDataContext(
+            provider_id=self.provider_id,
+            observation_interval=YFINANCE_HISTORICAL_INTERVAL,
+            data_as_of=latest_observation_date(frame),
+            currency=self._fetch_currency(ticker),
+            observation_count=len(frame),
+            price_adjustment=YFINANCE_PRICE_ADJUSTMENT,
+        )
+        return HistoricalMarketData(frame=frame, context=context)
 
     def fetch_current_price(self, ticker: str) -> float:
         """Resolve the latest tradable quote for a ticker via the yfinance quote interface.
@@ -66,3 +102,19 @@ class YFinanceClient(BaseDataClient):
 
         logger.info(f"Current quote for '{ticker}': ${quote:,.2f}")
         return quote
+
+    def _fetch_currency(self, ticker: str) -> str | None:
+        """Best-effort currency enrichment that never invalidates usable price history."""
+        stderr_buffer = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(stderr_buffer):
+                raw_currency = yf.Ticker(ticker).fast_info["currency"]
+        except Exception as err:
+            logger.debug("Optional currency metadata unavailable for %r: %s", ticker, err)
+            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
+            return None
+
+        if not isinstance(raw_currency, str):
+            return None
+        currency = raw_currency.strip().upper()
+        return currency or None

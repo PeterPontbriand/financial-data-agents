@@ -27,12 +27,8 @@ from src.analysis.graham_value.calculators import (
     compute_graham_growth_value,
     compute_graham_number,
 )
-from src.analysis.graham_value.models import (
-    CalculationStatus,
-    GrahamGrowthValueResult,
-    GrahamMethod,
-    GrahamNumberResult,
-)
+from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamMethod, GrahamNumberResult
+from src.core.analysis_status import CalculationStatus
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Independently hand-calculated expected values

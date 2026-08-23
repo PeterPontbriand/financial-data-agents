@@ -6,12 +6,18 @@ import os
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.massive.constants import MASSIVE_PROVIDER_ID
 
 logger = logging.getLogger(__name__)
 
 
 class MassiveClient(BaseDataClient):
     """Client for retrieving financial data from the Massive API."""
+
+    @property
+    def provider_id(self) -> str:
+        """Return the stable provider identity owned by this adapter."""
+        return MASSIVE_PROVIDER_ID
 
     def __init__(self) -> None:
         """Initialize Massive API client credentials."""

@@ -7,17 +7,17 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, time
 from urllib.parse import urlencode
 
-from src.analysis.graham_value.facts import (
+from src.data.http_json import JsonFetcher, fetch_json
+from src.data.massive.constants import MASSIVE_PROVIDER_ID
+from src.data.valuation.facts import (
     ProviderFact,
     ValuationFactRequest,
     ValuationField,
     ValuationProviderError,
     ValuationUnit,
 )
-from src.analysis.graham_value.provenance import ValuationSubjectKind
-from src.analysis.graham_value.providers.http_json import JsonFetcher, fetch_json
+from src.data.valuation.provenance import ValuationSubjectKind
 
-MASSIVE_PROVIDER_ID = "massive"
 MASSIVE_TTM_EPS_FIELD = "diluted_earnings_per_share"
 MASSIVE_LAST_TRADE_FIELD = "results.p"
 _BASE_URL = "https://api.massive.com"

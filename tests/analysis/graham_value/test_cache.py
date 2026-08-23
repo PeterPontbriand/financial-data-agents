@@ -1,4 +1,4 @@
-"""Tests for src.analysis.graham_value.cache models and InMemoryValuationCache."""
+"""Tests for src.data.valuation.cache models and InMemoryValuationCache."""
 
 from __future__ import annotations
 
@@ -7,13 +7,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.analysis.graham_value.cache import (
+from src.data.valuation.cache import (
     InMemoryValuationCache,
     ValuationCacheEntry,
     ValuationCacheKey,
     ValuationCacheProtocol,
 )
-from src.analysis.graham_value.provenance import (
+from src.data.valuation.provenance import (
     ComponentLineage,
     ResolvedInput,
     SourceKind,
