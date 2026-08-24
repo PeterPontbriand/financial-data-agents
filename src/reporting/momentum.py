@@ -15,6 +15,7 @@ from src.reporting.presentation import (
     format_money,
     format_number,
     json_document,
+    provider_display_name,
 )
 
 _SCHEMA_VERSION = 1
@@ -101,7 +102,7 @@ def _detail_lines(p: MomentumPresentation) -> list[str]:
         f"Configured windows: {p.config.short_window} / {p.config.long_window} {_window_basis(context)}",
         f"Price basis: {_price_basis_detail(context)}",
         f"Analysis timestamp: {format_datetime(p.metrics.timestamp)}",
-        f"Data provider: {provider or 'unavailable'}",
+        f"Data provider: {provider_display_name(provider)}",
         f"Data interval: {_interval_detail(interval)}",
         f"Latest data observation: {data_as_of.isoformat() if data_as_of is not None else 'unavailable'}",
         f"Observations returned: {observation_count if observation_count is not None else 'unavailable'}",
@@ -189,7 +190,7 @@ def _data_summary(context: MarketDataContext | None) -> str:
     if context is None:
         return "provider unavailable · interval unavailable · observation date unavailable"
 
-    provider = context.provider_id or "provider unavailable"
+    provider = provider_display_name(context.provider_id) if context.provider_id else "provider unavailable"
     interval = _interval_summary(context.observation_interval)
     if context.data_as_of is None:
         freshness = "observation date unavailable"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Final
 
 from src.analysis.graham_value.input_resolver import GrahamNumberInputAssembly, GrowthValueInputAssembly
 from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
@@ -20,7 +20,88 @@ from src.reporting.presentation import (
     format_number,
     format_utc_minute,
     json_document,
+    provider_display_name,
 )
+
+# ---------------------------------------------------------------------------
+# Strategy-specific display labels
+# ---------------------------------------------------------------------------
+
+# Explicit human-readable display labels for basis identifiers used in
+# Graham analysis.  Unknown basis identifiers fall through to their raw
+# form so that test fixtures and future basis values remain visible.
+# A future localisation layer can replace or parameterise these values
+# without altering the machine identifiers themselves.
+BASIS_DISPLAY_NAMES: Final[dict[str, str]] = {
+    "three_year_average": "3-year average",
+    "ttm": "TTM",
+    "fiscal_year_end": "fiscal-year-end",
+    "fiscal_year": "fiscal year",
+}
+
+FIELD_DISPLAY_NAMES: Final[dict[str, str]] = {
+    "eps": "EPS",
+    "bvps": "BVPS",
+    "current_price": "Current price",
+    "current_aaa_yield": "Current AAA yield",
+    "expected_growth": "Expected growth",
+}
+
+UNITS_DISPLAY_NAMES: Final[dict[str, str]] = {
+    "currency_per_share": "currency per share",
+    "percentage_points": "percentage points",
+    "ratio": "ratio",
+}
+
+
+def basis_display_name(basis: str | None) -> str:
+    """Return an explicit human-readable label for a basis identifier.
+
+    Args:
+        basis: Machine-readable basis identifier (e.g. ``"three_year_average"``).
+
+    Returns:
+        The corresponding display label, or the raw identifier when no
+        explicit mapping exists.  Returns ``"unavailable"`` when *basis*
+        is ``None``.
+    """
+    if basis is None:
+        return "unavailable"
+    return BASIS_DISPLAY_NAMES.get(basis, basis)
+
+
+def field_display_name(field_name: str) -> str:
+    """Return an explicit human-readable label for a field identifier.
+
+    Args:
+        field_name: Machine-readable field name (e.g. ``"eps"``).
+
+    Returns:
+        The corresponding display label, or the raw identifier when no
+        explicit mapping exists.
+    """
+    return FIELD_DISPLAY_NAMES.get(field_name, field_name)
+
+
+def units_display_name(units: str | None) -> str:
+    """Return an explicit human-readable label for a units identifier.
+
+    Args:
+        units: Machine-readable units identifier (e.g. ``"currency_per_share"``).
+
+    Returns:
+        The corresponding display label, or the raw identifier when no
+        explicit mapping exists.  Returns ``"unavailable"`` when *units*
+        is ``None``.
+    """
+    if units is None:
+        return "unavailable"
+    return UNITS_DISPLAY_NAMES.get(units, units)
+
+
+# ---------------------------------------------------------------------------
+# Constants and models
+# ---------------------------------------------------------------------------
 
 _SCHEMA_VERSION = 1
 _NUMBER_LIMITATION = (
@@ -98,6 +179,11 @@ class GrahamGrowthPresentation:
             raise ValueError(msg)
 
 
+# ---------------------------------------------------------------------------
+# Public render entry points
+# ---------------------------------------------------------------------------
+
+
 def render_graham_number(
     presentation: GrahamNumberPresentation,
     mode: PresentationMode = PresentationMode.CONCISE,
@@ -128,6 +214,11 @@ def render_graham_growth(
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Concise output
+# ---------------------------------------------------------------------------
 
 
 def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
@@ -211,6 +302,11 @@ def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
     return lines
 
 
+# ---------------------------------------------------------------------------
+# Headings
+# ---------------------------------------------------------------------------
+
+
 def _analysis_heading(ticker: str, label: str, as_of: datetime | None) -> str:
     """Render a method heading, surfacing historical boundaries only when requested."""
     boundary = f" as of {format_as_of(as_of)}" if as_of is not None else ""
@@ -220,6 +316,11 @@ def _analysis_heading(ticker: str, label: str, as_of: datetime | None) -> str:
 def _result_heading(ticker: str, label: str, as_of: datetime | None, result_text: str) -> str:
     """Put the investor-facing result directly in the successful report heading."""
     return f"{_analysis_heading(ticker, label, as_of)}: {result_text}"
+
+
+# ---------------------------------------------------------------------------
+# Details output
+# ---------------------------------------------------------------------------
 
 
 def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
@@ -254,11 +355,11 @@ def _input_detail_lines(label: str, value: ResolvedInput | None) -> list[str]:
     source = _source_label(value)
     lines = [
         f"{label}: {format_number(value.value, decimals=6)}",
-        f"  basis: {_display_basis(value)}",
-        f"  units: {value.units or 'unspecified'}",
+        f"  basis: {basis_display_name(_display_basis(value))}",
+        f"  units: {units_display_name(value.units)}",
         f"  currency: {value.currency or 'n/a'}",
         f"  source: {source}",
-        f"  provider: {value.provider_id or 'n/a'}",
+        f"  provider: {provider_display_name(value.provider_id)}",
         f"  provider field: {value.provider_field or 'n/a'}",
         f"  period start: {format_date(value.observation_period_start)}",
         f"  period end: {format_date(value.observation_period_end)}",
@@ -276,14 +377,19 @@ def _input_detail_lines(label: str, value: ResolvedInput | None) -> list[str]:
                     f"    field name: {component.field_name}",
                     f"    value: {format_number(component.value, decimals=6)}",
                     f"    source: {_source_label(component)}",
-                    f"    provider: {component.provider_id or 'n/a'}",
+                    f"    provider: {provider_display_name(component.provider_id)}",
                     f"    provider field: {component.provider_field or 'n/a'}",
-                    f"    basis: {component.basis or 'unspecified'}",
+                    f"    basis: {basis_display_name(component.basis)}",
                     f"    period end: {format_date(component.observation_period_end)}",
                     f"    available at: {format_utc_minute(component.available_at)}",
                 ]
             )
     return lines
+
+
+# ---------------------------------------------------------------------------
+# Diagnostics output (technical identifiers intentionally retained)
+# ---------------------------------------------------------------------------
 
 
 def _diagnostic_lines(
@@ -306,10 +412,16 @@ def _diagnostic_lines(
     return lines
 
 
+# ---------------------------------------------------------------------------
+# Concise helpers
+# ---------------------------------------------------------------------------
+
+
 def _headline_input_lines(eps: ResolvedInput | None, bvps: ResolvedInput | None) -> list[str]:
     lines: list[str] = []
     if eps is not None:
-        lines.append(f"EPS ({eps.basis or 'unspecified basis'}): {format_money(eps.value, eps.currency)}")
+        basis_label = basis_display_name(eps.basis) if eps.basis is not None else "unspecified basis"
+        lines.append(f"EPS ({basis_label}): {format_money(eps.value, eps.currency)}")
     if bvps is not None:
         lines.append(f"Book value per common share: {format_money(bvps.value, bvps.currency)}")
     return lines
@@ -330,7 +442,7 @@ def _eps_basis_label(value: ResolvedInput) -> str:
     if value.basis == "ttm":
         return "TTM EPS"
     if value.basis is not None:
-        return f"{value.basis.replace('_', '-')} EPS"
+        return f"{basis_display_name(value.basis)} EPS"
     return "EPS basis unspecified"
 
 
@@ -350,7 +462,7 @@ def _bvps_basis_label(value: ResolvedInput) -> str:
     if basis == "fiscal_year_end":
         return "latest eligible fiscal-year-end BVPS"
     if basis != "unspecified":
-        return f"{basis.replace('_', '-')} BVPS"
+        return f"{basis_display_name(basis)} BVPS"
     return "BVPS basis unspecified"
 
 
@@ -378,6 +490,11 @@ def _comparison_lines(
     else:
         lines.append(f"Price relationship: {format_number(abs(margin_of_safety_percent))}% above the {reference_label}")
     return lines
+
+
+# ---------------------------------------------------------------------------
+# Warnings
+# ---------------------------------------------------------------------------
 
 
 def _number_warnings(p: GrahamNumberPresentation) -> list[str]:
@@ -409,7 +526,8 @@ def _override_warnings(inputs: tuple[ResolvedInput | None, ...]) -> list[str]:
     warnings: list[str] = []
     for item in inputs:
         if item is not None and item.source_kind is SourceKind.OVERRIDE:
-            warnings.append(f"{item.field_name} is a user override, not provider-verified data.")
+            label = field_display_name(item.field_name)
+            warnings.append(f"{label} is a user override, not provider-verified data.")
     return warnings
 
 
@@ -422,12 +540,18 @@ def _quote_warnings(
     return ["Current quote unavailable; price comparison omitted."]
 
 
+# ---------------------------------------------------------------------------
+# Source / freshness / status helpers
+# ---------------------------------------------------------------------------
+
+
 def _source_summary(inputs: tuple[ResolvedInput | None, ...]) -> str:
     parts: list[str] = []
     for item in inputs:
         if item is None:
             continue
-        parts.append(f"{item.field_name}={_source_label(item)} ({_freshness_label(item)})")
+        label = field_display_name(item.field_name)
+        parts.append(f"{label} — {_source_label(item)} ({_freshness_label(item)})")
     return "; ".join(parts) if parts else "unavailable"
 
 
@@ -488,23 +612,34 @@ def _source_label(value: ResolvedInput) -> str:
         return "user override"
     if value.source_kind is SourceKind.CACHE:
         origin = value.origin_source_kind.value if value.origin_source_kind is not None else "unknown"
-        provider = f", provider={value.provider_id}" if value.provider_id else ""
+        provider = f", provider={provider_display_name(value.provider_id)}" if value.provider_id else ""
         return f"cache (original={origin}{provider})"
     if value.source_kind is SourceKind.PROVIDER and value.provider_field is not None:
-        provider = value.provider_id or "unspecified"
+        provider = provider_display_name(value.provider_id)
         if value.provider_field.startswith("inferred:"):
             return f"inferred ({provider})"
         if value.provider_field.startswith("derived:"):
             return f"provider-derived ({provider})"
     if value.source_kind is SourceKind.DERIVED:
         providers = (
-            sorted({component.provider_id for component in value.lineage.components if component.provider_id})
+            sorted(
+                {
+                    provider_display_name(component.provider_id)
+                    for component in value.lineage.components
+                    if component.provider_id
+                }
+            )
             if value.lineage is not None
             else []
         )
-        provider_text = ",".join(providers) if providers else value.provider_id or "retained lineage"
-        return f"derived ({provider_text})"
-    return f"provider ({value.provider_id or 'unspecified'})"
+        provider_text = ", ".join(providers) if providers else provider_display_name(value.provider_id)
+        return f"derived from {provider_text}"
+    return f"provider ({provider_display_name(value.provider_id)})"
+
+
+# ---------------------------------------------------------------------------
+# JSON payload builders (machine identifiers intentionally retained)
+# ---------------------------------------------------------------------------
 
 
 def _resolved_input_payload(value: ResolvedInput | None) -> dict[str, Any] | None:
@@ -632,6 +767,11 @@ def _quote_payload(
     if current_price is not None:
         return {"status": "ok", "reason": None}
     return {"status": "not_attempted", "reason": None}
+
+
+# ---------------------------------------------------------------------------
+# Shared validation and utility helpers
+# ---------------------------------------------------------------------------
 
 
 def _effective_status_and_reason(

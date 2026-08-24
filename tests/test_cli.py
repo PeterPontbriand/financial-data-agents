@@ -371,7 +371,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
     payload = json.loads(result.output)
     assert payload["inputs"]["eps"]["source_kind"] == "override"
     assert payload["inputs"]["eps"]["basis"] == "three_year_average"
-    assert any("eps is a user override" in warning for warning in payload["warnings"])
+    assert any("EPS is a user override" in warning for warning in payload["warnings"])
 
 
 def test_cli_graham_number_optional_quote_failure_preserves_value() -> None:
@@ -454,7 +454,7 @@ def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(fixture_resolv
     assert result.exit_code == 0
     assert "Expected growth assumption: 6.50 percentage points" in result.output
     assert "Graham Growth Value:" in result.output
-    assert "eps is a user override, not provider-verified data" in result.output
+    assert "EPS is a user override, not provider-verified data" in result.output
     assert "Warning: AAA yield is user-supplied rather than provider-verified." in result.output
     assert "expected_growth is a user override" not in result.output
     assert "current_aaa_yield is a user override" not in result.output
@@ -523,7 +523,7 @@ def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamI
 
     assert result.exit_code == 0
     assert "Details" in result.output
-    assert "basis: three_year_average" in result.output
+    assert "basis: 3-year average" in result.output
     assert "provider:" in result.output
     assert "derivation: arithmetic_mean" in result.output
 

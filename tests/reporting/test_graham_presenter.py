@@ -439,7 +439,7 @@ def test_number_details_use_human_dates_and_omit_operational_timestamps() -> Non
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=33.8),
     )
     rendered = render_graham_number(presentation, PresentationMode.DETAILS)
-    assert "basis: fiscal_year_end" in rendered
+    assert "basis: fiscal-year-end" in rendered
     assert "period end: 2025-12-31" in rendered
     assert "available at: 2026-02-12 21:29 UTC" in rendered
     assert "retrieved at:" not in rendered
@@ -482,8 +482,8 @@ def test_provider_side_inference_and_derivation_have_explicit_source_labels() ->
         result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=21.14),
     )
     rendered = render_graham_number(presentation, PresentationMode.DETAILS)
-    assert "source: inferred (sec_edgar)" in rendered
-    assert "source: provider-derived (sec_edgar)" in rendered
+    assert "source: inferred (SEC EDGAR)" in rendered
+    assert "source: provider-derived (SEC EDGAR)" in rendered
 
 
 def test_concise_freshness_uses_semantic_dates() -> None:

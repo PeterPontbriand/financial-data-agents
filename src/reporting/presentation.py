@@ -11,7 +11,9 @@ import math
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, time
 from enum import StrEnum
-from typing import Any
+from typing import Any, Final
+
+from src.core.analysis_status import CalculationStatus
 
 
 class PresentationMode(StrEnum):
@@ -21,6 +23,64 @@ class PresentationMode(StrEnum):
     DETAILS = "details"
     DIAGNOSTICS = "diagnostics"
     JSON = "json"
+
+
+# ---------------------------------------------------------------------------
+# Shared vocabulary
+# ---------------------------------------------------------------------------
+
+STATUS_LABELS: Final[dict[CalculationStatus, str]] = {
+    CalculationStatus.OK: "ok",
+    CalculationStatus.NOT_APPLICABLE: "not applicable",
+    CalculationStatus.INVALID_INPUT: "invalid input",
+    CalculationStatus.INPUT_UNAVAILABLE: "input unavailable",
+    CalculationStatus.PROVIDER_ERROR: "provider error",
+}
+
+
+def humanized_status(status: CalculationStatus | None) -> str:
+    """Return a reader-friendly phrase for a shared calculation status."""
+    if status is None:
+        return "unavailable"
+    return STATUS_LABELS.get(status, status.value)
+
+
+# ---------------------------------------------------------------------------
+# Shared display-label helpers
+# ---------------------------------------------------------------------------
+
+# Explicit human-readable display labels for known provider identifiers.
+# Unknown provider identifiers fall through to their raw form so that
+# test fixtures and future providers remain visible in diagnostics without
+# requiring a prior mapping entry.  A future localisation layer can replace
+# or parameterise these values without altering the machine identifiers
+# themselves.
+PROVIDER_DISPLAY_NAMES: Final[dict[str, str]] = {
+    "sec_edgar": "SEC EDGAR",
+    "yfinance": "Yahoo Finance",
+    "massive": "Massive",
+}
+
+
+def provider_display_name(provider_id: str | None) -> str:
+    """Return an explicit human-readable display label for a provider identifier.
+
+    Args:
+        provider_id: Machine-readable provider identifier (e.g. ``"sec_edgar"``).
+
+    Returns:
+        The corresponding display label from :data:`PROVIDER_DISPLAY_NAMES`,
+        or the raw identifier when no explicit mapping exists.  Returns
+        ``"unavailable"`` when *provider_id* is ``None``.
+    """
+    if provider_id is None:
+        return "unavailable"
+    return PROVIDER_DISPLAY_NAMES.get(provider_id, provider_id)
+
+
+# ---------------------------------------------------------------------------
+# Shared formatting helpers
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
