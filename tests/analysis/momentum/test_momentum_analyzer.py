@@ -1,5 +1,6 @@
 """Unit tests for validating the stateless MomentumAnalyzer indicator logic."""
 
+from collections.abc import Generator
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +15,7 @@ from src.data.market_data import HistoricalMarketData, MarketDataContext
 
 
 @pytest.fixture(autouse=True)
-def mock_settings_config():
+def mock_settings_config() -> Generator[None, None, None]:
     """Stub out external TOML file reads by patching the ProjectSettings class methods."""
     mock_analysis = {
         "default": {

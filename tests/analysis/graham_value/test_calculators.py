@@ -58,6 +58,7 @@ class TestGrahamNumberCalculation:
         expected = 6.0 * math.sqrt(10.0)
         result = compute_graham_number(eps=2.0, bvps=8.0)
         assert result.status is CalculationStatus.OK
+        assert result.maximum_indicated_price is not None
         assert math.isclose(result.maximum_indicated_price, expected, rel_tol=1e-12)
 
 
@@ -88,6 +89,7 @@ class TestGrowthValueCalculation:
             current_aaa_yield=4.0,
         )
         assert result.status is CalculationStatus.OK
+        assert result.growth_value is not None
         assert math.isclose(result.growth_value, expected, rel_tol=1e-12)
 
 
@@ -337,6 +339,7 @@ class TestNegativeGrowth:
             current_aaa_yield=4.0,
         )
         assert result.status is CalculationStatus.OK
+        assert result.growth_value is not None
         assert math.isclose(result.growth_value, expected, rel_tol=1e-12)
 
 
@@ -357,6 +360,7 @@ class TestLargeGrowth:
             current_aaa_yield=5.0,
         )
         assert result.status is CalculationStatus.OK
+        assert result.growth_value is not None
         assert math.isclose(result.growth_value, expected, rel_tol=1e-12)
 
     def test_growth_500_accepted(self) -> None:
@@ -370,6 +374,7 @@ class TestLargeGrowth:
             current_aaa_yield=4.0,
         )
         assert result.status is CalculationStatus.OK
+        assert result.growth_value is not None
         assert math.isclose(result.growth_value, expected, rel_tol=1e-12)
 
 
@@ -430,6 +435,7 @@ class TestGrowthValueParameterValidation:
             growth_multiplier=0.0,
         )
         assert result.status is CalculationStatus.OK
+        assert result.growth_value is not None
         assert math.isclose(result.growth_value, expected, rel_tol=1e-12)
 
     def test_zero_valuation_pe_rejected(self) -> None:

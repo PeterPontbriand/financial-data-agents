@@ -565,7 +565,7 @@ def test_security_macro_no_collision() -> None:
     cache.put(key_macro, ri_macro)
     assert cache.get(key_sec) is not None
     assert cache.get(key_macro) is not None
-    assert cache.get(key_sec) is not cache.get(key_macro)  # type: ignore[comparison-overlap]
+    assert cache.get(key_sec) is not cache.get(key_macro)
 
 
 def test_different_subject_id_no_collision() -> None:
@@ -625,7 +625,7 @@ def test_current_vs_historical_no_collision() -> None:
     cache.put(key_hist, ri_hist)
     assert cache.get(key_cur) is not None
     assert cache.get(key_hist) is not None
-    assert cache.get(key_cur) is not cache.get(key_hist)  # type: ignore[comparison-overlap]
+    assert cache.get(key_cur) is not cache.get(key_hist)
 
 
 def test_two_historical_boundaries_no_collision() -> None:
@@ -640,7 +640,7 @@ def test_two_historical_boundaries_no_collision() -> None:
     cache.put(key2, ri2)
     assert cache.get(key1) is not None
     assert cache.get(key2) is not None
-    assert cache.get(key1) is not cache.get(key2)  # type: ignore[comparison-overlap]
+    assert cache.get(key1) is not cache.get(key2)
 
 
 def test_schema_version_isolation() -> None:

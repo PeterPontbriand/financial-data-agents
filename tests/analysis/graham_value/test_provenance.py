@@ -24,16 +24,16 @@ NAIVE = datetime(2025, 6, 1, 12, 0)  # naive
 
 
 def test_subject_kind_members() -> None:
-    assert ValuationSubjectKind.SECURITY == "security"
-    assert ValuationSubjectKind.MACRO == "macro"
+    assert ValuationSubjectKind.SECURITY.value == "security"
+    assert ValuationSubjectKind.MACRO.value == "macro"
     assert len(list(ValuationSubjectKind)) == 2
 
 
 def test_source_kind_members() -> None:
-    assert SourceKind.OVERRIDE == "override"
-    assert SourceKind.CACHE == "cache"
-    assert SourceKind.PROVIDER == "provider"
-    assert SourceKind.DERIVED == "derived"
+    assert SourceKind.OVERRIDE.value == "override"
+    assert SourceKind.CACHE.value == "cache"
+    assert SourceKind.PROVIDER.value == "provider"
+    assert SourceKind.DERIVED.value == "derived"
     assert len(list(SourceKind)) == 4
 
 

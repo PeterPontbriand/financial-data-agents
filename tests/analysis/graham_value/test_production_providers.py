@@ -10,7 +10,8 @@ import pytest
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.core.analysis_status import CalculationStatus
-from src.data.massive.valuation import MASSIVE_PROVIDER_ID, MassiveValuationAdapter
+from src.data.massive import MASSIVE_PROVIDER_ID
+from src.data.massive.valuation import MassiveValuationAdapter
 from src.data.sec_edgar.valuation import (
     SEC_COMMON_SHARES_FIELD,
     SEC_PREFERRED_SHARES_FIELD,
@@ -266,7 +267,11 @@ def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_prov
 
     facts = adapter.fetch_facts(_sec_request())
 
-    assert [fact.observation_period_end.year for fact in facts] == [2023, 2024, 2025]
+    assert [fact.observation_period_end.year for fact in facts if fact.observation_period_end is not None] == [
+        2023,
+        2024,
+        2025,
+    ]
     assert [fact.value for fact in facts] == pytest.approx([6.13, 6.10, 7.00])
     assert all(fact.provider_id == SEC_PROVIDER_ID for fact in facts)
     assert all(fact.provider_field == "us-gaap:EarningsPerShareDiluted" for fact in facts)
@@ -284,7 +289,10 @@ def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> No
     facts = adapter.fetch_facts(_sec_request(as_of=as_of))
 
     # FY2025 and the Jan-2025 FY2024 amendment are both unavailable at as_of.
-    assert [fact.observation_period_end.year for fact in facts] == [2023, 2024]
+    assert [fact.observation_period_end.year for fact in facts if fact.observation_period_end is not None] == [
+        2023,
+        2024,
+    ]
     assert facts[-1].value == pytest.approx(6.08)
     assert facts[-1].available_at == datetime(2024, 11, 1, 18, 0, tzinfo=UTC)
 
