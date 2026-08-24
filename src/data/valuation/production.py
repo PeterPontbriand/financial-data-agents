@@ -12,12 +12,13 @@ from src.data.valuation.facts import (
     ValuationFactRequest,
     ValuationFactsProvider,
 )
+from src.data.yfinance import YFINANCE_PROVIDER_ID, YFinanceValuationAdapter
 
 
 class ProductionValuationProvider:
     """Route valuation requests to narrowly verified production adapters.
 
-    Routing is driven by ``request.provider_id``.  The façade does not rewrite
+    Routing is driven by ``request.provider_id``. The façade does not rewrite
     provider identity, which preserves exact provenance through the resolver.
     """
 
@@ -26,11 +27,13 @@ class ProductionValuationProvider:
         *,
         sec_edgar: ValuationFactsProvider | None = None,
         massive: ValuationFactsProvider | None = None,
+        yfinance: ValuationFactsProvider | None = None,
     ) -> None:
         """Initialize with optional injected adapters for deterministic tests."""
         self._providers: Mapping[str, ValuationFactsProvider] = {
             SEC_PROVIDER_ID: sec_edgar or SecEdgarValuationAdapter(),
             MASSIVE_PROVIDER_ID: massive or MassiveValuationAdapter(),
+            YFINANCE_PROVIDER_ID: yfinance or YFinanceValuationAdapter(),
         }
 
     def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:

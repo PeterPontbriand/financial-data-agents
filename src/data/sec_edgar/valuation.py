@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -23,6 +24,9 @@ SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
 SEC_COMMON_SHARES_FIELD = "us-gaap:CommonStockSharesOutstanding"
 SEC_PREFERRED_SHARES_FIELD = "us-gaap:PreferredStockSharesOutstanding"
+_SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
+_SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
+_PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
 _SEC_USER_AGENT_ENV = "SEC_USER_AGENT"
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
@@ -48,13 +52,28 @@ class _BalanceSheetParseContext:
     retrieved_at: datetime
 
 
+@dataclass(frozen=True)
+class _SecShareObservation:
+    """One raw SEC share-count observation used for provider-specific derivation."""
+
+    value: float
+    provider_field: str
+    accession: str
+    retrieved_at: datetime
+    observation_period_end: datetime
+    available_at: datetime
+
+
 class SecEdgarValuationAdapter:
     """Provide verified SEC observations for deterministic valuation analysis.
 
-    Supported facts are fiscal-year diluted EPS plus three fiscal-year-end balance-sheet
-    components used by ``InputResolver`` to derive BVPS conservatively:
-    parent stockholders' equity, common shares outstanding, and preferred shares
-    outstanding. Direct BVPS remains unsupported by SEC Company Facts here.
+    Supported facts are fiscal-year diluted EPS plus fiscal-year-end balance-sheet
+    components used by ``InputResolver`` to derive BVPS conservatively. SEC-specific
+    fallbacks stay inside this adapter. Common shares may be derived as issued minus
+    treasury shares when the direct outstanding-share concept is absent. A zero
+    preferred-share guard may be inferred only for narrowly verified Company Facts
+    evidence shapes; a merely missing preferred-share tag is still unavailable.
+    Direct BVPS remains unsupported by SEC Company Facts here.
 
     ``available_at`` uses EDGAR ``acceptanceDateTime`` when the accession is
     present in the company's submissions metadata.  When acceptance time is
@@ -106,6 +125,23 @@ class SecEdgarValuationAdapter:
                     retrieved_at=provider_now,
                 )
                 return _select_one_fact_per_period(candidates, request=request, now=provider_now)
+
+            if request.field_name is ValuationField.COMMON_SHARES_OUTSTANDING:
+                return _common_shares_facts(
+                    company_facts,
+                    request=request,
+                    acceptance_by_accession=acceptance_by_accession,
+                    retrieved_at=provider_now,
+                    now=provider_now,
+                )
+            if request.field_name is ValuationField.PREFERRED_SHARES_OUTSTANDING:
+                return _preferred_shares_facts(
+                    company_facts,
+                    request=request,
+                    acceptance_by_accession=acceptance_by_accession,
+                    retrieved_at=provider_now,
+                    now=provider_now,
+                )
 
             candidates = _balance_sheet_fact_candidates(
                 company_facts,
@@ -325,6 +361,390 @@ def _balance_sheet_fact_candidates(
             if fact is not None:
                 result.append(fact)
     return tuple(result)
+
+
+def _share_concept_observations(
+    payload: Mapping[object, object],
+    *,
+    concept_name: str,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+) -> tuple[_SecShareObservation, ...]:
+    """Parse raw share observations without imposing semantic-field invariants."""
+    units = _balance_sheet_concept_units(payload, concept_name)
+    if units is None:
+        return ()
+    observations = units.get("shares")
+    if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+        return ()
+
+    result: list[_SecShareObservation] = []
+    provider_field = f"us-gaap:{concept_name}"
+    for observation in observations:
+        if not isinstance(observation, Mapping):
+            continue
+        parsed = _parse_share_observation(
+            observation,
+            provider_field=provider_field,
+            acceptance_by_accession=acceptance_by_accession,
+            retrieved_at=retrieved_at,
+        )
+        if parsed is not None:
+            result.append(parsed)
+    return tuple(result)
+
+
+def _parse_share_observation(  # noqa: PLR0911
+    observation: Mapping[object, object],
+    *,
+    provider_field: str,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+) -> _SecShareObservation | None:
+    """Parse one raw fiscal-year-end share observation."""
+    if observation.get("form") not in _BALANCE_SHEET_FORMS:
+        return None
+
+    value = observation.get("val")
+    end = observation.get("end")
+    accession = observation.get("accn")
+    filed = observation.get("filed")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value):
+        return None
+    if not all(isinstance(item, str) for item in (end, accession, filed)):
+        return None
+
+    period_end = _parse_date_end(cast(str, end))
+    if period_end is None:
+        return None
+    accession_text = cast(str, accession)
+    available_at = acceptance_by_accession.get(accession_text)
+    if available_at is None:
+        available_at = _parse_date_end(cast(str, filed))
+    if available_at is None:
+        return None
+
+    return _SecShareObservation(
+        value=numeric_value,
+        provider_field=provider_field,
+        accession=accession_text,
+        retrieved_at=retrieved_at,
+        observation_period_end=period_end,
+        available_at=available_at,
+    )
+
+
+def _select_latest_share_observation(
+    observations: tuple[_SecShareObservation, ...],
+    *,
+    request: ValuationFactRequest,
+    now: datetime,
+) -> tuple[_SecShareObservation, ...]:
+    """Select one unambiguous latest raw share observation at the boundary."""
+    boundary = request.as_of or now
+    eligible = tuple(
+        observation
+        for observation in observations
+        if observation.observation_period_end <= boundary and observation.available_at <= boundary
+    )
+    if not eligible:
+        return ()
+
+    latest_period = max(observation.observation_period_end for observation in eligible)
+    period_observations = tuple(
+        observation for observation in eligible if observation.observation_period_end == latest_period
+    )
+    latest_available = max(observation.available_at for observation in period_observations)
+    latest_version = tuple(
+        observation for observation in period_observations if observation.available_at == latest_available
+    )
+    if len({observation.value for observation in latest_version}) != 1:
+        return ()
+    return (latest_version[0],)
+
+
+def _common_shares_facts(
+    payload: object,
+    *,
+    request: ValuationFactRequest,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+    now: datetime,
+) -> tuple[ProviderFact, ...]:
+    """Resolve period-end common shares directly or as issued minus treasury shares."""
+    if not isinstance(payload, Mapping):
+        msg = "SEC Company Facts payload is not an object."
+        raise ValueError(msg)
+
+    direct = _balance_sheet_fact_candidates(
+        payload,
+        request=request,
+        acceptance_by_accession=acceptance_by_accession,
+        retrieved_at=retrieved_at,
+    )
+    selected_direct = _select_latest_balance_sheet_fact(direct, request=request, now=now)
+    if selected_direct:
+        return selected_direct
+
+    issued = _select_latest_share_observation(
+        _share_concept_observations(
+            payload,
+            concept_name="CommonStockSharesIssued",
+            acceptance_by_accession=acceptance_by_accession,
+            retrieved_at=retrieved_at,
+        ),
+        request=request,
+        now=now,
+    )
+    treasury = _select_latest_share_observation(
+        _share_concept_observations(
+            payload,
+            concept_name="TreasuryStockCommonShares",
+            acceptance_by_accession=acceptance_by_accession,
+            retrieved_at=retrieved_at,
+        ),
+        request=request,
+        now=now,
+    )
+    if len(issued) != 1 or len(treasury) != 1:
+        return ()
+
+    issued_fact = issued[0]
+    treasury_fact = treasury[0]
+    if issued_fact.observation_period_end != treasury_fact.observation_period_end:
+        return ()
+    if issued_fact.value <= 0 or treasury_fact.value < 0:
+        return ()
+
+    derived_value = issued_fact.value - treasury_fact.value
+    if derived_value <= 0:
+        return ()
+
+    return (
+        ProviderFact(
+            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_id=request.subject_id,
+            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            value=derived_value,
+            units=ValuationUnit.SHARES,
+            provider_id=SEC_PROVIDER_ID,
+            provider_field=_SEC_DERIVED_COMMON_SHARES_FIELD,
+            retrieved_at=max(issued_fact.retrieved_at, treasury_fact.retrieved_at),
+            basis="fiscal_year_end",
+            observation_period_end=issued_fact.observation_period_end,
+            available_at=max(issued_fact.available_at, treasury_fact.available_at),
+            notes=(
+                "derivation=common shares outstanding = common shares issued - treasury common shares",
+                f"issued_source={issued_fact.provider_field}; accession={issued_fact.accession}; "
+                f"value={issued_fact.value}",
+                f"treasury_source={treasury_fact.provider_field}; accession={treasury_fact.accession}; "
+                f"value={treasury_fact.value}",
+                "same-period source observations required; no cover-date DEI share substitution applied",
+            ),
+        ),
+    )
+
+
+def _preferred_shares_facts(  # noqa: PLR0911
+    payload: object,
+    *,
+    request: ValuationFactRequest,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+    now: datetime,
+) -> tuple[ProviderFact, ...]:
+    """Resolve explicit preferred shares or one of the verified zero-preferred evidence shapes."""
+    if not isinstance(payload, Mapping):
+        msg = "SEC Company Facts payload is not an object."
+        raise ValueError(msg)
+
+    direct = _balance_sheet_fact_candidates(
+        payload,
+        request=request,
+        acceptance_by_accession=acceptance_by_accession,
+        retrieved_at=retrieved_at,
+    )
+    selected_direct = _select_latest_balance_sheet_fact(direct, request=request, now=now)
+    if selected_direct:
+        return selected_direct
+
+    equity_request = ValuationFactRequest(
+        subject_kind=request.subject_kind,
+        subject_id=request.subject_id,
+        field_name=ValuationField.STOCKHOLDERS_EQUITY,
+        provider_id=request.provider_id,
+        basis=request.basis,
+        as_of=request.as_of,
+    )
+    equity_candidates = _balance_sheet_fact_candidates(
+        payload,
+        request=equity_request,
+        acceptance_by_accession=acceptance_by_accession,
+        retrieved_at=retrieved_at,
+    )
+    selected_equity = _select_latest_balance_sheet_fact(equity_candidates, request=equity_request, now=now)
+    common = _common_shares_facts(
+        payload,
+        request=ValuationFactRequest(
+            subject_kind=request.subject_kind,
+            subject_id=request.subject_id,
+            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            provider_id=request.provider_id,
+            basis=request.basis,
+            as_of=request.as_of,
+        ),
+        acceptance_by_accession=acceptance_by_accession,
+        retrieved_at=retrieved_at,
+        now=now,
+    )
+    if len(selected_equity) != 1 or len(common) != 1:
+        return ()
+    anchor = selected_equity[0]
+    common_fact = common[0]
+    if anchor.observation_period_end != common_fact.observation_period_end:
+        return ()
+    if anchor.observation_period_end is None or anchor.available_at is None:
+        return ()
+
+    boundary = request.as_of or now
+    anchor_period = anchor.observation_period_end
+    neutral_concepts, blocked, neutral_available = _classify_preferred_concepts(
+        payload,
+        boundary=boundary,
+        anchor_period=anchor_period,
+        acceptance_by_accession=acceptance_by_accession,
+    )
+    if blocked:
+        return ()
+
+    if not neutral_concepts:
+        if common_fact.provider_field != _SEC_DERIVED_COMMON_SHARES_FIELD:
+            return ()
+        evidence_pattern = "no preferred/preference concepts plus same-period issued-minus-treasury common shares"
+    else:
+        if "PreferredStockSharesAuthorized" not in neutral_concepts:
+            return ()
+        evidence_pattern = "preferred concepts limited to shares-authorized/par-value-per-share disclosures"
+
+    common_available = cast(datetime, common_fact.available_at)
+    inferred_available_at = max(anchor.available_at, common_available)
+    if neutral_available is not None:
+        inferred_available_at = max(inferred_available_at, neutral_available)
+
+    return (
+        ProviderFact(
+            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_id=request.subject_id,
+            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            value=0.0,
+            units=ValuationUnit.SHARES,
+            provider_id=SEC_PROVIDER_ID,
+            provider_field=_SEC_INFERRED_PREFERRED_ABSENCE_FIELD,
+            retrieved_at=anchor.retrieved_at,
+            basis="fiscal_year_end",
+            observation_period_end=anchor.observation_period_end,
+            available_at=inferred_available_at,
+            notes=(
+                "evidence=inferred zero preferred-share guard; not an explicit PreferredStockSharesOutstanding fact",
+                f"evidence_pattern={evidence_pattern}",
+                f"reporting_period_anchor={SEC_STOCKHOLDERS_EQUITY_FIELD}",
+                f"inferred_available_at={inferred_available_at.isoformat()}",
+                "generic missing preferred-share data remains unavailable outside the verified evidence patterns",
+            ),
+        ),
+    )
+
+
+def _classify_preferred_concepts(
+    payload: Mapping[object, object],
+    *,
+    boundary: datetime,
+    anchor_period: datetime,
+    acceptance_by_accession: Mapping[str, datetime],
+) -> tuple[frozenset[str], bool, datetime | None]:
+    """Classify all preferred/preference concepts as neutral or blocking.
+
+    Returns a tuple of (neutral_concept_names, blocked, neutral_evidence_available_at).
+    ``blocked`` is True when any non-neutral preferred-equity concept has an
+    eligible observation known at the boundary.
+    ``neutral_evidence_available_at`` is the latest ``available_at`` across all
+    qualifying neutral observations (or None when no neutral concepts qualify).
+    """
+    facts = payload.get("facts")
+    if not isinstance(facts, Mapping):
+        return frozenset(), False, None
+
+    neutral: set[str] = set()
+    neutral_available: datetime | None = None
+    for namespace_name, namespace in facts.items():
+        if not isinstance(namespace_name, str) or not isinstance(namespace, Mapping):
+            continue
+        for concept_name, metadata in namespace.items():
+            if not isinstance(concept_name, str) or not isinstance(metadata, Mapping):
+                continue
+            if not _concept_is_preferred_equity(concept_name):
+                continue
+            available = _concept_eligible_annual_observation_available_at(
+                metadata,
+                boundary=boundary,
+                anchor_period=anchor_period,
+                acceptance_by_accession=acceptance_by_accession,
+            )
+            if available is None:
+                continue
+            if concept_name in _PREFERRED_NEUTRAL_CONCEPTS and namespace_name == "us-gaap":
+                neutral.add(concept_name)
+                if neutral_available is None or available > neutral_available:
+                    neutral_available = available
+            else:
+                return frozenset(), True, None
+    return frozenset(neutral), False, neutral_available
+
+
+def _concept_is_preferred_equity(concept_name: str) -> bool:
+    """Return True when a concept name indicates preferred/preference equity."""
+    lower = concept_name.lower()
+    return "preferred" in lower or "preference" in lower
+
+
+def _concept_eligible_annual_observation_available_at(
+    metadata: Mapping[object, object],
+    *,
+    boundary: datetime,
+    anchor_period: datetime,
+    acceptance_by_accession: Mapping[str, datetime],
+) -> datetime | None:
+    """Return the available_at of a 10-K observation at the anchor period, or None."""
+    units = metadata.get("units")
+    if not isinstance(units, Mapping):
+        return None
+
+    for observations in units.values():
+        if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+            continue
+        for observation in observations:
+            if not isinstance(observation, Mapping) or observation.get("form") not in _BALANCE_SHEET_FORMS:
+                continue
+            end = observation.get("end")
+            accession = observation.get("accn")
+            filed = observation.get("filed")
+            if not all(isinstance(item, str) for item in (end, accession, filed)):
+                continue
+            period_end = _parse_date_end(cast(str, end))
+            if period_end is None or period_end != anchor_period:
+                continue
+            if period_end > boundary:
+                continue
+            accession_text = cast(str, accession)
+            available_at = acceptance_by_accession.get(accession_text)
+            if available_at is None:
+                available_at = _parse_date_end(cast(str, filed))
+            if available_at is not None and available_at <= boundary:
+                return available_at
+    return None
 
 
 def _parse_balance_sheet_observation(  # noqa: PLR0911

@@ -15,9 +15,10 @@ from src.data.valuation.resolution_trace import ResolutionTrace
 from src.reporting.presentation import (
     PresentationMode,
     format_as_of,
-    format_datetime,
+    format_date,
     format_money,
     format_number,
+    format_utc_minute,
     json_document,
 )
 
@@ -131,20 +132,36 @@ def render_graham_growth(
 
 def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
     status, reason = _effective_status_and_reason(p.assembly.status, p.assembly.reason, p.result)
-    lines = [
-        f"{p.ticker.upper()} — Graham Number",
-        f"As of: {format_as_of(p.as_of)}",
-        f"Status: {status.value}",
-    ]
+    result_ok = p.result is not None and p.result.status is CalculationStatus.OK
 
-    if p.result is not None and p.result.status is CalculationStatus.OK:
+    if result_ok:
+        assert p.result is not None
         assert p.result.maximum_indicated_price is not None
         currency = _common_currency(p.assembly.eps, p.assembly.bvps)
-        lines.append(f"Maximum indicated price: {format_money(p.result.maximum_indicated_price, currency)}")
-        lines.extend(_comparison_lines(p.assembly.current_price, p.margin_of_safety_percent))
-    elif reason:
-        lines.append(f"Reason: {reason}")
+        heading = _result_heading(
+            p.ticker,
+            "Graham Number (maximum indicated price)",
+            p.as_of,
+            format_money(p.result.maximum_indicated_price, currency),
+        )
+        lines = [heading]
+        lines.extend(
+            _comparison_lines(
+                p.assembly.current_price,
+                p.margin_of_safety_percent,
+                valuation_currency=currency,
+                reference_label="Graham Number",
+            )
+        )
+    else:
+        lines = [_analysis_heading(p.ticker, "Graham Number", p.as_of), f"Status: {_status_label(status)}"]
+        if reason:
+            lines.append(f"Reason: {_number_reason(p, status, reason)}")
 
+    lines.append("")
+    basis_summary = _number_basis_summary(p.assembly.eps, p.assembly.bvps)
+    if basis_summary is not None:
+        lines.append(f"Basis: {basis_summary}")
     lines.extend(_headline_input_lines(p.assembly.eps, p.assembly.bvps))
     lines.append(f"Sources / freshness: {_source_summary((p.assembly.eps, p.assembly.bvps))}")
     lines.extend(_number_warning_lines(p))
@@ -154,28 +171,55 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
 
 def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
     status, reason = _effective_status_and_reason(p.assembly.status, p.assembly.reason, p.result)
-    lines = [
-        f"{p.ticker.upper()} — Graham Growth Value",
-        f"As of: {format_as_of(p.as_of)}",
-        f"Status: {status.value}",
-    ]
+    result_ok = p.result is not None and p.result.status is CalculationStatus.OK
+
+    if result_ok:
+        assert p.result is not None
+        assert p.result.growth_value is not None
+        currency = _common_currency(p.assembly.eps)
+        lines = [
+            _result_heading(
+                p.ticker,
+                "Graham Growth Value",
+                p.as_of,
+                format_money(p.result.growth_value, currency),
+            )
+        ]
+    else:
+        lines = [_analysis_heading(p.ticker, "Graham Growth Value", p.as_of), f"Status: {_status_label(status)}"]
+        if reason:
+            lines.append(f"Reason: {reason}")
 
     growth = p.assembly.expected_growth
     if growth is not None:
-        lines.append(f"USER ASSUMPTION — expected growth: {format_number(growth.value)} percentage points")
+        lines.append(f"Expected growth assumption: {format_number(growth.value)} percentage points")
 
-    if p.result is not None and p.result.status is CalculationStatus.OK:
-        assert p.result.growth_value is not None
-        currency = _common_currency(p.assembly.eps, p.assembly.current_price)
-        lines.append(f"Forecast-dependent growth value: {format_money(p.result.growth_value, currency)}")
-        lines.extend(_comparison_lines(p.assembly.current_price, p.margin_of_safety_percent))
-    elif reason:
-        lines.append(f"Reason: {reason}")
+    if result_ok:
+        lines.extend(
+            _comparison_lines(
+                p.assembly.current_price,
+                p.margin_of_safety_percent,
+                valuation_currency=_common_currency(p.assembly.eps),
+                reference_label="Graham growth value",
+            )
+        )
 
+    lines.append("")
     lines.append(f"Sources / freshness: {_source_summary((p.assembly.eps, p.assembly.current_aaa_yield))}")
     lines.extend(_growth_warning_lines(p))
     lines.append(f"Limitation: {_GROWTH_LIMITATION}")
     return lines
+
+
+def _analysis_heading(ticker: str, label: str, as_of: datetime | None) -> str:
+    """Render a method heading, surfacing historical boundaries only when requested."""
+    boundary = f" as of {format_as_of(as_of)}" if as_of is not None else ""
+    return f"{ticker.upper()} — {label}{boundary}"
+
+
+def _result_heading(ticker: str, label: str, as_of: datetime | None, result_text: str) -> str:
+    """Put the investor-facing result directly in the successful report heading."""
+    return f"{_analysis_heading(ticker, label, as_of)}: {result_text}"
 
 
 def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
@@ -210,18 +254,16 @@ def _input_detail_lines(label: str, value: ResolvedInput | None) -> list[str]:
     source = _source_label(value)
     lines = [
         f"{label}: {format_number(value.value, decimals=6)}",
-        f"  basis: {value.basis or 'unspecified'}",
+        f"  basis: {_display_basis(value)}",
         f"  units: {value.units or 'unspecified'}",
         f"  currency: {value.currency or 'n/a'}",
         f"  source: {source}",
         f"  provider: {value.provider_id or 'n/a'}",
         f"  provider field: {value.provider_field or 'n/a'}",
-        f"  period start: {format_datetime(value.observation_period_start)}",
-        f"  period end: {format_datetime(value.observation_period_end)}",
-        f"  observed at: {format_datetime(value.observed_at)}",
-        f"  available at: {format_datetime(value.available_at)}",
-        f"  retrieved at: {format_datetime(value.retrieved_at)}",
-        f"  resolved at: {format_datetime(value.resolved_at)}",
+        f"  period start: {format_date(value.observation_period_start)}",
+        f"  period end: {format_date(value.observation_period_end)}",
+        f"  observed at: {format_utc_minute(value.observed_at)}",
+        f"  available at: {format_utc_minute(value.available_at)}",
     ]
     if value.notes:
         lines.append(f"  notes: {'; '.join(value.notes)}")
@@ -237,8 +279,8 @@ def _input_detail_lines(label: str, value: ResolvedInput | None) -> list[str]:
                     f"    provider: {component.provider_id or 'n/a'}",
                     f"    provider field: {component.provider_field or 'n/a'}",
                     f"    basis: {component.basis or 'unspecified'}",
-                    f"    period end: {format_datetime(component.observation_period_end)}",
-                    f"    available at: {format_datetime(component.available_at)}",
+                    f"    period end: {format_date(component.observation_period_end)}",
+                    f"    available at: {format_utc_minute(component.available_at)}",
                 ]
             )
     return lines
@@ -273,28 +315,76 @@ def _headline_input_lines(eps: ResolvedInput | None, bvps: ResolvedInput | None)
     return lines
 
 
+def _number_basis_summary(eps: ResolvedInput | None, bvps: ResolvedInput | None) -> str | None:
+    """Describe the actual Number input bases in investor-readable language."""
+    if eps is None or bvps is None:
+        return None
+    return f"{_eps_basis_label(eps)} + {_bvps_basis_label(bvps)}"
+
+
+def _eps_basis_label(value: ResolvedInput) -> str:
+    """Describe EPS basis, preserving whether retained evidence is diluted EPS."""
+    if value.basis == "three_year_average":
+        qualifier = " diluted" if _uses_diluted_eps(value) else ""
+        return f"3-year average{qualifier} EPS"
+    if value.basis == "ttm":
+        return "TTM EPS"
+    if value.basis is not None:
+        return f"{value.basis.replace('_', '-')} EPS"
+    return "EPS basis unspecified"
+
+
+def _uses_diluted_eps(value: ResolvedInput) -> bool:
+    """Return whether all retained provider-field evidence identifies diluted EPS."""
+    fields: list[str] = []
+    if value.provider_field is not None:
+        fields.append(value.provider_field)
+    if value.lineage is not None:
+        fields.extend(component.provider_field for component in value.lineage.components if component.provider_field)
+    return bool(fields) and all("diluted" in field.lower() for field in fields)
+
+
+def _bvps_basis_label(value: ResolvedInput) -> str:
+    """Describe the period basis used for book value per common share."""
+    basis = _display_basis(value)
+    if basis == "fiscal_year_end":
+        return "latest eligible fiscal-year-end BVPS"
+    if basis != "unspecified":
+        return f"{basis.replace('_', '-')} BVPS"
+    return "BVPS basis unspecified"
+
+
 def _comparison_lines(
     current_price: ResolvedInput | None,
     margin_of_safety_percent: float | None,
+    *,
+    valuation_currency: str | None = None,
+    reference_label: str,
 ) -> list[str]:
     if current_price is None:
         return ["Current price: unavailable", "Price comparison: unavailable (no current quote)"]
 
     lines = [f"Current price: {format_money(current_price.value, current_price.currency)}"]
-    if margin_of_safety_percent is None:
+    if (
+        valuation_currency is not None
+        and current_price.currency is not None
+        and valuation_currency != current_price.currency
+    ):
+        lines.append("Price comparison: unavailable (valuation and quote currencies differ)")
+    elif margin_of_safety_percent is None:
         lines.append("Price comparison: unavailable")
     elif margin_of_safety_percent >= 0:
-        lines.append(f"Price relationship: {format_number(margin_of_safety_percent)}% below the method reference value")
+        lines.append(f"Price relationship: {format_number(margin_of_safety_percent)}% below the {reference_label}")
     else:
-        lines.append(
-            f"Price relationship: {format_number(abs(margin_of_safety_percent))}% above the method reference value"
-        )
+        lines.append(f"Price relationship: {format_number(abs(margin_of_safety_percent))}% above the {reference_label}")
     return lines
 
 
 def _number_warnings(p: GrahamNumberPresentation) -> list[str]:
     warnings = _override_warnings((p.assembly.eps, p.assembly.bvps))
-    warnings.extend(_quote_warnings(p.assembly.quote_status, p.assembly.quote_reason))
+    status, _ = _effective_status_and_reason(p.assembly.status, p.assembly.reason, p.result)
+    if status is CalculationStatus.OK:
+        warnings.extend(_quote_warnings(p.assembly.quote_status, p.assembly.quote_reason))
     return warnings
 
 
@@ -303,7 +393,10 @@ def _number_warning_lines(p: GrahamNumberPresentation) -> list[str]:
 
 
 def _growth_warnings(p: GrahamGrowthPresentation) -> list[str]:
-    warnings = _override_warnings((p.assembly.eps, p.assembly.expected_growth, p.assembly.current_aaa_yield))
+    warnings = _override_warnings((p.assembly.eps,))
+    aaa_yield = p.assembly.current_aaa_yield
+    if aaa_yield is not None and aaa_yield.source_kind is SourceKind.OVERRIDE:
+        warnings.append("AAA yield is user-supplied rather than provider-verified.")
     warnings.extend(_quote_warnings(p.assembly.quote_status, p.assembly.quote_reason))
     return warnings
 
@@ -322,13 +415,11 @@ def _override_warnings(inputs: tuple[ResolvedInput | None, ...]) -> list[str]:
 
 def _quote_warnings(
     status: CalculationStatus | None,
-    reason: str | None,
+    _reason: str | None,
 ) -> list[str]:
     if status is None:
         return []
-    return [
-        f"Current quote unavailable; comparison fields are omitted ({status.value}: {reason or 'no reason retained'})."
-    ]
+    return ["Current quote unavailable; price comparison omitted."]
 
 
 def _source_summary(inputs: tuple[ResolvedInput | None, ...]) -> str:
@@ -336,9 +427,60 @@ def _source_summary(inputs: tuple[ResolvedInput | None, ...]) -> str:
     for item in inputs:
         if item is None:
             continue
-        freshness = item.available_at or item.observed_at or item.observation_period_end
-        parts.append(f"{item.field_name}={_source_label(item)} ({format_datetime(freshness)})")
+        parts.append(f"{item.field_name}={_source_label(item)} ({_freshness_label(item)})")
     return "; ".join(parts) if parts else "unavailable"
+
+
+def _display_basis(value: ResolvedInput) -> str:
+    """Return explicit basis, or infer fiscal-year-end BVPS from its lineage."""
+    if value.basis is not None:
+        return value.basis
+    if value.field_name == "bvps" and value.lineage is not None and value.lineage.components:
+        component_bases = {component.basis for component in value.lineage.components}
+        if component_bases == {"fiscal_year_end"}:
+            return "fiscal_year_end"
+    return "unspecified"
+
+
+def _status_label(status: CalculationStatus) -> str:
+    """Render enum status values in investor-facing prose."""
+    return "not applicable" if status is CalculationStatus.NOT_APPLICABLE else status.value
+
+
+def _number_reason(
+    presentation: GrahamNumberPresentation,
+    status: CalculationStatus,
+    fallback: str,
+) -> str:
+    """Translate Number applicability failures without changing typed results."""
+    if status is not CalculationStatus.NOT_APPLICABLE:
+        return fallback
+    eps = presentation.assembly.eps
+    bvps = presentation.assembly.bvps
+    if eps is not None and eps.value <= 0:
+        condition = "negative" if eps.value < 0 else "zero"
+        return (
+            f"Earnings per share is {condition} ({format_money(eps.value, eps.currency)}), "
+            "so the Graham Number does not apply."
+        )
+    if bvps is not None and bvps.value <= 0:
+        condition = "negative" if bvps.value < 0 else "zero"
+        return (
+            f"Book value per common share is {condition} ({format_money(bvps.value, bvps.currency)}), "
+            "so the Graham Number does not apply."
+        )
+    return fallback
+
+
+def _freshness_label(value: ResolvedInput) -> str:
+    """Describe the best retained freshness boundary using date semantics."""
+    if value.available_at is not None:
+        return f"available {format_date(value.available_at)}"
+    if value.observed_at is not None:
+        return f"observed {format_date(value.observed_at)}"
+    if value.observation_period_end is not None:
+        return f"period end {format_date(value.observation_period_end)}"
+    return "freshness unavailable"
 
 
 def _source_label(value: ResolvedInput) -> str:
@@ -348,6 +490,12 @@ def _source_label(value: ResolvedInput) -> str:
         origin = value.origin_source_kind.value if value.origin_source_kind is not None else "unknown"
         provider = f", provider={value.provider_id}" if value.provider_id else ""
         return f"cache (original={origin}{provider})"
+    if value.source_kind is SourceKind.PROVIDER and value.provider_field is not None:
+        provider = value.provider_id or "unspecified"
+        if value.provider_field.startswith("inferred:"):
+            return f"inferred ({provider})"
+        if value.provider_field.startswith("derived:"):
+            return f"provider-derived ({provider})"
     if value.source_kind is SourceKind.DERIVED:
         providers = (
             sorted({component.provider_id for component in value.lineage.components if component.provider_id})

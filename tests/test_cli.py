@@ -10,7 +10,8 @@ from typer.testing import CliRunner
 
 from src.analysis.graham_value.input_resolver import GrahamInputResolver
 from src.analysis.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
-from src.cli import app
+from src.cli import GrahamCliMethod, _build_graham_resolver, _quote_provider_id, app
+from src.config import settings
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.market_data import MarketDataContext
@@ -291,13 +292,45 @@ def test_cli_presentation_modes_are_mutually_exclusive() -> None:
     assert "Choose only one" in result.output
 
 
+def test_cli_graham_missing_sec_user_agent_is_clean_configuration_error() -> None:
+    with patch.object(settings, "sec_user_agent", None):
+        result = runner.invoke(app, ["graham", "AAPL"])
+
+    assert result.exit_code == 1
+    assert "SEC EDGAR access is not configured" in result.output
+    assert "SEC_USER_AGENT" in result.output
+    assert "Your Name your-email@example.com" in result.output
+    assert "Pass user_agent" not in result.output
+    assert "Traceback" not in result.output
+
+
+@patch("src.cli.SecEdgarValuationAdapter")
+def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adapter: MagicMock) -> None:
+    declared_identity = "financial-data-agents-test test@example.invalid"
+
+    with patch.object(settings, "sec_user_agent", declared_identity):
+        _build_graham_resolver(method=GrahamCliMethod.NUMBER, data_provider=None)
+
+    mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
+
+
+@patch("src.cli.SecEdgarValuationAdapter")
+def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: MagicMock) -> None:
+    declared_identity = "financial-data-agents-test test@example.invalid"
+
+    with patch.object(settings, "sec_user_agent", declared_identity):
+        _build_graham_resolver(method=GrahamCliMethod.GROWTH, data_provider=None)
+
+    mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
+
+
 def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
     assert f"{SECURITY_ID} — Graham Number" in result.output
-    assert "Maximum indicated price:" in result.output
+    assert "Graham Number (maximum indicated price):" in result.output
     assert "screening ceiling" in result.output
     assert "Intrinsic Value" not in result.output
     assert "USER ASSUMPTION" not in result.output
@@ -348,7 +381,7 @@ def test_cli_graham_number_optional_quote_failure_preserves_value() -> None:
         result = runner.invoke(app, ["graham", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
     assert result.exit_code == 0
-    assert "Maximum indicated price:" in result.output
+    assert "Graham Number (maximum indicated price):" in result.output
     assert "Current price: unavailable" in result.output
     assert "Price comparison: unavailable" in result.output
     assert "Current quote unavailable" in result.output
@@ -419,11 +452,12 @@ def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(fixture_resolv
         )
 
     assert result.exit_code == 0
-    assert "USER ASSUMPTION — expected growth: 6.50 percentage points" in result.output
-    assert "Forecast-dependent growth value:" in result.output
+    assert "Expected growth assumption: 6.50 percentage points" in result.output
+    assert "Graham Growth Value:" in result.output
     assert "eps is a user override, not provider-verified data" in result.output
-    assert "current_aaa_yield is a user override, not provider-verified data" in result.output
-    assert "expected_growth is a user override, not provider-verified data" in result.output
+    assert "Warning: AAA yield is user-supplied rather than provider-verified." in result.output
+    assert "expected_growth is a user override" not in result.output
+    assert "current_aaa_yield is a user override" not in result.output
 
 
 def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(fixture_resolver: GrahamInputResolver) -> None:
@@ -451,7 +485,7 @@ def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(fixture_
     assert result.exit_code == 1
     assert "Unable to verify ticker NOTREAL" in result.output
     assert "no provider-backed security fact or quote was resolved" in result.output
-    assert "Forecast-dependent growth value" not in result.output
+    assert "Graham Growth Value:" not in result.output
 
 
 def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(fixture_resolver: GrahamInputResolver) -> None:
@@ -570,3 +604,12 @@ def test_cli_graham_growth_eps_override_inherits_ttm_basis(fixture_resolver: Gra
     payload = json.loads(result.output)
     assert payload["inputs"]["eps"]["source_kind"] == "override"
     assert payload["inputs"]["eps"]["basis"] == "ttm"
+
+
+def test_graham_quote_provider_routing_is_method_aware() -> None:
+    assert _quote_provider_id(GrahamCliMethod.NUMBER, None) == "yfinance"
+    assert _quote_provider_id(GrahamCliMethod.NUMBER, "sec_edgar") == "yfinance"
+    assert _quote_provider_id(GrahamCliMethod.NUMBER, "massive") == "massive"
+    assert _quote_provider_id(GrahamCliMethod.GROWTH, None) == "yfinance"
+    assert _quote_provider_id(GrahamCliMethod.GROWTH, "sec_edgar") == "yfinance"
+    assert _quote_provider_id(GrahamCliMethod.NUMBER, PROVIDER_ID) == PROVIDER_ID

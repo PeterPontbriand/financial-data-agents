@@ -4,6 +4,7 @@ import contextlib
 import io
 import logging
 import math
+from dataclasses import dataclass
 from typing import cast
 
 import pandas as pd
@@ -17,6 +18,14 @@ logger = logging.getLogger(__name__)
 YFINANCE_PROVIDER_ID = "yfinance"
 YFINANCE_HISTORICAL_INTERVAL = "1d"
 YFINANCE_PRICE_ADJUSTMENT = "adjusted"
+
+
+@dataclass(frozen=True)
+class YFinanceQuote:
+    """Current Yahoo quote value plus the currency exposed by ``fast_info``."""
+
+    price: float
+    currency: str | None
 
 
 class YFinanceClient(BaseDataClient):
@@ -79,18 +88,19 @@ class YFinanceClient(BaseDataClient):
         )
         return HistoricalMarketData(frame=frame, context=context)
 
-    def fetch_current_price(self, ticker: str) -> float:
-        """Resolve the latest tradable quote for a ticker via the yfinance quote interface.
-
-        Uses the dedicated quote boundary (``Ticker.fast_info``) rather than a
-        one-day historical download, per the project's historical/quote split.
-        """
+    def fetch_current_quote(self, ticker: str) -> YFinanceQuote:
+        """Resolve the latest tradable quote and best-effort currency via ``fast_info``."""
         logger.info(f"Resolving current quote for '{ticker}' via yfinance")
 
         stderr_buffer = io.StringIO()
         try:
             with contextlib.redirect_stderr(stderr_buffer):
-                quote = float(yf.Ticker(ticker).fast_info["last_price"])
+                fast_info = yf.Ticker(ticker).fast_info
+                quote = float(fast_info["last_price"])
+                try:
+                    raw_currency = fast_info["currency"]
+                except (KeyError, TypeError):
+                    raw_currency = None
         except Exception as err:
             logger.debug("Quote provider lookup failed for %r: %s", ticker, err)
             logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
@@ -100,8 +110,21 @@ class YFinanceClient(BaseDataClient):
             logger.error(f"Resolved non-finite or non-positive quote {quote!r} for '{ticker}'")
             raise DataFetchError(f"Current quote for '{ticker}' must be finite and positive (received {quote!r}).")
 
+        currency: str | None = None
+        if isinstance(raw_currency, str):
+            normalized_currency = raw_currency.strip().upper()
+            currency = normalized_currency or None
+
         logger.info(f"Current quote for '{ticker}': ${quote:,.2f}")
-        return quote
+        return YFinanceQuote(price=quote, currency=currency)
+
+    def fetch_current_price(self, ticker: str) -> float:
+        """Resolve the latest tradable quote for a ticker via the yfinance quote interface.
+
+        Uses the dedicated quote boundary (``Ticker.fast_info``) rather than a
+        one-day historical download, per the project's historical/quote split.
+        """
+        return self.fetch_current_quote(ticker).price
 
     def _fetch_currency(self, ticker: str) -> str | None:
         """Best-effort currency enrichment that never invalidates usable price history."""

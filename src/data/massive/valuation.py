@@ -50,6 +50,11 @@ class MassiveValuationAdapter:
         self._base_url = base_url.rstrip("/")
         self._currency_by_ticker: dict[str, str] = {}
 
+    @property
+    def is_configured(self) -> bool:
+        """Return whether usable Massive API credentials are available."""
+        return self._api_key is not None and bool(self._api_key.strip())
+
     def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911
         """Return supported current facts, or explicit unavailability."""
         if request.provider_id != MASSIVE_PROVIDER_ID:

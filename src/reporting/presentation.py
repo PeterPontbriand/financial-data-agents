@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime, time
 from enum import StrEnum
 from typing import Any
 
@@ -51,8 +51,25 @@ class ResolutionDiagnostic:
 
 
 def format_as_of(value: datetime | None) -> str:
-    """Format a requested analysis boundary; None means a current analysis."""
-    return "current" if value is None else value.isoformat()
+    """Format an analysis boundary without exposing end-of-day implementation detail."""
+    if value is None:
+        return "current"
+    if value.timetz().replace(tzinfo=None) == time.max:
+        return value.date().isoformat()
+    return format_utc_minute(value)
+
+
+def format_date(value: datetime | None) -> str:
+    """Format optional reporting-period metadata as a calendar date."""
+    return "unavailable" if value is None else value.date().isoformat()
+
+
+def format_utc_minute(value: datetime | None) -> str:
+    """Format an optional event timestamp at investor-useful UTC minute precision."""
+    if value is None:
+        return "unavailable"
+    utc_value = value.astimezone(UTC)
+    return utc_value.strftime("%Y-%m-%d %H:%M UTC")
 
 
 def format_datetime(value: datetime | None) -> str:

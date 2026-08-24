@@ -137,6 +137,19 @@ cd financial-data-agents
 uv sync
 ```
 
+### SEC EDGAR identity
+
+The default production Graham Number path uses SEC EDGAR and therefore requires a declared User-Agent identity.
+Set `SEC_USER_AGENT` in your environment or in a local, uncommitted `.env` file before running that path:
+
+```dotenv
+SEC_USER_AGENT="Your Name your-email@example.com"
+```
+
+Use an identity that provides a real contact point appropriate for your installation. The application sends this value as the
+SEC request `User-Agent`; it is configuration, not an investment-analysis option, so it is intentionally not a `graham` CLI
+flag.
+
 ---
 
 ## Running the Application

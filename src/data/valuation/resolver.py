@@ -233,8 +233,8 @@ class InputResolver:
         """Resolve direct BVPS first, then conservatively derive it from SEC-style components.
 
         The derived path requires parent stockholders' equity, period-end common
-        shares outstanding, and an explicit same-period zero preferred-share
-        observation. Missing preferred-share data is never interpreted as zero.
+        shares outstanding, and same-period zero preferred-share evidence. The
+        resolver itself never interprets missing preferred-share data as zero.
         """
         if request.field_name is not ValuationField.BVPS:
             reason = f"resolve_bvps requires a BVPS request (received {request.field_name.value})."
@@ -633,16 +633,6 @@ class InputResolver:
         equity = equity_result.resolved_input
         assert equity is not None
 
-        preferred_result = self.resolve(
-            _bvps_component_request(request, ValuationField.PREFERRED_SHARES_OUTSTANDING),
-            use_cache=use_cache,
-        )
-        trace = trace.extend(preferred_result.resolution_trace)
-        if preferred_result.status is not CalculationStatus.OK:
-            return _bvps_component_failure("preferred_shares_outstanding", preferred_result, trace)
-        preferred = preferred_result.resolved_input
-        assert preferred is not None
-
         shares_result = self.resolve(
             _bvps_component_request(request, ValuationField.COMMON_SHARES_OUTSTANDING),
             use_cache=use_cache,
@@ -652,6 +642,16 @@ class InputResolver:
             return _bvps_component_failure("common_shares_outstanding", shares_result, trace)
         shares = shares_result.resolved_input
         assert shares is not None
+
+        preferred_result = self.resolve(
+            _bvps_component_request(request, ValuationField.PREFERRED_SHARES_OUTSTANDING),
+            use_cache=use_cache,
+        )
+        trace = trace.extend(preferred_result.resolution_trace)
+        if preferred_result.status is not CalculationStatus.OK:
+            return _bvps_component_failure("preferred_shares_outstanding", preferred_result, trace)
+        preferred = preferred_result.resolved_input
+        assert preferred is not None
 
         alignment_error = _bvps_component_alignment_error(equity, preferred, shares)
         if alignment_error is not None:
@@ -702,7 +702,7 @@ class InputResolver:
         retrieved_at = max(retrieved_ats) if retrieved_ats else None
         resolved_at = self._clock()
         lineage = ComponentLineage(
-            transformation=("stockholders_equity / common_shares_outstanding; preferred_shares_outstanding == 0 guard"),
+            transformation=("stockholders_equity / common_shares_outstanding; zero preferred-share evidence guard"),
             components=components,
         )
         derived = ResolvedInput(
@@ -721,7 +721,8 @@ class InputResolver:
             lineage=lineage,
             notes=(
                 "measurement_basis=common equity per period-end common share",
-                "stockholders_equity accepted as common equity only because preferred shares outstanding is zero",
+                "stockholders_equity accepted as common equity only because same-period "
+                "preferred-share evidence resolved to zero",
                 "no independent split normalization applied; source filing share/EPS "
                 "restatement semantics are retained",
             ),
@@ -736,7 +737,7 @@ class InputResolver:
                 trace,
                 ValuationField.BVPS.value,
                 ResolutionOutcome.SUCCESS,
-                "Derived BVPS from compatible same-period components with an explicit zero preferred-share guard.",
+                "Derived BVPS from compatible same-period components with a zero preferred-share evidence guard.",
             ),
         )
 

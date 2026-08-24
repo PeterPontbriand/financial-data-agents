@@ -29,8 +29,10 @@ from src.data.valuation.provenance import ResolvedInput, SourceKind
 from src.data.valuation.providers import (
     MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
+    YFINANCE_PROVIDER_ID,
     MassiveValuationAdapter,
     ProductionValuationProvider,
+    SecEdgarValuationAdapter,
 )
 from src.data.yfinance import YFinanceClient
 from src.reporting.graham import (
@@ -158,14 +160,17 @@ def graham(  # noqa: PLR0913
     data_provider: str | None = typer.Option(
         None,
         "--data-provider",
-        help="Security-fact provider override; defaults depend on the selected method",
+        help="Security-fact provider override; defaults to SEC EDGAR",
     ),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the in-memory valuation cache"),
     eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
     eps_basis: str | None = typer.Option(
         None,
         "--eps-basis",
-        help="EPS basis; Number defaults to three_year_average, growth defaults to ttm",
+        help=(
+            "EPS basis; Number defaults to three_year_average; Growth defaults to "
+            "three_year_average with SEC EDGAR and ttm with Massive"
+        ),
     ),
     bvps: float | None = typer.Option(
         None, "--bvps", help="Explicit book value per common share override (Number only)"
@@ -199,9 +204,11 @@ def graham(  # noqa: PLR0913
     assert target_ticker is not None
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     analysis_as_of = _parse_as_of(as_of)
-    provider_id = _canonical_provider_id(data_provider)
+    requested_provider_id = _canonical_provider_id(data_provider)
+    provider_id = _effective_graham_provider_id(method, requested_provider_id)
     selected_eps_basis = _validate_graham_options(
         method=method,
+        provider_id=provider_id,
         eps_basis=eps_basis,
         bvps=bvps,
         expected_growth=expected_growth,
@@ -219,8 +226,8 @@ def graham(  # noqa: PLR0913
             output, exit_code = _run_graham_number(
                 resolver=resolver,
                 ticker=target_ticker,
-                security_provider_id=provider_id or SEC_PROVIDER_ID,
-                quote_provider_id=_quote_provider_id(provider_id),
+                security_provider_id=provider_id,
+                quote_provider_id=_quote_provider_id(GrahamCliMethod.NUMBER, provider_id),
                 eps_basis=selected_eps_basis,
                 eps_override=eps,
                 bvps_override=bvps,
@@ -235,8 +242,8 @@ def graham(  # noqa: PLR0913
             output, exit_code = _run_graham_growth(
                 resolver=resolver,
                 ticker=target_ticker,
-                security_provider_id=provider_id or MASSIVE_PROVIDER_ID,
-                quote_provider_id=_quote_provider_id(provider_id),
+                security_provider_id=provider_id,
+                quote_provider_id=_quote_provider_id(GrahamCliMethod.GROWTH, provider_id),
                 eps_basis=selected_eps_basis,
                 eps_override=eps,
                 expected_growth=expected_growth,
@@ -255,31 +262,65 @@ def graham(  # noqa: PLR0913
         raise typer.Exit(code=exit_code)
 
 
+def _build_sec_production_provider() -> ProductionValuationProvider:
+    """Build the SEC-backed production provider from declared application identity."""
+    user_agent = settings.sec_user_agent
+    if user_agent is None or not user_agent.strip():
+        raise ValueError(
+            "SEC EDGAR access is not configured. "
+            "Set SEC_USER_AGENT to a declared identity such as "
+            '"Your Name your-email@example.com" and retry.'
+        )
+    sec_edgar = SecEdgarValuationAdapter(user_agent=user_agent)
+    return ProductionValuationProvider(sec_edgar=sec_edgar)
+
+
+def _build_massive_production_provider() -> MassiveValuationAdapter:
+    """Build Massive only when usable API credentials are configured."""
+    massive = MassiveValuationAdapter()
+    if not massive.is_configured:
+        raise ValueError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
+    return massive
+
+
 def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None) -> GrahamInputResolver:
     """Build only the production provider capabilities needed by this invocation."""
     provider: ValuationFactsProvider
     if data_provider == MASSIVE_PROVIDER_ID:
-        provider = MassiveValuationAdapter()
+        provider = _build_massive_production_provider()
     elif data_provider == SEC_PROVIDER_ID:
-        provider = ProductionValuationProvider()
+        provider = _build_sec_production_provider()
     elif data_provider is not None:
         raise ValueError(
             f"Unsupported valuation data provider {data_provider!r}; "
             f"supported providers are {SEC_PROVIDER_ID!r} and {MASSIVE_PROVIDER_ID!r}."
         )
-    elif method is GrahamCliMethod.GROWTH:
-        provider = MassiveValuationAdapter()
+    elif method in (GrahamCliMethod.NUMBER, GrahamCliMethod.GROWTH):
+        provider = _build_sec_production_provider()
     else:
-        provider = ProductionValuationProvider()
+        raise AssertionError(f"Unhandled Graham method: {method!r}")
 
     return GrahamInputResolver(provider, cache=InMemoryValuationCache())
 
 
-def _quote_provider_id(data_provider: str | None) -> str:
-    """Use Massive for production quotes while preserving injectable test providers."""
-    if data_provider is None or data_provider in (SEC_PROVIDER_ID, MASSIVE_PROVIDER_ID):
+def _effective_graham_provider_id(method: GrahamCliMethod, data_provider: str | None) -> str:
+    """Select the investor-facing default security-fact provider."""
+    if data_provider is not None:
+        return data_provider
+    if method in (GrahamCliMethod.NUMBER, GrahamCliMethod.GROWTH):
+        return SEC_PROVIDER_ID
+    raise AssertionError(f"Unhandled Graham method: {method!r}")
+
+
+def _quote_provider_id(method: GrahamCliMethod, data_provider: str | None) -> str:
+    """Select the approved quote source for the effective security-fact provider."""
+    if data_provider is not None and data_provider not in (SEC_PROVIDER_ID, MASSIVE_PROVIDER_ID):
+        return data_provider
+    if data_provider == MASSIVE_PROVIDER_ID:
         return MASSIVE_PROVIDER_ID
-    return data_provider
+    if method in (GrahamCliMethod.NUMBER, GrahamCliMethod.GROWTH):
+        return YFINANCE_PROVIDER_ID
+    raise AssertionError(f"Unhandled Graham method: {method!r}")
 
 
 def _run_graham_number(  # noqa: PLR0913
@@ -320,7 +361,12 @@ def _run_graham_number(  # noqa: PLR0913
     assert assembly.eps is not None
     assert assembly.bvps is not None
     result = compute_graham_number(assembly.eps.value, assembly.bvps.value)
-    margin = _margin_of_safety(result.maximum_indicated_price, assembly.current_price)
+    valuation_currency = _common_currency(assembly.eps, assembly.bvps)
+    margin = _margin_of_safety(
+        result.maximum_indicated_price,
+        assembly.current_price,
+        valuation_currency=valuation_currency,
+    )
     presentation_assembly = _number_with_public_quote_reason(assembly)
     presentation = GrahamNumberPresentation(
         ticker=ticker,
@@ -384,7 +430,11 @@ def _run_graham_growth(  # noqa: PLR0913
         growth_multiplier=growth_multiplier,
         baseline_aaa_yield=baseline_aaa_yield,
     )
-    margin = _margin_of_safety(result.growth_value, assembly.current_price)
+    margin = _margin_of_safety(
+        result.growth_value,
+        assembly.current_price,
+        valuation_currency=assembly.eps.currency,
+    )
     presentation_assembly = _growth_with_public_quote_reason(assembly)
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
@@ -494,12 +544,29 @@ def _has_provider_backed_security_evidence(*inputs: ResolvedInput | None) -> boo
     return any(value is not None and value.source_kind is not SourceKind.OVERRIDE for value in inputs)
 
 
-def _margin_of_safety(reference_value: float | None, current_price: ResolvedInput | None) -> float | None:
-    """Compute presentation comparison only when both finite values support it."""
+def _margin_of_safety(
+    reference_value: float | None,
+    current_price: ResolvedInput | None,
+    *,
+    valuation_currency: str | None = None,
+) -> float | None:
+    """Compute comparison only when value, quote, and known currencies are compatible."""
     if reference_value is None or current_price is None or reference_value <= 0:
+        return None
+    if (
+        valuation_currency is not None
+        and current_price.currency is not None
+        and valuation_currency != current_price.currency
+    ):
         return None
     margin = ((reference_value - current_price.value) / reference_value) * 100.0
     return margin if math.isfinite(margin) else None
+
+
+def _common_currency(*inputs: ResolvedInput | None) -> str | None:
+    """Return one shared known currency, or None when inputs disagree or omit it."""
+    currencies = {item.currency for item in inputs if item is not None and item.currency}
+    return next(iter(currencies)) if len(currencies) == 1 else None
 
 
 def _growth_assumptions() -> tuple[float, float, float]:
@@ -512,15 +579,16 @@ def _growth_assumptions() -> tuple[float, float, float]:
     )
 
 
-def _validate_graham_options(
+def _validate_graham_options(  # noqa: PLR0912, PLR0913
     *,
     method: GrahamCliMethod,
+    provider_id: str,
     eps_basis: str | None,
     bvps: float | None,
     expected_growth: float | None,
     aaa_yield: float | None,
 ) -> str:
-    """Validate method-specific CLI combinations and select the EPS basis."""
+    """Validate method/provider CLI combinations and select the EPS basis."""
     normalized_basis = eps_basis.strip().lower() if eps_basis is not None else None
     if normalized_basis == "":
         raise typer.BadParameter("--eps-basis must be non-empty when supplied.")
@@ -543,6 +611,25 @@ def _validate_graham_options(
         raise typer.BadParameter(
             "--aaa-yield is required with --method growth because no production AAA-yield series is approved yet."
         )
+
+    if provider_id == SEC_PROVIDER_ID:
+        selected = normalized_basis or "three_year_average"
+        if selected != "three_year_average":
+            raise typer.BadParameter(
+                "SEC EDGAR Growth analysis supports --eps-basis three_year_average only; "
+                "use --data-provider massive for TTM EPS."
+            )
+        return selected
+
+    if provider_id == MASSIVE_PROVIDER_ID:
+        selected = normalized_basis or "ttm"
+        if selected != "ttm":
+            raise typer.BadParameter(
+                "Massive Growth analysis supports --eps-basis ttm only; "
+                "use --data-provider sec_edgar for three-year-average EPS."
+            )
+        return selected
+
     selected = normalized_basis or "ttm"
     if selected not in ("ttm", "three_year_average"):
         raise typer.BadParameter("Growth EPS basis must be 'ttm' or 'three_year_average'.")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from src.analysis.graham_value.models import GrahamMethod
@@ -167,6 +167,8 @@ class GrahamInputResolver(InputResolver):
                 resolution_trace=trace,
             )
         bvps_input = bvps_result.resolved_input
+        assert bvps_input is not None
+        bvps_input = _with_semantic_bvps_basis(bvps_input)
 
         quote_result = self._resolve_optional_quote(
             security_subject_id=security_subject_id,
@@ -442,6 +444,18 @@ class GrahamInputResolver(InputResolver):
             as_of=as_of,
         )
         return self.resolve(request, override=quote_override, use_cache=use_cache)
+
+
+def _with_semantic_bvps_basis(value: ResolvedInput) -> ResolvedInput:
+    """Annotate derived period-end BVPS at the Graham method-input boundary."""
+    if value.basis is not None or value.source_kind is not SourceKind.DERIVED:
+        return value
+    if value.lineage is None or not value.lineage.components:
+        return value
+    component_bases = {component.basis for component in value.lineage.components}
+    if component_bases != {"fiscal_year_end"}:
+        return value
+    return replace(value, basis="fiscal_year_end")
 
 
 def _event(

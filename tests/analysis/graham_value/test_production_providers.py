@@ -246,6 +246,20 @@ def _sec_component_request(field: ValuationField, *, as_of: datetime | None = No
     )
 
 
+def test_sec_adapter_sends_explicit_declared_user_agent_unchanged() -> None:
+    declared_identity = "financial-data-agents-test test@example.invalid"
+    fetcher = _sec_fetcher()
+    adapter = SecEdgarValuationAdapter(
+        json_fetcher=fetcher,
+        clock=lambda: NOW,
+        user_agent=declared_identity,
+    )
+
+    adapter.fetch_facts(_sec_request())
+
+    assert all(headers["User-Agent"] == declared_identity for _url, headers in fetcher.calls)
+
+
 def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_provenance() -> None:
     fetcher = _sec_fetcher()
     adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
@@ -411,6 +425,48 @@ def test_resolver_bvps_missing_or_nonzero_preferred_share_guard_is_unavailable(
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
+
+
+def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() -> None:
+    """WFC-shaped 2025 evidence must not be treated as common-equity-only."""
+    # Wells Fargo's 2025 annual report disclosed 4,600,746 preferred shares
+    # issued and outstanding and a $16.608B preferred-stock carrying value.
+    # The current provider-neutral contract represents the positive evidence
+    # through preferred_shares_outstanding; future SEC evidence fallbacks must
+    # preserve this negative control when broadening missing-tag handling.
+    payload = _sec_payload_with_bvps_components(preferred_shares=4_600_746.0)
+    us_gaap = payload["facts"]["us-gaap"]
+    us_gaap["StockholdersEquity"]["units"]["USD"][-1]["val"] = 181_100_000_000.0
+    us_gaap["CommonStockSharesOutstanding"]["units"]["shares"][-1]["val"] = 3_092_600_000.0
+
+    fetcher = FakeJsonFetcher(
+        {
+            "company_tickers.json": {
+                "0": {
+                    "cik_str": 72971,
+                    "ticker": "WFC",
+                    "title": "Wells Fargo & Company",
+                }
+            },
+            "/companyfacts/": payload,
+            "/submissions/": _submissions_payload(),
+        }
+    )
+    adapter = SecEdgarValuationAdapter(json_fetcher=fetcher, clock=lambda: NOW)
+    resolver = GrahamInputResolver(provider=adapter, clock=lambda: NOW)
+    request = ValuationFactRequest(
+        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_id="WFC",
+        field_name=ValuationField.BVPS,
+        provider_id=SEC_PROVIDER_ID,
+    )
+
+    result = resolver.resolve_bvps(request)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.resolved_input is None
+    assert result.reason is not None
+    assert "preferred_shares_outstanding is non-zero" in result.reason
 
 
 def _massive_currency_payload() -> object:

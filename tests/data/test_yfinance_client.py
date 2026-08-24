@@ -105,3 +105,11 @@ class TestFetchCurrentPrice:
             YFinanceClient().fetch_current_price("TEST")
 
         assert not any(record.levelno >= logging.ERROR for record in caplog.records)
+
+
+def test_current_quote_retains_normalized_currency() -> None:
+    with patch("src.data.yfinance.client.yf.Ticker") as mock_ticker:
+        mock_ticker.return_value.fast_info = {"last_price": 151.25, "currency": "usd"}
+        quote = YFinanceClient().fetch_current_quote("TEST")
+    assert quote.price == pytest.approx(151.25)
+    assert quote.currency == "USD"
