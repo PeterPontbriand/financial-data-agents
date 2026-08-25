@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from src.cli import GrahamCliMethod, app
 from src.data.valuation.providers import MASSIVE_PROVIDER_ID, SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
+from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
 
@@ -60,7 +61,7 @@ def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
     )
 
     assert result.exit_code == 2
-    normalized = " ".join(result.output.replace("│", " ").split())
+    normalized = normalize_cli_output(result.output)
     assert "SEC EDGAR Growth analysis supports --eps-basis three_year_average only" in normalized
     assert "use --data-provider massive for TTM EPS" in normalized
 
@@ -72,6 +73,6 @@ def test_growth_rejects_three_year_average_with_massive_before_provider_access()
     )
 
     assert result.exit_code == 2
-    normalized = " ".join(result.output.replace("│", " ").split())
+    normalized = normalize_cli_output(result.output)
     assert "Massive Growth analysis supports --eps-basis ttm only" in normalized
     assert "use --data-provider sec_edgar for three-year-average EPS" in normalized

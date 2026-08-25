@@ -16,6 +16,7 @@ from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.market_data import MarketDataContext
 from src.data.valuation.facts import ProviderFact, ValuationFactRequest, ValuationField
+from tests._cli_helpers import normalize_cli_output
 from tests.analysis.graham_value.fixture_valuation_provider import (
     NOW,
     PROVIDER_ID,
@@ -25,6 +26,17 @@ from tests.analysis.graham_value.fixture_valuation_provider import (
 )
 
 runner = CliRunner()
+
+
+def test_normalize_cli_output_strips_ansi_and_box_characters() -> None:
+    """Prove the helper removes ANSI escape codes and normalizes Rich box/border layout."""
+    styled = "\x1b[1m--expected-growth\x1b[0m is required\n╭─╮\n│  use --data-provider massive for TTM EPS  │\n╰─╯"
+    normalized = normalize_cli_output(styled)
+    assert "--expected-growth is required" in normalized
+    assert "use --data-provider massive for TTM EPS" in normalized
+    assert "\x1b" not in normalized
+    for ch in "─│┌┐└┘╭╮╰╯":
+        assert ch not in normalized
 
 
 class QuoteUnavailableProvider:
@@ -392,22 +404,21 @@ def test_cli_graham_growth_requires_expected_growth() -> None:
     result = runner.invoke(app, ["graham", "AAPL", "--method", "growth", "--aaa-yield", "4.2"])
 
     assert result.exit_code == 2
-    assert "--expected-growth is required" in result.output
+    assert "--expected-growth is required" in normalize_cli_output(result.output)
 
 
 def test_cli_graham_growth_requires_aaa_override_until_series_is_approved() -> None:
     result = runner.invoke(app, ["graham", "AAPL", "--method", "growth", "--expected-growth", "6.0"])
 
     assert result.exit_code == 2
-    normalized_output = " ".join(result.output.replace("│", " ").split())
-    assert "no production AAA-yield series is approved" in normalized_output
+    assert "no production AAA-yield series is approved" in normalize_cli_output(result.output)
 
 
 def test_cli_graham_number_rejects_growth_only_flags() -> None:
     result = runner.invoke(app, ["graham", "AAPL", "--expected-growth", "6.0"])
 
     assert result.exit_code == 2
-    assert "valid only with --method growth" in result.output
+    assert "valid only with --method growth" in normalize_cli_output(result.output)
 
 
 def test_cli_graham_growth_rejects_bvps() -> None:
@@ -428,7 +439,7 @@ def test_cli_graham_growth_rejects_bvps() -> None:
     )
 
     assert result.exit_code == 2
-    assert "--bvps is valid only with --method number" in result.output
+    assert "--bvps is valid only with --method number" in normalize_cli_output(result.output)
 
 
 def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(fixture_resolver: GrahamInputResolver) -> None:
