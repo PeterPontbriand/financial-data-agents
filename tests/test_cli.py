@@ -290,7 +290,7 @@ def test_cli_momentum_help_explains_daily_windows_and_defaults() -> None:
     result = runner.invoke(app, ["momentum", "--help"])
 
     assert result.exit_code == 0
-    normalized_output = " ".join(result.output.replace("│", " ").split())
+    normalized_output = normalize_cli_output(result.output)
     assert "Short SMA window in daily market observations" in normalized_output
     assert "Long SMA window in daily market observations" in normalized_output
     assert "[default: 50]" in normalized_output
