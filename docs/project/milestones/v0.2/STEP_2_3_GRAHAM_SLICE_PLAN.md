@@ -1,9 +1,9 @@
 # Step 2.3 Graham Implementation Slice Plan
 
-**Status:** Slices A–F2 complete and approved; G in progress<br/>
+**Status:** Step 2.3 complete and approved; Slices A–G complete<br/>
 **Governing design:** `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
-**Last updated:** 2026-08-24
+**Last updated:** 2026-08-25
 
 ## 1. Purpose
 
@@ -60,11 +60,11 @@ At the end of each slice:
 | D | Deterministic valuation fixtures and fixture adapter | Complete and approved |
 | E1 | Production-provider evidence investigation | Complete and approved |
 | E2 | Evidence-approved production adapters | Complete and approved |
-| Checkpoint | Preserve coherent foundation through E2 | Human-approved commit/push permitted; Step 2.3 remains incomplete |
+| Checkpoint | Preserve coherent foundation through E2 | Human-approved commit/push permitted; Step 2.3 remained incomplete at this checkpoint |
 | E3 | User-viable standard Graham production data-source configuration (BVPS gap) | Complete and approved |
 | F1 | Investor-facing result presentation for Graham + Momentum | Complete and approved |
 | F2 | Unified direct-analysis CLI and CLI tests | Complete and approved |
-| G | Documentation synchronization, final cleanup, and full quality gate | In progress |
+| G | Documentation synchronization, final cleanup, and full quality gate | Complete and approved |
 
 ## 5. Slice details
 
@@ -263,7 +263,7 @@ Acceptance includes deterministic snapshot/semantic tests for both strategies, w
 
 ### Slice F2 — unified direct-analysis CLI
 
-**Status:** complete and approved after focused gates and live KO validation. The complete Step 2.3 repository gate remains Slice G work.
+**Status:** complete and approved after focused gates and live KO validation. The complete Step 2.3 repository gate subsequently passed during Slice G.
 
 Locked implementation outcomes:
 - `financial-agents graham TICKER` is a direct ticker analysis and defaults to the Graham Number;
@@ -279,11 +279,11 @@ Locked implementation outcomes:
 - the concise Graham Number view explains the actual EPS/BVPS basis; the Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied; and
 - `--details`, `--diagnostics`, and `--json` retain the approved progressive-disclosure contract and JSON schema version.
 
-Live validation on KO exercised both the default Graham Number and the Graham Growth using SEC EDGAR data with Yahoo quote comparison. Focused Ruff/format/mypy/pytest checks were green before Slice G; Slice G owns the complete repository gate and final review.
+Live validation on KO exercised both the default Graham Number and the Graham Growth using SEC EDGAR data with Yahoo quote comparison. Focused Ruff/format/mypy/pytest checks were green before Slice G; the complete repository gate and final review subsequently passed during Slice G.
 
 ### Slice G — documentation, final cleanup, and complete gate
 
-**Status:** in progress.
+**Status:** complete and approved.
 
 Synchronize all user-facing and architectural documentation with the implementation that actually exists. Remove stale descriptions of the transitional CLI and clearly distinguish the Graham Number from the forecast-dependent growth-value method.
 
@@ -314,6 +314,8 @@ git status --short --untracked-files=all
 
 Generate and review the remaining tracked-and-untracked diff since the last approved checkpoint. Stop for human review. Do not declare Step 2.3 complete or begin Step 2.4 until that review explicitly approves completion; after approval, the remaining Step 2.3 changes may be committed/pushed.
 
+Completion record (2026-08-25): documentation synchronization and final cleanup were completed; the complete Ruff, format, strict-mypy, pytest, diff, and status gates passed; representative live Momentum and Graham behavior was reviewed; the final non-positive Graham Growth Value presentation correction was validated in concise and JSON output; and human review explicitly approved Step 2.3 completion.
+
 ## 6. Deferred and out-of-scope work
 
 The following are not part of Step 2.3:
@@ -331,3 +333,5 @@ The following are not part of Step 2.3:
 ## 7. Final completion condition
 
 Step 2.3 is complete only when every slice through G has passed review, the standard production Graham Number configuration is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the human explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.
+
+This completion condition was satisfied on 2026-08-25; Step 2.3 is complete and approved. Step 2.4 was not begun as part of Step 2.3.

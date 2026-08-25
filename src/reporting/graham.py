@@ -240,6 +240,7 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
             _comparison_lines(
                 p.assembly.current_price,
                 p.margin_of_safety_percent,
+                reference_value=p.result.maximum_indicated_price,
                 valuation_currency=currency,
                 reference_label="Graham Number",
             )
@@ -290,6 +291,7 @@ def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
             _comparison_lines(
                 p.assembly.current_price,
                 p.margin_of_safety_percent,
+                reference_value=p.result.growth_value,
                 valuation_currency=_common_currency(p.assembly.eps),
                 reference_label="Graham growth value",
             )
@@ -470,6 +472,7 @@ def _comparison_lines(
     current_price: ResolvedInput | None,
     margin_of_safety_percent: float | None,
     *,
+    reference_value: float | None = None,
     valuation_currency: str | None = None,
     reference_label: str,
 ) -> list[str]:
@@ -477,7 +480,9 @@ def _comparison_lines(
         return ["Current price: unavailable", "Price comparison: unavailable (no current quote)"]
 
     lines = [f"Current price: {format_money(current_price.value, current_price.currency)}"]
-    if (
+    if reference_value is not None and reference_value <= 0:
+        lines.append(f"Price comparison: unavailable ({reference_label} is non-positive)")
+    elif (
         valuation_currency is not None
         and current_price.currency is not None
         and valuation_currency != current_price.currency
@@ -511,6 +516,13 @@ def _number_warning_lines(p: GrahamNumberPresentation) -> list[str]:
 
 def _growth_warnings(p: GrahamGrowthPresentation) -> list[str]:
     warnings = _override_warnings((p.assembly.eps,))
+    if (
+        p.result is not None
+        and p.result.status is CalculationStatus.OK
+        and p.result.growth_value is not None
+        and p.result.growth_value <= 0
+    ):
+        warnings.append("The Graham growth value is non-positive; percentage price comparison is omitted.")
     aaa_yield = p.assembly.current_aaa_yield
     if aaa_yield is not None and aaa_yield.source_kind is SourceKind.OVERRIDE:
         warnings.append("AAA yield is user-supplied rather than provider-verified.")
