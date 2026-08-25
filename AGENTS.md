@@ -120,6 +120,9 @@ complex patterns.
 - After one unexpected no-match result, inspect a likely file directly or use a
   simpler literal search. After two no-match attempts, stop changing patterns
   and reassess the search assumption.
+- After one failed exact patch/edit match, directly reread the target section
+  and either retry once with exact current text or use a deterministic asserted
+  file-edit script. Never progressively shorten or fuzz an edit search pattern.
 - When auditing links or references, enumerate the source material first
   (for example, headings and literal links), then compare the resulting lists.
   Do not try to encode the entire audit into one complex search expression.
