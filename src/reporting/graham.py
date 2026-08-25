@@ -287,6 +287,7 @@ def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
         lines.append(f"Expected growth assumption: {format_number(growth.value)} percentage points")
 
     if result_ok:
+        assert p.result is not None
         lines.extend(
             _comparison_lines(
                 p.assembly.current_price,
