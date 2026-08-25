@@ -1,13 +1,20 @@
 # Financial Data Agents Glossary
 
-This glossary defines project terms. Formula details and authoritative calculation semantics live in `docs/FINANCE_MATH.md`.
+This glossary defines terms used in Financial Data Agents. Formula details and authoritative calculation semantics live in [Financial Math & Data Conventions](FINANCE_MATH.md).
 
 ---
 
 ## Analysis architecture
 
-### Analyzer / Analytical Strategy
-A deterministic Python capability that implements one financial-analysis method. Each analyzer owns its typed configuration, calculation, and result model.
+### Analysis Strategy
+A deterministic analytical capability in Financial Data Agents. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Analysis Strategy and Momentum Analysis Strategy.
+
+In the Python implementation, an analysis strategy may be represented by an *analyzer* class. User documentation standardizes on **analysis strategy** rather than using internal class terminology as the product concept.
+
+### Method
+A particular calculation or analytical approach within an analysis strategy. A strategy may have one method or several. For example, the Graham Analysis Strategy currently contains the Graham Number and Graham Growth Value methods.
+
+A method is an application concept; it does not imply that Benjamin Graham or another source used the word “method” in exactly this project-specific sense.
 
 ### `BaseAnalyzer`
 The existing common analysis abstraction. Supporting multiple analyzers does not imply a separate strategy registry/plugin framework.
@@ -16,13 +23,13 @@ The existing common analysis abstraction. Supporting multiple analyzers does not
 The existing deterministic technical-analysis strategy. The current implementation uses configurable short/long simple moving averages and crossover state.
 
 ### Graham Analysis
-The Step 2.3 deterministic fundamental-analysis family containing two explicitly named methods: the default Graham Number and the secondary Graham growth-value formula. “Graham analysis” does not mean that both methods are interchangeable or that either is a complete investment decision.
+The deterministic fundamental-analysis strategy containing two explicitly named methods: the default Graham Number and the secondary Graham growth-value formula. “Graham analysis” does not mean that both methods are interchangeable or that either is a complete investment decision.
 
 ### Graham Number Method (`graham_number`)
-The proposed default Graham method. It combines positive earnings per share and book value per share to estimate a conservative maximum indicated price for screening.
+The implemented default Graham method. It combines positive earnings per share and book value per share to estimate a conservative maximum indicated price for screening.
 
 ### Graham Growth-Value Method (`graham_growth_value`)
-The separate forecast-dependent Graham method using earnings, expected growth, and a current AAA corporate-bond yield. It is retained as a secondary method and must be selected explicitly.
+The separate implemented forecast-dependent Graham method using earnings, expected growth, and a current AAA corporate-bond yield input. It is retained as a secondary method and must be selected explicitly.
 
 ### Method Discriminator
 A stable field such as `number` or `growth` that tells the software which Graham configuration, input requirements, calculation, and result model apply.
@@ -36,6 +43,9 @@ The code between a CLI/tool request and a deterministic calculator. It obtains e
 ### Resolved Input
 An input value packaged with the information needed to interpret and reproduce it, including units, source, provider field or series, reporting period, `as_of`, retrieval time, transformations, and override/cache status.
 
+### Typed Evidence
+Structured, validated information passed between project components with explicit fields and expected data types—for example, a resolved financial value with its units, source, dates, and provenance, or a deterministic strategy result. “Typed evidence” is distinct from free-form model prose: an AI model may reason about it, but the model does not get to silently redefine or invent the underlying financial values.
+
 ### Heterogeneous Strategy Independence
 The principle that materially different financial strategies may use different inputs and outputs while sharing the existing orchestration/tool architecture. Generic orchestration must not assume all analysis is Momentum.
 
@@ -44,10 +54,24 @@ The principle that materially different financial strategies may use different i
 ## Market data
 
 ### `BaseDataClient`
-An existing provider boundary used by deterministic analyzers and data consumers. Step 2.3 may supplement it with narrower typed contracts when quotes, company financial facts, macro series, or cache access do not fit a historical-price-shaped interface cleanly.
+The existing historical-price provider boundary used by deterministic analyzers and data consumers. Financial Data Agents supplements it with a separate valuation-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
 
 ### Data Provider
 An external or local source that supplies market prices, company financial facts, or economic-series observations. Examples include a quote API, a financial-statements service, or a macroeconomic data service.
+
+### SEC
+The [U.S. Securities and Exchange Commission](https://www.sec.gov/), the U.S. federal securities regulator. Financial Data Agents currently uses public SEC data as a source of company financial facts.
+
+### EDGAR
+The SEC's **Electronic Data Gathering, Analysis, and Retrieval** system, which provides public access to company filings and structured filing data. See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data).
+
+### Massive
+[Massive](https://massive.com/) is a commercial financial-market-data service with an [API](#api-application-programming-interface) that software can use to request licensed market/fundamental data.
+
+A **Massive API key** is a credential issued by Massive that authorizes API requests according to the user's account/plan. Financial Data Agents can optionally use Massive for the supported current TTM diluted-EPS and current-price data used by the Graham Growth Value method. Massive is not required for the Graham Number or Momentum strategies.
+
+See the [Massive API documentation](https://massive.com/docs) for the service itself and [Installation & Configuration](INSTALLATION.md#optional-massive-market-data-access) for Financial Data Agents configuration.
+
 
 ### Cache
 A stored copy of previously retrieved data. A cache hit may be used only when the entry satisfies the requested `as_of` and freshness policy; otherwise resolution proceeds to an allowed provider or reports the input unavailable.
@@ -59,7 +83,7 @@ A **cache hit** finds a valid reusable observation. A **cache miss** finds none.
 A time-indexed series of observations used for time-series calculations such as Momentum.
 
 ### Current Quote / Current Market Price
-A point-in-time market price. For an analysis with an explicit `as_of`, it means the latest permitted market observation at or before that boundary, not necessarily the wall-clock price when the program runs.
+A point-in-time market price used for current valuation comparison. For an analysis with an explicit historical `as_of`, a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical valuation requests rather than substituting today's price.
 
 ### Company Financial Facts / Fundamentals
 Reported accounting values such as earnings, common shareholders' equity, and shares outstanding. They come from financial statements and have reporting periods that usually differ from market-quote timestamps.
@@ -89,7 +113,7 @@ The timestamp when the application obtained a value. It is different from `as_of
 A value explicitly supplied by the user or caller instead of accepting the cache/provider-resolved value. Overrides have highest resolution precedence and must be identified in provenance.
 
 ### Resolution Precedence
-The ordered source policy used for each field in Step 2.3: explicit override, then valid cache, then configured provider, then explicit unavailability.
+The ordered source policy used for each resolved financial field: explicit override, then valid cache, then configured provider, then explicit unavailability.
 
 ### OHLCV
 Open, High, Low, Close, Volume observations for a market-data interval.
@@ -101,7 +125,7 @@ A deterministic, no-network implementation of the data contracts used to validat
 Version-controlled test data with fixed values and metadata. The same fixture and configuration must produce the same resolved inputs and analytical results on every run.
 
 ### Production Persistence
-SQLite/cache-backed durable access introduced in Step 3.1 for market data, required financial facts, macro observations, and telemetry. Production persistence is separate from Golden fixtures.
+SQLite/cache-backed durable access planned for persistent application data for market data, required financial facts, macro observations, and telemetry. Production persistence is separate from Golden fixtures.
 
 ---
 
@@ -132,6 +156,9 @@ A trend/momentum indicator derived from the relationship between exponential mov
 
 ## Graham valuation terms
 
+### Sharpe Ratio
+A risk-adjusted-return measure comparing excess return with return volatility. It is not currently part of the implemented Momentum Analysis Strategy.
+
 ### EPS (Earnings Per Share)
 Profit attributable to common shareholders expressed per common share. EPS may be basic or diluted and may cover a fiscal year or the trailing twelve months, so its basis and period must always be identified.
 
@@ -139,13 +166,13 @@ Profit attributable to common shareholders expressed per common share. EPS may b
 **Basic EPS** uses the weighted-average common shares actually outstanding during the reporting period. **Diluted EPS** also reflects potentially dilutive securities such as options or convertible instruments. Values with different share bases must not be combined silently.
 
 ### TTM (Trailing Twelve Months)
-The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average.
+The most recent continuous twelve-month period represented by available reports. TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. In the current application it is used when the Graham Growth Value method explicitly uses Massive data, not as the standard Graham Number basis.
 
 ### Three-Year-Average EPS
-The arithmetic mean of EPS from three completed fiscal years. Step 2.3 proposes this as the default Graham Number earnings basis because Graham's defensive-investor price criterion referred to average earnings over the preceding three years.
+The arithmetic mean of EPS from three completed fiscal years. Financial Data Agents uses this as the standard Graham Number earnings basis and when the Graham Growth Value method uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.
 
 ### Normalized EPS / Normal Earnings
-Earnings adjusted according to an explicit policy to reduce the effect of unusual or non-recurring items. “Normalized” is not self-defining: every adjustment and period must be documented. The software must not invent normalized earnings silently.
+Earnings adjusted according to an explicit policy to reduce the effect of unusual or non-recurring items. “Normalized” is not self-defining: every adjustment and period must be documented. The growth calculator accepts an EPS value on the explicitly selected basis; the software does not invent discretionary normalization adjustments.
 
 ### Fiscal Year
 A company's twelve-month accounting period. It may differ from the calendar year, so annual EPS observations must retain their fiscal-period dates.
@@ -157,7 +184,7 @@ The span or date to which a financial fact applies, such as a fiscal year, quart
 A transformation that restates per-share values after the number of shares changes through a stock split or reverse split. EPS, BVPS, and price must use compatible share bases.
 
 ### BVPS (Book Value Per Share)
-Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price.
+Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price. When using SEC EDGAR data, Financial Data Agents derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.
 
 ### Common Shareholders' Equity
 The portion of reported equity attributable to common shareholders after claims belonging to preferred shareholders or other senior equity interests are excluded where applicable.
@@ -196,22 +223,22 @@ The preferred description of the Graham Number result. It is the highest price i
 Graham's term for an investor seeking a relatively conservative, low-maintenance approach. His complete defensive-stock framework included additional size, financial-strength, earnings-stability, dividend, and growth criteria beyond the two ratios represented by the Graham Number.
 
 ### Applicability Status
-A structured indication of whether a method can be meaningfully calculated. Step 2.3 uses statuses such as `applicable`, `not_applicable`, and `input_unavailable` instead of forcing every security into a numeric result.
+A structured indication of whether a method can be meaningfully calculated. Financial Data Agents uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error` instead of forcing every security into a numeric result.
 
 ### `not_applicable`
 A valid outcome meaning the method should not be used for the supplied facts—for example, when Graham Number EPS or BVPS is non-positive. It is not the same as a software failure or a zero valuation.
 
 ### Expected Growth Rate (`g`)
-The assumed annual earnings-growth rate used only by `graham_growth_value`, expressed in **percentage points**. For example, `6.5` means 6.5%. Its source, intended horizon, and policy must be reported.
+The assumed annual earnings-growth rate used only by `graham_growth_value`, expressed in **percentage points**. For example, `6.5` means 6.5%. Its source, intended horizon, and policy must be reported. The current direct CLI requires it explicitly through `--expected-growth`.
 
 ### Growth-Estimation Policy
-The explicit rule that supplies `g`. Step 2.3 initially supports a user-provided override and may support an explicitly selected historical EPS CAGR proxy. An LLM or silent default must not invent growth.
+The explicit rule that supplies `g`. The current application supports only a user-provided expected-growth assumption. An LLM, data provider, or silent default must not invent growth.
 
 ### Historical EPS CAGR Proxy
-An explicitly selected policy that uses historical EPS compound growth as a stand-in for `g`. It is deterministic and reproducible, but past growth is not proof of future growth and the result must be labeled as a proxy.
+A possible future deterministic policy that could use historical EPS compound growth as a stand-in for `g`. It is **not currently implemented**. Any future adoption must be labeled as a historical proxy because past growth is not proof of future growth.
 
 ### Analyst Consensus Estimate
-An aggregation of forecasts from multiple analysts. Step 2.3 defers using such estimates until the provider's field meaning, forecast horizon, provenance, update behavior, and licensing are verified.
+An aggregation of forecasts from multiple analysts. Financial Data Agents does not currently use such estimates; any future adoption requires verified field meaning, forecast horizon, provenance, update behavior, and licensing.
 
 ### CAGR (Compound Annual Growth Rate)
 The constant annual rate that would transform a beginning value into an ending value over a stated number of years:
@@ -223,7 +250,7 @@ The constant annual rate that would transform a beginning value into an ending v
 A historical EPS CAGR describes the past. It is only a proxy—not a forecast—unless a separate justified policy says otherwise.
 
 ### AAA Corporate Bond Yield
-The yield on a documented series of highest-rated corporate debt, used only by `graham_growth_value`. The exact provider series, units, observation date, and rating scope must be recorded.
+The yield on a documented series of highest-rated corporate debt, used only by `graham_growth_value`. No production series is approved in the current implementation; the direct Growth command therefore requires an explicit user-supplied AAA-yield value. A future provider integration must retain exact series, units, observation/publication date, and rating/maturity scope.
 
 ### AAA
 The highest credit-rating category in commonly used rating scales, indicating very low assessed credit risk. The precise label and methodology depend on the rating agency or published series.
@@ -238,7 +265,7 @@ One hundredth of one percentage point. For example, a move from 4.40% to 4.65% i
 The historical `4.4` formula constant used in the selected growth-value convention. It is configurable formula normalization, not a current market observation.
 
 ### Current AAA Yield
-The resolved AAA corporate-bond-yield observation used in the denominator of the growth-value formula. It must be positive and retain its series provenance and observation date.
+The AAA corporate-bond-yield value used in the denominator of the growth-value formula. It must be strictly positive. In the current production CLI it is a user override and is identified as such; a future provider-resolved value would additionally need series provenance and observation/publication dates.
 
 ### Graham Growth-Value Formula
 The project's explicitly identified secondary convention:
@@ -257,19 +284,22 @@ The no-growth earnings multiple used as a configurable constant in the selected 
 The configurable constant multiplying `g` inside the growth-value formula. The initial conventional value is `2.0`.
 
 ### Intrinsic Value
-An estimate of what an investment is economically worth based on a stated model and assumptions, rather than its current market price. Different models can produce different intrinsic-value estimates. Step 2.3 avoids using this term without qualification for the Graham Number.
+An estimate of what an investment is economically worth based on a stated model and assumptions, rather than its current market price. Different models can produce different intrinsic-value estimates. Financial Data Agents avoids using this term without qualification for the Graham Number.
 
 ### Reference Value
 The method-specific value used for comparison with current price: `maximum_indicated_price` for the Graham Number or `growth_value` for the growth method.
 
 ### Margin of Safety (MOS)
-In this project, the percentage difference between a method's reference value and current market price:
+In this project, the typed percentage difference between a method's reference value and current market price:
 
 ```text
 (reference_value - current_price) / reference_value × 100
 ```
 
 Positive means price is below the selected reference value; negative means it is above it. This calculation measures a valuation discount or premium but does not eliminate business or investment risk. If the reference value or current price is unavailable, MOS is unavailable (`None`), not zero.
+
+### Price Relationship
+The investor-facing prose representation of the same reference-value comparison, such as “20.00% below the Graham Number” or “89.57% above the Graham growth value.” It avoids requiring a user to interpret the sign convention of the internal `margin_of_safety_percent` field.
 
 ### Discount / Premium to Reference Value
 A neutral description of the same price comparison represented by project MOS. A discount is below the reference value; a premium is above it.
@@ -282,7 +312,7 @@ The arithmetic difference between two percentages. Moving from 4% to 6% is an in
 ## Evaluation
 
 ### Golden Benchmark Suite
-The Step 2.4 deterministic benchmark of typed cases, fixtures, expected behavior, and independently verified numerical results.
+The project's deterministic benchmark of typed cases, fixtures, expected behavior, and independently verified numerical results.
 
 ### Strategy/Tool-Selection Correctness
 Whether the runtime selected the appropriate registered deterministic capability and supplied valid case-appropriate arguments.
@@ -313,16 +343,16 @@ The permitted difference between a calculated value and an independently verifie
 ## Reliability & observability
 
 ### Trajectory Telemetry
-Machine-readable structured execution history introduced in Step 2.1.
+Machine-readable structured execution history used to record observable application behavior.
 
 ### Operational Logging
-Human-oriented runtime diagnostics. It is separate from trajectory telemetry.
+Human-oriented runtime diagnostics. It is separate from trajectory telemetry and from investor-facing result presentation.
 
 ### Circuit Breaker
-Configured hard limits on execution steps, retries/errors, or wall-clock time. Step 2.5 owns the reliability-limit implementation.
+Configured hard limits on execution steps, retries/errors, or wall-clock time that prevent unbounded execution.
 
 ### Light Mode
-Default single-tier/modest-hardware operating path.
+Recommended single-tier/modest-hardware operating mode.
 
 ### Full Dual-Tier Mode
 Optional local configuration using a fast/execution tier plus a larger deep-reasoning tier.
@@ -349,11 +379,18 @@ A typed component that reads or writes persistent data while keeping database de
 ### DI (Dependency Injection)
 Providing a component's dependencies from outside rather than constructing them internally. It allows an analyzer to use a live provider, cache, or deterministic fixture without changing its calculation code.
 
+### Machine-Readable Output
+Structured output designed so another program can consume it reliably rather than being optimized primarily for a person to read. Financial Data Agents currently provides machine-readable analysis output using **JSON (JavaScript Object Notation)** through the `--json` presentation mode.
+
+Machine-readable output may intentionally retain stable identifiers such as snake_case field names because those identifiers form part of a programmatic contract.
+
 ### JSON (JavaScript Object Notation)
+A widely used text format for structured data made from objects, arrays, names, strings, numbers, booleans, and null values. Financial Data Agents uses JSON for its `--json` machine-readable presentation mode and for other structured software interfaces.
+
 A structured text format used for data exchange and machine-readable results.
 
 ### JSONL (JSON Lines)
-A text format containing one JSON object per line. Step 2.1 uses it as the initial trajectory-telemetry sink format.
+A text format containing one JSON object per line. Financial Data Agents uses JSONL for structured trajectory-telemetry records.
 
 ### LLM (Large Language Model)
 The model used for planning, tool selection, and narrative synthesis. Project financial calculations remain deterministic Python operations rather than LLM arithmetic.

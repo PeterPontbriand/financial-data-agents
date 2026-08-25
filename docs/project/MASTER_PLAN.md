@@ -5,15 +5,14 @@
 **Primary Focus:** Quantitative investment analysis and a local investor research workbench for personal & professional networks<br/>
 **Secondary Focus:** Production-grade local-first AI systems engineering<br/>
 **Quality Gate:** Ruff, Strict Static Typing (`mypy --strict`), Pytest<br/>
-**Hardware Context:** Two supported modes — **Light Mode** (single-tier, ~8–16 GB VRAM **or** 32 GB+ unified memory) as the default path for most users, and **Full Dual-Tier Mode** (~24–28 GB VRAM) for deeper reasoning. See `docs/HARDWARE.md`.<br/>
+**Hardware Context:** Two supported modes — **Light Mode** (single-tier, ~8–16 GB VRAM **or** 32 GB+ unified memory) as the recommended mode for most users, and **Full Dual-Tier Mode** (~24–28 GB VRAM) for deeper reasoning. See `docs/user/HARDWARE.md`.<br/>
 **Out of Scope (Separate Project):** Full UI integration (e.g., Osiris or WorldMonitor)
 
 **Companion Document:** Master Plan Discovery Workbook (records *why* decisions were made; this Master Plan records *what* and *when*. References to either document mean the current version unless explicitly qualified as a prior or subsequent version).
 
 **Document versioning:** These documents are versioned by Git. Document version numbers are never used within the Master Plan or Discovery Workbook; references to either document mean the current version unless explicitly qualified as a prior or subsequent version.
 
-**Implementation authority:** The Master Plan defines milestone intent and ordering. During an active milestone, the current milestone implementation plan is the more specific operational source for branch sequencing, guardrails, and acceptance criteria. `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact approved specification for Step 2.3 only; it does not override milestone scope or review gates. `docs/ARCHITECTURE.md` describes current boundaries and labeled target seams; `docs/DISCOVERY_WORKBOOK.md` records rationale. If documents conflict, do not blend the instructions—use the more specific/current source and surface the conflict.
-
+**Implementation authority:** The Master Plan defines milestone intent and ordering. During an active milestone, the current milestone implementation plan is the more specific operational source for branch sequencing, guardrails, and acceptance criteria. `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact approved specification for Step 2.3 only; it does not override milestone scope or review gates. `docs/project/ARCHITECTURE.md` describes current boundaries and labeled target seams; `docs/project/DISCOVERY_WORKBOOK.md` records rationale. If documents conflict, do not blend the instructions—use the more specific/current source and surface the conflict.
 
 ---
 
@@ -44,7 +43,7 @@ Illustrative use case: A long-time retail investor hears a ticker mentioned info
                                 │
               ┌─────────────────┴─────────────────┐
               ▼                                   ▼
-     direct deterministic path             bounded local-LLM path
+     direct deterministic flow             bounded local-LLM flow
       method-specific requests          planning / selection / synthesis
               │                                   │
               └─────────────────┬─────────────────┘
@@ -105,9 +104,9 @@ Step 2.3 establishes Graham's method, input-resolution, production-provider, and
 | **Full Dual-Tier — Fast** | `qwen2.5-coder:14b-instruct-q4_K_M` | ~9–11 GB | Tool extraction, schema validation (when dual-tier is active). |
 | **Full Dual-Tier — Deep** | `qwen2.5-coder:32b-instruct-q4_K_M` **or** `deepseek-r1:32b` (configurable) | ~19–24 GB | Multi-step planning, complex synthesis, higher-fidelity report generation. |
 
-- Light Mode is the **recommended default** and the path external testers are expected to use.
+- Light Mode is the **recommended default** and the operating mode external testers are expected to use.
 - Full Dual-Tier Mode remains fully supported for users with workstation-class hardware.
-- See `docs/HARDWARE.md` for consumer hardware guidance (Apple Silicon, high-memory mini-PCs, discrete GPUs).
+- See `docs/user/HARDWARE.md` for consumer hardware guidance (Apple Silicon, high-memory mini-PCs, discrete GPUs).
 
 Deep-tier model selection (when used) remains a configuration choice rather than a hard commitment.
 
@@ -151,7 +150,7 @@ Deep-tier model selection (when used) remains a configuration choice rather than
 
 System settings are managed through the project's centralized `ProjectSettings` model in `src/config.py`, using `pydantic-settings` and environment-variable overrides.
 
-- **LLM Settings:** Local Ollama base URL and model selection, with Light Mode as the default adoption path.
+- **LLM Settings:** Local Ollama base URL and model selection, with Light Mode as the recommended adoption mode.
 - **Execution Limits:** Max planning steps (default: 10), Max transient retries (default: 3); subsequent reliability work may add more explicit timeout/error limits.
 - **Cache & Database:** SQLite connection path and later persistence/cache settings.
 - **Localization:** System default locale (`en-CA` / `fr-CA`), Currency defaults (`CAD`).
@@ -173,13 +172,13 @@ System settings are managed through the project's centralized `ProjectSettings` 
 
 Detailed sequencing, branch strategy, acceptance criteria, implementation guardrails, and review gates for this milestone live in:
 
-→ **`docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`**
+→ **`docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`**
 
 #### Step 2: Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation
 * **Branch strategy:** Use fine-grained feature branches aligned with coherent implementation units within each step. Reviewed intermediate checkpoints may be committed/pushed after explicit human approval; an incomplete step must not be represented as complete merely because it has a checkpoint commit.
 * **Step 2.1: Trajectory Logging & Telemetry** `[IMPLEMENTED]`: Typed, sink-independent trajectory telemetry with deterministic JSONL persistence. SQLite is added later in Step 3.1 behind the same sink abstraction.
-* **Step 2.2: Native Schema Enforcement** `[IMPLEMENTATION COMPLETE / MERGE-READY]`: Prefer native Ollama JSON-schema constraints at structured-output boundaries, retain Pydantic validation as an application-level defense, and use the documented fallback path when native capability is unavailable or unknown. **Empirical model-by-model Light Mode compatibility remains a non-blocking validation item and must be completed before the Step 3.5 Light Mode exit criterion.**
-* **Step 2.3: Dual-Method Graham Strategy, Valuation Input Resolution & Investor Presentation** `[SLICES A–E2 COMPLETE / E3 NEXT]`: Preserve the Graham Number as the default screening-ceiling method and the forecast-dependent growth value as an explicit alternative. Keep `BaseDataClient` historical-price focused; use the dedicated valuation-facts provider/cache/resolver seam, strict `as_of` behavior, per-input provenance, explicit overrides, and deterministic fixtures. Before Step 2.3 completes, close the production-data gap that prevents a representative ticker-only Graham Number from resolving required BVPS evidence (Slice E3), then add investor-facing result presentation and the unified direct-analysis CLI (F1/F2). Do not silently estimate growth or disguise unsupported provider capabilities. `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact implementation specification.
+* **Step 2.2: Native Schema Enforcement** `[IMPLEMENTATION COMPLETE / MERGE-READY]`: Prefer native Ollama JSON-schema constraints at structured-output boundaries, retain Pydantic validation as an application-level defense, and use the documented fallback flow when native capability is unavailable or unknown. **Empirical model-by-model Light Mode compatibility remains a non-blocking validation item and must be completed before the Step 3.5 Light Mode exit criterion.**
+* **Step 2.3: Dual-Method Graham Strategy, Valuation Input Resolution & Investor Presentation** `[SLICES A–F2 COMPLETE / G IN PROGRESS]`: The two Graham methods, provider-neutral resolution/provenance contracts, deterministic fixtures, production SEC/Massive/Yahoo valuation adapters, conservative SEC-backed BVPS derivation, investor-facing presenters, and unified direct CLI are implemented and approved through F2. The Graham Number using its standard SEC financial facts uses SEC three-year-average diluted EPS plus fiscal-year-end BVPS derivation and Yahoo current quote comparison. SEC-backed Growth uses three-year-average EPS; explicitly selected Massive Growth uses TTM EPS/current quote. Expected growth is always explicit, and no production AAA-yield series is currently approved, so the direct Growth command requires an explicit AAA-yield override. Slice G owns documentation synchronization, final cleanup, the complete repository gate, remaining-diff review, and explicit human completion approval. Step 2.4 must not begin before that review. `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact implementation specification.
 * **Step 2.4: Golden-Test Suite & Strategy Evaluation**: Build the fixture-backed Golden Suite on the stable Step 2.3 contracts. Exercise Momentum, the Graham Number, and the Graham growth-value method. Report method/strategy/tool-selection correctness separately from deterministic numerical correctness and from overall case pass/fail. Keep deterministic/no-LLM regression tests separate from optional real-local-Ollama empirical evaluation. Target ≥90% aggregate pass rate without weakening benchmark criteria.
 * **Step 2.5: Circuit Breakers & Timeout Limits**: Enforce hard execution caps, wall-clock bounds, retry/error thresholds, and clean diagnostics.
 
@@ -193,7 +192,7 @@ Detailed sequencing, branch strategy, acceptance criteria, implementation guardr
 
 #### Step 3.5: Light Mode Support (required before v0.2.5)
 * **Goal:** Ensure the complete investor workflow—data fetch/cache → deterministic analytics → stored Analysis Run → concise/detailed inspection → bounded local-model synthesis—runs cleanly under Light Mode with a 14B-class (or smaller) model.
-* **Deliverables:** Configuration defaults favor Light Mode; README and `docs/HARDWARE.md` provide the supported path; basic smoke tests pass; Step 2.2 empirical schema/model compatibility is recorded; a simple `analyze TICKER` path may combine the default deterministic analyses and optionally synthesize their already-computed typed results.
+* **Deliverables:** Configuration defaults favor Light Mode; README and `docs/user/HARDWARE.md` provide the supported workflow; basic smoke tests pass; Step 2.2 empirical schema/model compatibility is recorded; a simple `analyze TICKER` workflow may combine the default deterministic analyses and optionally synthesize their already-computed typed results.
 * **Synthesis boundary:** The LLM may explain or compare deterministic evidence, but it does not create financial facts, perform valuation arithmetic, or invent growth assumptions. Failure of synthesis must not discard valid deterministic results.
 * **Exit criterion:** A new user following only the Light Mode instructions can add or analyze a real ticker, run/refresh supported analyses, inspect a concise result and its provenance, revisit completed Analysis Runs, and obtain bounded synthesis without developer intervention.
 
@@ -242,7 +241,7 @@ The initial Momentum and Graham strategies are established earlier as architectu
 
 | Category | Metric | Target Threshold |
 | :--- | :--- | :--- |
-| **Code Quality** | Type Coverage | Zero mypy (`mypy --strict`) errors in supported source code |
+| **Code Quality** | Type Coverage | Zero mypy (`mypy --strict`) errors in supported source code and tests |
 | **Code Quality** | Annotation Completeness | 100% typed public interfaces |
 | **Testing** | Unit Test Line Coverage | ≥ 85% project-wide (`pytest --cov=src`) |
 | **Agent Accuracy** | Golden Benchmark Pass Rate | ≥ 90% aggregate pass rate, with tool-selection and numeric correctness measured separately |
@@ -264,8 +263,8 @@ The initial Momentum and Graham strategies are established earlier as architectu
 | **Local LLM Output Drift / Schema Violation** | Failed tool parsing, infinite retries | Enforce native Ollama JSON schemas (`format`) + Pydantic validation + circuit breaker caps. |
 | **Context Degradation on Long Turns** | Model forgets original goal or tool rules | Prune middle conversation context while strictly locking `Role.SYSTEM` at index 0. |
 | **Database Lock / Concurrency Latency** | DB timeouts during multi-tool execution | Enforce SQLite Write-Ahead Logging (WAL) mode and single-writer/multi-reader connection pooling. |
-| **Hardware barrier excludes target users** | Dual-tier requirements out of reach for most Primary Users | **Light Mode is the default path.** Full Dual-Tier is optional. Hardware requirements are surfaced early in README and `docs/HARDWARE.md`. External validation (v0.2.5) runs under Light Mode. |
-| **Strategy fixation / analytical monoculture** | Local model repeatedly selects the first/only familiar analytical strategy even when another is appropriate | Maintain materially different deterministic analyzers behind the same existing runtime path; Step 2.4 measures strategy selection separately from numerical correctness; do not special-case the orchestrator around one strategy. |
+| **Hardware barrier excludes target users** | Dual-tier requirements out of reach for most Primary Users | **Light Mode is the default operating mode.** Full Dual-Tier is optional. Hardware requirements are surfaced early in README and `docs/user/HARDWARE.md`. External validation (v0.2.5) runs under Light Mode. |
+| **Strategy fixation / analytical monoculture** | Local model repeatedly selects the first/only familiar analytical strategy even when another is appropriate | Maintain materially different deterministic analyzers behind the same existing runtime interface; Step 2.4 measures strategy selection separately from numerical correctness; do not special-case the orchestrator around one strategy. |
 | **User-facing architecture remains developer-shaped** | Real testers can run the software but cannot quickly understand or revisit results | Use concise investor-facing presentation, progressive disclosure, durable Analysis Runs, and Step 3.4 watchlist/run browsing before v0.2.5. |
 
 ---
@@ -275,7 +274,7 @@ The initial Momentum and Graham strategies are established earlier as architectu
 Every Pull Request must pass the following automated GitHub Actions pipeline before merge approval:
 
 1. **Lint & Code Style:** `ruff check . && ruff format --check .`
-2. **Strict Static Analysis:** `mypy --strict src/`
+2. **Strict Static Analysis:** `mypy --strict src tests`
 3. **Unit Tests & Coverage:** `pytest --cov=src --cov-report=term-missing`
 4. **Security & Dependency Audit:** `uv audit` / `pip-audit` for known vulnerabilities.
 5. **Golden Agent Evaluation:** Headless deterministic execution of the Step 2.4 Golden Suite in its no-LLM/test mode. Optional real-local-Ollama evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.
@@ -298,7 +297,7 @@ The project distinguishes these related but separate concerns:
 Step 2.3 establishes the minimum data capabilities required by the initial heterogeneous strategies:
 
 - historical market data for Momentum through `BaseDataClient`;
-- quote, fundamental, and macro facts for Graham through a dedicated valuation boundary;
+- quote and fundamental facts for Graham through a dedicated valuation boundary, plus a macro-observation contract that does not imply an approved production AAA series;
 - field-by-field input resolution with overrides, a minimal cache seam, strict as-of handling, and provenance.
 
 Step 2.3 also supplies only the minimal in-memory/fixture cache and deterministic adapters needed to prove those contracts. Step 2.4 builds the Golden Suite on those stable foundations. Step 3.1 later supplies production SQLite/cache-backed implementations.
@@ -320,7 +319,7 @@ Investor-facing output is a presentation concern, not an excuse to force heterog
 - `--diagnostics` for resolution/cache/provider behavior; and
 - `--json` for stable machine-readable output.
 
-Operational logging remains on the diagnostics/logging path and must not be used as the primary investor-facing renderer. The default view favors high-signal financial information; raw provider/cache mechanics are progressively disclosed.
+Operational logging remains on the diagnostics/logging subsystem and must not be used as the primary investor-facing renderer. The default view favors high-signal financial information; raw provider/cache mechanics are progressively disclosed.
 
 ## 12. Telemetry & Operational Logging Boundary
 
@@ -343,13 +342,13 @@ Documentation lives in the repository and is updated with the code:
 - **`README.md`:** Current capabilities, quickstart, disclaimer, and high-level roadmap.
 - **`AGENTS.md`:** Development-agent guardrails and documentation precedence.
 - **`RUNTIME_AGENTS.md`:** Runtime-agent behavioral guardrails.
-- **`docs/ARCHITECTURE.md`:** Current architectural boundaries and near-term target seams.
-- **`docs/DISCOVERY_WORKBOOK.md`:** Architectural rationale, decisions, and trade-offs.
-- **`docs/FINANCE_MATH.md`:** Authoritative project math/data semantics for implemented and explicitly planned deterministic strategies.
-- **`docs/GLOSSARY.md`:** Shared project terminology.
-- **`docs/HARDWARE.md`:** Light Mode vs Full Dual-Tier requirements and consumer hardware guidance.
-- **`docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`:** Operational implementation detail for the active v0.2 milestone.
-- **`docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review contract.
+- **`docs/project/ARCHITECTURE.md`:** Current architectural boundaries and near-term target seams.
+- **`docs/project/DISCOVERY_WORKBOOK.md`:** Architectural rationale, decisions, and trade-offs.
+- **`docs/user/FINANCE_MATH.md`:** Authoritative project math/data semantics for implemented and explicitly planned deterministic strategies.
+- **`docs/user/GLOSSARY.md`:** Shared project terminology.
+- **`docs/user/HARDWARE.md`:** Light Mode vs Full Dual-Tier requirements and consumer hardware guidance.
+- **`docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`:** Operational implementation detail for the active v0.2 milestone.
+- **`docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review contract.
 - **`docs/EVALUATIONS.md`:** **Planned for Step 2.4.** Golden Suite usage, scoring, fixtures, and extension policy.
 - **`docs/TOOL_DEVELOPMENT.md`:** **Planned.** Guide for implementing new typed tools.
 - **`docs/I18N_GUIDE.md`:** **Planned for localization work.** Translation/report-localization procedures.

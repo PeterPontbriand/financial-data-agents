@@ -1,13 +1,13 @@
 # Step 2.3 Graham Implementation Slice Plan
 
-**Status:** Slices A–F1 complete and approved; F2 next<br/>
-**Governing design:** `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
+**Status:** Slices A–F2 complete and approved; G in progress<br/>
+**Governing design:** `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
-**Last updated:** 2026-08-22
+**Last updated:** 2026-08-24
 
 ## 1. Purpose
 
-This document is the concise handoff and execution plan for implementing Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`.
+This document is the concise handoff and execution plan for implementing Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`.
 
 Each slice must be implemented and reviewed independently. Do not begin Step 2.4 or create Step 3 durable persistence during Step 2.3. Reviewed intermediate checkpoints may be committed/pushed only after explicit human approval and a green agreed gate; such a checkpoint does not declare Step 2.3 complete.
 
@@ -61,10 +61,10 @@ At the end of each slice:
 | E1 | Production-provider evidence investigation | Complete and approved |
 | E2 | Evidence-approved production adapters | Complete and approved |
 | Checkpoint | Preserve coherent foundation through E2 | Human-approved commit/push permitted; Step 2.3 remains incomplete |
-| E3 | User-viable default Graham production data path (BVPS gap) | Complete and approved |
+| E3 | User-viable standard Graham production data-source configuration (BVPS gap) | Complete and approved |
 | F1 | Investor-facing result presentation for Graham + Momentum | Complete and approved |
-| F2 | Unified direct-analysis CLI and CLI tests | Next |
-| G | Documentation synchronization, final cleanup, and full quality gate | Pending |
+| F2 | Unified direct-analysis CLI and CLI tests | Complete and approved |
+| G | Documentation synchronization, final cleanup, and full quality gate | In progress |
 
 ## 5. Slice details
 
@@ -200,11 +200,11 @@ Rules:
 - do not begin Step 2.4; and
 - subsequent E3/F1/F2/G work proceeds from that preserved baseline.
 
-### Slice E3 — user-viable default Graham data path
+### Slice E3 — user-viable standard Graham data configuration
 
 **Goal:** make an ordinary ticker-only Graham Number analysis genuinely useful with production data rather than merely prettier.
 
-The verified E2 adapters do not yet provide BVPS. Research and implement a defensible production path using either:
+The verified E2 adapters do not yet provide BVPS. Research and implement a defensible production data approach using either:
 - a provider-reported BVPS whose definition is sufficiently documented; or
 - transparent derivation from common shareholders' equity and period-end common shares outstanding.
 
@@ -218,11 +218,13 @@ Required provenance:
 - split/share-basis compatibility with EPS and price.
 
 Acceptance:
-- a representative supported US equity can complete `financial-agents graham TICKER` using the default three-year-average Graham Number path without a manual BVPS override;
+- a representative supported US equity can complete `financial-agents graham TICKER` using the standard three-year-average Graham Number configuration without a manual BVPS override;
 - unsupported tickers/capabilities remain explicit unavailable;
 - no provider field is selected merely because its name is convenient;
 - deterministic tests cover direct/derived BVPS, unavailable data, temporal eligibility, and provenance; and
-- if no safe path can be established, stop for human product review rather than fabricating a fallback or hiding the limitation.
+- if no safe approach can be established, stop for human product review rather than fabricating a fallback or hiding the limitation.
+
+Status: complete and approved. The implemented production default uses SEC EDGAR annual diluted EPS plus conservatively derived fiscal-year-end BVPS with retained component lineage. Common shares may use the verified issued-minus-treasury derivation when direct outstanding shares are absent, and preferred-share zero may be inferred only under the narrowly approved evidence rules. Unsupported evidence shapes remain unavailable.
 
 ### Slice F1 — investor-facing result presentation
 
@@ -261,36 +263,33 @@ Acceptance includes deterministic snapshot/semantic tests for both strategies, w
 
 ### Slice F2 — unified direct-analysis CLI
 
-Wire the presentation layer into the direct commands.
+**Status:** complete and approved after focused gates and live KO validation. The complete Step 2.3 repository gate remains Slice G work.
 
-Pre-F2 live-validation requirements:
-- the default Graham path must behave as a ticker analysis, not as a legacy formula calculator that first demands EPS, growth, and AAA-yield flags;
-- a successful arithmetic calculation driven entirely by overrides must not be presented as provider-validated analysis of a security whose identity/evidence was never established; either make the override-driven/unverified nature conspicuous or reject it under a documented subject-validation policy;
-- normal investor-facing output must not expose Pydantic tracebacks/documentation links, provider-library keys such as `currentTradingPeriod`, or operational logger prefixes as the primary result surface;
-- missing or invalid tickers must fail with one clear user-facing message rather than producing authoritative-looking valuation output merely because unrelated manual inputs were supplied;
-- material overrides must be conspicuous in concise output, especially forecast growth and any manually supplied financial fact;
-- the Graham Number must use the approved maximum-indicated-price/screening-ceiling wording, while the growth method must remain visibly forecast-dependent; and
-- deterministic CLI tests must include the live-probe classes that motivated F1/F2: invalid ticker, unavailable quote, override-heavy growth analysis, insufficient Momentum history, and JSON `null` rather than `NaN`.
+Locked implementation outcomes:
+- `financial-agents graham TICKER` is a direct ticker analysis and defaults to the Graham Number;
+- the default production security-fact provider is SEC EDGAR, with three-year-average diluted EPS and the E3 BVPS support; current quote comparison uses the narrow Yahoo Finance quote adapter;
+- `--method growth` requires explicit `--expected-growth` and `--aaa-yield` inputs under the current policy;
+- SEC-backed Growth defaults to three-year-average EPS and Yahoo Finance quote comparison; explicitly selecting Massive uses TTM EPS and a Massive quote and requires `MASSIVE_API_KEY`;
+- incompatible provider/EPS-basis combinations and method-only flags are clean usage errors rather than silent fallbacks;
+- optional quote failure preserves a valid valuation result and omits the price relationship;
+- historical `--as-of` requests retain the no-look-ahead boundary; the current Yahoo quote adapter does not pretend to supply historical quotes;
+- fully override-driven analysis does not establish a ticker's identity by arithmetic alone; provider-backed security evidence is required before authoritative output;
+- normal failure output does not expose framework tracebacks, Pydantic documentation links, provider-library implementation keys, or operational logger prefixes;
+- concise successful Graham output is result-first, omits redundant `Status: ok`/`As of: current`, and names the Graham Number as a maximum indicated price/screening ceiling;
+- the concise Graham Number view explains the actual EPS/BVPS basis; the Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied; and
+- `--details`, `--diagnostics`, and `--json` retain the approved progressive-disclosure contract and JSON schema version.
 
-Required behavior:
-- `financial-agents graham TICKER` defaults to Graham Number;
-- explicit `--method growth` gates growth-only options and requires the expected-growth assumption under the approved policy;
-- incompatible flags are usage errors, never silently ignored;
-- an EPS override inherits the method default basis unless explicitly changed, and that assumption is visible in provenance;
-- optional quote failure preserves a valid method value while suppressing comparison fields;
-- `--details`, `--diagnostics`, and `--json` behave consistently;
-- existing Momentum direct analysis uses the same presentation mode vocabulary; and
-- CLI tests use deterministic providers/fixtures only.
-
-Before removing/renaming transitional flags, search tests, README/help text, and code call sites and record the intentional compatibility change.
+Live validation on KO exercised both the default Graham Number and the Graham Growth using SEC EDGAR data with Yahoo quote comparison. Focused Ruff/format/mypy/pytest checks were green before Slice G; Slice G owns the complete repository gate and final review.
 
 ### Slice G — documentation, final cleanup, and complete gate
+
+**Status:** in progress.
 
 Synchronize all user-facing and architectural documentation with the implementation that actually exists. Remove stale descriptions of the transitional CLI and clearly distinguish the Graham Number from the forecast-dependent growth-value method.
 
 Required final documentation cleanup:
 
-- verify `README.md`, `ARCHITECTURE.md`, `DISCOVERY_WORKBOOK.md`, `FINANCE_MATH.md`, `GLOSSARY.md`, `MASTER_PLAN.md`, `milestones/v0.2/IMPLEMENTATION_PLAN.md`, and `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` against the final implementation;
+- verify `README.md`, `docs/project/ARCHITECTURE.md`, `docs/project/DISCOVERY_WORKBOOK.md`, `docs/user/FINANCE_MATH.md`, `docs/user/GLOSSARY.md`, `docs/project/MASTER_PLAN.md`, `milestones/v0.2/IMPLEMENTATION_PLAN.md`, and `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` against the final implementation;
 - replace intentional two-space Markdown hard breaks in changed material with explicit `<br/>` breaks;
 - search for remaining trailing whitespace, including untracked files;
 - confirm commands, flags, defaults, formulas, provenance terminology, growth policy, and current implementation status; and
@@ -331,4 +330,4 @@ The following are not part of Step 2.3:
 
 ## 7. Final completion condition
 
-Step 2.3 is complete only when every slice through G has passed review, the default production Graham Number path is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the human explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.
+Step 2.3 is complete only when every slice through G has passed review, the standard production Graham Number configuration is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the human explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.

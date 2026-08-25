@@ -73,7 +73,7 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 
 ### 3.4 Definition of Success
 - ≥90% aggregate Golden Benchmark pass rate with strategy/tool selection and numerical correctness reported separately.
-- Zero `mypy --strict` errors in supported source.
+- Zero `mypy --strict` errors in supported source and tests.
 - Zero unhandled exceptions in required deterministic Golden tests.
 - Light Mode usable before real-user validation.
 - At least 3 external Light Mode testers before v1.0 autonomy work.
@@ -84,7 +84,7 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 - Local privacy over cloud convenience.
 - Explicit typed boundaries over prompt cleverness.
 - Usefulness over portfolio optics.
-- Accessible default path; heavier capability is optional.
+- Accessible default experience; heavier capability is optional.
 - Heterogeneous strategies over analytical monoculture.
 
 ---
@@ -174,24 +174,26 @@ Capture observable execution evidence through structured trajectory telemetry. N
 ### High-level flow
 
 ```text
-CLI
-  → Orchestrator
-    → structured analysis/tool selection
-      → BaseAnalyzer implementations
+CLI / bounded orchestrator
+  → structured analysis/tool selection or direct analysis request
+      → deterministic strategies
         ├─ MomentumAnalyzer
-        └─ Graham analysis (Step 2.3 target)
+        └─ Graham analysis
            ├─ graham_number (default)
            └─ graham_growth_value (explicit)
       → data boundaries
         ├─ BaseDataClient → historical prices
-        └─ ValuationFactsProvider → quote/fundamentals/macro
-             → InputResolver ← override/cache
-      → provider/fixture capabilities
+        └─ ValuationFactsProvider → quote/fundamentals/macro contract
+             → GrahamInputResolver ← override/cache
+             → SEC / Massive / Yahoo valuation adapters
       → deterministic result
-  → synthesis/reporting
+  → investor presentation
+      → concise / details / diagnostics / JSON
 ```
 
 The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
+
+Step 2.3 is implemented through Slice F2; Slice G documentation/final-gate review remains before the step is declared complete. Step 2.4 must consume the stable Step 2.3 contracts rather than reopening them casually.
 
 ### Current package intent
 
@@ -203,16 +205,20 @@ src/
 ├── orchestrator/
 ├── data/
 │   ├── base_client.py
-│   ├── provider clients
-│   └── repositories/
+│   ├── massive/
+│   ├── sec_edgar/
+│   ├── valuation/
+│   ├── yfinance/
+│   └── repositories/        # Step 3 target
 ├── analysis/
 │   ├── base.py
-│   └── momentum/
+│   ├── momentum/
+│   └── graham_value/
 ├── reporting/
 └── utils/
 ```
 
-Repositories belong under `src/data/repositories/`.
+Repositories belong under `src/data/repositories/` when Step 3 introduces them.
 
 ---
 
@@ -248,13 +254,17 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 # 11. Data Strategy
 
 - **Historical-price boundary:** `BaseDataClient` remains focused on historical market series.
-- **Valuation-input boundary:** Step 2.3 adopts Option A—a dedicated valuation-facts provider boundary, narrow cache seam, input resolver, and typed provenance models.
-- **Current provider:** yfinance is an active adapter; other clients may exist as placeholders/alternatives but are not automatically the production authority.
+- **Valuation-input boundary:** Step 2.3 uses Option A—a dedicated valuation-facts provider boundary, narrow cache seam, input resolver, and typed provenance models.
+- **SEC EDGAR production facts:** eligible completed fiscal-year diluted EPS plus fiscal-year-end balance-sheet components used for conservative BVPS derivation. Direct SEC BVPS is not claimed.
+- **Yahoo production quote:** narrow current-price valuation adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts; historical valuation-quote support is not claimed.
+- **Massive when explicitly selected:** current TTM diluted EPS and current quote when explicitly selected; live access requires `MASSIVE_API_KEY` and current facts do not masquerade as historical evidence.
 - **Historical data:** first-class capability used by Momentum/time-series strategies.
 - **Current quote:** first-class valuation input used for Graham price comparison; it is not a one-day historical request.
 - **Fundamentals:** annual/TTM EPS and BVPS or its components retain their accounting basis, periods, availability dates, transformations, and source fields.
-- **Macro series:** the growth method requires a documented AAA-yield observation; no arbitrary ticker or single-provider assumption is accepted without evidence.
+- **Macro series:** the contract can represent macro observations, but no production AAA-yield series is approved in Step 2.3. The current Growth CLI requires an explicit AAA-yield override rather than inventing or substituting a ticker proxy.
+- **Growth EPS basis:** default/SEC Growth uses three-year-average diluted EPS; explicitly selected Massive Growth uses TTM diluted EPS. Unsupported provider/basis combinations fail explicitly.
 - **Resolution:** each field uses override → valid cache → provider → unavailable precedence.
+- **Subject validation:** override arithmetic alone does not verify a ticker; authoritative direct Graham output requires provider-backed security evidence.
 - **Temporal correctness:** requested `as_of` rejects information not yet available; current snapshots do not silently answer historical requests.
 - **Step 2.3 fixtures:** minimal deterministic data proving historical-price and valuation-input contracts plus resolution precedence/provenance; no live fallback.
 - **Step 2.4 fixtures:** Golden evidence using the stable Step 2.3 contract.
@@ -270,7 +280,7 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 # 12. AI Engineering Strategy
 
 ### Model modes
-Light Mode is the default adoption path; Full Dual-Tier remains optional.
+Light Mode is the recommended adoption mode; Full Dual-Tier remains optional.
 
 ### Prompt/schema discipline
 - system-role invariants;
@@ -296,15 +306,19 @@ The pre-v0.2.5 product is a **terminal-first local investor research workbench**
 ### Default interaction
 An ordinary investor should be able to analyze a ticker directly or maintain a small watchlist, ask the system to perform the repetitive quantitative work, then revisit completed results without needing to understand provider APIs, cache keys, or Python internals.
 
+The implemented direct Graham workflow now embodies that principle: `financial-agents graham TICKER` is a ticker analysis with a default Graham Number rather than an override-first formula calculator.
+
 ### Progressive disclosure
-The default result view answers the financial question concisely: ticker, method/analysis, `as_of`, status, headline metrics, plain-language comparison, source/freshness summary, material warnings, and method limitations.
+A successful concise result leads with the financial conclusion and only then exposes supporting context. Graham Number leads with the maximum indicated price/screening ceiling; Growth leads with the Growth Value and immediately states the expected-growth assumption. Current price and the plain-language price relationship follow when a compatible quote exists.
+
+The concise view then exposes source/freshness summary, material warnings, and method limitations. Redundant success metadata such as `Status: ok` and `As of: current` does not compete with the result; historical `as_of` remains prominent in the heading.
 
 Deeper views remain explicit:
 - `--details` = financial provenance, accounting basis, dates, derivations, assumptions;
 - `--diagnostics` = override/cache/provider resolution behavior and classified failures;
 - `--json` = machine-readable typed result/provenance.
 
-Operational logs are not the investor-facing result surface. A cache hit never hides the original economic data source. User overrides—especially expected growth—must be visually conspicuous.
+Operational logs are not the investor-facing result surface. A cache hit never hides the original economic data source. User overrides remain visible, but warnings should add information rather than mechanically repeat an assumption that the concise view has already labeled clearly.
 
 ### Coherent strategies, heterogeneous models
 Momentum and Graham should feel like parts of one product through shared presentation vocabulary and layout, while remaining internally strategy-specific. Do not invent a generic strategy result bag merely for rendering consistency.
@@ -322,7 +336,7 @@ Rich terminal presentation and the workspace/run-history workflow are intentiona
 
 # 14. Performance & Scalability
 
-Single-node local usage is the primary target. Optimize deterministic local paths first; accept that LLM latency depends heavily on local hardware. User-initiated watchlist refresh may use bounded concurrency, but v0.2 does not require a continuously running service.
+Single-node local usage is the primary target. Optimize deterministic local operations first; accept that LLM latency depends heavily on local hardware. User-initiated watchlist refresh may use bounded concurrency, but v0.2 does not require a continuously running service.
 
 ---
 
@@ -345,14 +359,15 @@ Current documents:
 - `README.md`
 - `AGENTS.md`
 - `RUNTIME_AGENTS.md`
-- `docs/MASTER_PLAN.md`
-- `docs/milestones/v0.2/IMPLEMENTATION_PLAN.md`
-- `docs/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` — active compact specification for Step 2.3;
-- `docs/ARCHITECTURE.md`
-- `docs/DISCOVERY_WORKBOOK.md`
-- `docs/FINANCE_MATH.md`
-- `docs/GLOSSARY.md`
-- `docs/HARDWARE.md`
+- `docs/project/MASTER_PLAN.md`
+- `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
+- `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` — active compact specification for Step 2.3;
+- `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md` — live slice-status tracker and completion gate;
+- `docs/project/ARCHITECTURE.md`
+- `docs/project/DISCOVERY_WORKBOOK.md`
+- `docs/user/FINANCE_MATH.md`
+- `docs/user/GLOSSARY.md`
+- `docs/user/HARDWARE.md`
 
 Planned when their owning work lands:
 - `docs/EVALUATIONS.md` — Step 2.4;
@@ -370,6 +385,7 @@ A planned document must not be treated as an existing source of instructions.
 - Ruff + strict mypy + pytest before completion.
 - Do not opportunistically redesign unrelated architecture.
 - Documentation changes accompany durable architecture changes.
+- Coding agents do not commit automatically; coherent checkpoint commits require explicit human approval.
 
 ---
 
@@ -418,6 +434,8 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - Burying financial input provenance in untyped metadata.
 - Accepting look-ahead bias by using facts that were not yet filed/published at the requested analysis date.
 - Assuming one upstream provider supplies well-defined quotes, fundamentals, and macro series without verifying field semantics.
+- Treating missing accounting evidence as numeric zero merely to make a valuation complete.
+- Letting override-heavy arithmetic create authoritative-looking analysis for an unverified ticker.
 - Letting stale repository documentation compete with an approved active-step design.
 - Telemetry becoming business control flow.
 - Golden expectations generated from the same implementation under test.
@@ -437,10 +455,10 @@ Finance remains primary. Core layers remain modular enough for possible later re
 1. Will WAL + connection discipline remain sufficient for future denser multi-tool/multi-agent workloads?
 2. Does `fr-CA` localization remain in v0.3 after v0.2.5 user feedback?
 3. Do future additional strategies reveal a genuine need for a richer analyzer registry/plugin mechanism? This remains intentionally unresolved until concrete repetition justifies it.
-4. Which defensible production BVPS/direct-or-derived path should Slice E3 adopt so representative ticker-only Graham Number analysis is user-viable without weakening accounting or temporal provenance?
-5. Which exact AAA corporate-bond-yield series, frequency, provider, retrieval mechanism, and licensing terms should `graham_growth_value` use?
-6. Which provider capabilities can honor historical `as_of` without look-ahead bias, and which must report `input_unavailable`?
-7. At v0.2.5, do real investors prefer direct one-off analysis, watchlist/refresh/run-history workflow, or both—and which information belongs in the concise default versus details?
+4. Which exact AAA corporate-bond-yield series, frequency, provider, retrieval mechanism, and licensing terms should `graham_growth_value` eventually use instead of the current explicit user override?
+5. Which future provider capabilities can honor historical `as_of` without look-ahead bias, especially for point-in-time quotes and later financial facts not yet represented by the current SEC integration?
+6. At v0.2.5, do real investors prefer direct one-off analysis, watchlist/refresh/run-history workflow, or both—and which information belongs in the concise default versus details?
+7. Does real-user feedback justify adding a deterministic historical-EPS-growth proxy, or should Growth remain assumption-only until analyst-consensus semantics are evidence-approved?
 
 ---
 
@@ -448,8 +466,8 @@ Finance remains primary. Core layers remain modular enough for possible later re
 
 - **BaseAnalyzer** — Existing abstract analysis boundary.
 - **BaseDataClient** — Historical-price provider boundary.
-- **ValuationFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro inputs required by Graham analysis.
-- **InputResolver** — Field-level override/cache/provider/unavailable resolution with typed provenance and time boundaries.
+- **ValuationFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro-observation contracts required by Graham analysis.
+- **GrahamInputResolver** — Field-level override/cache/provider/unavailable resolution with typed provenance and time boundaries.
 - **Analysis Run** — Durable investor-domain record of one requested analysis, distinct from trajectory telemetry; contains configuration, status, typed result, provenance, warnings, timestamps, and version identifiers.
 - **Watchlist** — Named local set of tickers plus supported requested analysis configuration used by Step 3.4 user-initiated refresh.
 - **Result View / Report** — Rendering of an Analysis Run in concise terminal, detailed, diagnostic, JSON, or later document form; not a competing canonical calculation record.
@@ -459,8 +477,8 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - **Fixture adapter** — Deterministic test implementation of the market-data contract.
 - **Strategy-selection correctness** — Whether the appropriate deterministic analytical capability/tool was selected with valid arguments.
 - **Numerical correctness** — Whether deterministic outputs match independently verified expectations.
-- **Light Mode** — Default single-tier/modest-hardware path.
-- **Full Dual-Tier Mode** — Optional fast+deep local-model path.
+- **Light Mode** — Default single-tier/modest-hardware mode.
+- **Full Dual-Tier Mode** — Optional fast+deep local-model mode.
 - **WAL** — SQLite Write-Ahead Logging.
 
 ---
@@ -475,7 +493,8 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | 2026-08-16 | Telemetry/persistence sequencing and deterministic Golden-data boundary clarified |
 | 2026-08-19 | Heterogeneous strategy independence adopted; Graham moved into v0.2 Step 2.3; current quote made first-class; Golden Suite separated into Step 2.4; circuit breakers bumped to Step 2.5; speculative strategy framework explicitly rejected |
 | 2026-08-20 | Graham split into default Graham Number and explicit growth-value methods; Option A valuation provider/cache/resolver boundary adopted; provenance, `as_of`, and no-look-ahead rules made explicit; compact Step 2.3 specification added |
-| 2026-08-21 | Investor-facing UX reconsidered before Slice F: E3 added for a user-viable default Graham data path; F split into presentation/direct CLI; Step 3.4 watchlists + Analysis Run library added; Light Mode validation strengthened; bounded v0.2 agentic workflow separated from v1.0 unattended autonomy |
+| 2026-08-21 | Investor-facing UX reconsidered before Slice F: E3 added for a user-viable standard Graham data configuration; F split into presentation/direct CLI; Step 3.4 watchlists + Analysis Run library added; Light Mode validation strengthened; bounded v0.2 agentic workflow separated from v1.0 unattended autonomy |
+| 2026-08-24 | F2 investor workflow synchronized: standard Graham analyses using SEC EDGAR financial facts, Yahoo quote routing, explicit Massive TTM configuration, provider-backed ticker verification, result-first concise presentation, and explicit AAA-yield override policy recorded; Slice G final synchronization/gate began |
 
 ---
 
@@ -484,7 +503,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | ID | Date | Decision | Rationale / Consequence | Status |
 |---|---|---|---|---|
 | D1 | 2026-Q2 | 100% local LLM orchestration; no cloud LLM in core loop | Privacy, local control, zero cloud dependency | Accepted |
-| D2 | 2026-Q2 | Dual-tier model option | Preserves higher-capability local path | Accepted |
+| D2 | 2026-Q2 | Dual-tier model option | Preserves higher-capability local configuration | Accepted |
 | D3 | 2026-Q2 | All quantitative work in deterministic Python | Eliminates LLM arithmetic hallucination class | Accepted |
 | D4 | 2026-Q2 | SQLite + WAL + Alembic | Zero-ops local persistence | Accepted |
 | D5 | 2026-Q2 | Strict mypy + typed/Pydantic boundaries | Maintainability and reliability | Accepted |
@@ -514,6 +533,10 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | D29 | 2026-08-21 | Persist Analysis Runs in Step 3.4; treat reports as renderings of runs | Avoids duplicate canonical result artifacts and supports later terminal/Markdown/PDF views | Accepted |
 | D30 | 2026-08-21 | Add watchlists and user-initiated concurrent refresh in v0.2, but defer daemons/unattended scheduling/proactive monitoring/notifications to v1.0 | Delivers useful agentic legwork before validation without prematurely owning long-running-service semantics | Accepted |
 | D31 | 2026-08-21 | Permit explicitly human-approved intermediate checkpoint commits/pushes after review/gates | Protects substantial reviewed work and improves history without weakening step-completion review gates | Accepted |
+| D32 | 2026-08-24 | Default production Graham routing uses SEC EDGAR financial facts plus Yahoo current quote; explicit Massive Growth uses TTM EPS/current quote | Keeps default analysis usable without Massive credentials while preserving provider-specific EPS semantics and narrow capabilities | Accepted |
+| D33 | 2026-08-24 | Keep Growth's AAA yield as an explicit user input until a production series passes the evidence gate | Avoids inventing macro provenance or treating an arbitrary finance ticker as a documented AAA corporate-bond series | Accepted |
+| D34 | 2026-08-24 | Require provider-backed security evidence before authoritative direct Graham output | Prevents fully override-driven arithmetic from falsely validating an arbitrary ticker identity | Accepted |
+| D35 | 2026-08-24 | Use result-first concise success output and avoid redundant assumption/warning repetition | Prioritizes the investor's financial question while retaining progressive disclosure and material caveats | Accepted |
 
 ---
 
