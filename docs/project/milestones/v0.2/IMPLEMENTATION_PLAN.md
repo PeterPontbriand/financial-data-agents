@@ -170,15 +170,24 @@ The telemetry recorder will capture and store observable data explicitly exposed
 
 **Follow-ups (non-blocking for Step 2.1 merge)**
 
-- **Emit `RECOVERY_ATTEMPTED`:** The event type is defined. When the orchestrator
-  repair/retry flow runs, record a `RECOVERY_ATTEMPTED` event on each attempt
-  (component, step_index, span linkage, sanitized error context). If recovery
-  is still minimal, wire this when Step 2.6 circuit-breakers / repair policy
-  lands.
-- **Always set `payload_hash` when a payload is retained:** Confirm
-  `TrajectoryRecorder` sets `payload_hash` for every event that keeps a
-  non-null payload (integrity without storing full bodies). Leave hash null
-  only when payload is omitted.
+**Tracking:** GitHub issue #17 tracks the remaining Step 2.1 residuals.
+
+- **`RECOVERY_ATTEMPTED`:**
+  - GitHub issue #17 tracks it.
+  - The event type already exists.
+  - The current schema-validation repair/retry path still does not emit the event.
+  - Each actual recovery attempt should eventually emit `RECOVERY_ATTEMPTED`
+    with component, step index, span linkage, and sanitized error context.
+  - This may be completed independently or alongside Step 2.6 reliability work.
+- **`payload_hash`:**
+  - `TrajectoryRecorder` ALREADY generates `payload_hash` for a retained
+    non-null sanitized payload.
+  - A null/omitted payload produces a null hash.
+  - The remaining issue #17 work is focused regression coverage:
+    - retained payload -> non-null hash;
+    - omitted/null payload -> null hash;
+    - identical retained payloads -> identical hash.
+  - Do not imply that the production hash behavior itself remains unimplemented.
 <br/>
 ---
 
@@ -594,28 +603,30 @@ Step 2.4 is a bounded strategy addition, not a reopening of Step 2.3 and not a r
 
 #### 4.4.1 Product-policy checkpoint
 
-The phrase “FCF (free cash flow) and earnings growth” is sufficient to select the strategy direction but does not yet lock every investor-facing metric.
+Step 2.4 is a **per-security fundamental screen** combining historical and forward earnings evidence with project-defined free cash flow metrics.
 
-Implementation begins with reconnaissance only. Before production coding proceeds, explicitly resolve or approve the baseline for:
+The detailed product-policy locks, proposed choices, and their eventual resolutions are authoritative in Section 3 of `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`. Slice B must not begin until every policy lock that affects pure math, typed result/screen semantics, horizon behavior, FCF-yield basis, or other Slice B contracts has been explicitly reviewed and approved there. This Implementation Plan intentionally records the gate without duplicating the detailed lock contents or provisional answers.
 
-- historical actuals versus forward/analyst estimates;
-- FCF amount/trend versus P/FCF or FCF yield;
-- preferred historical horizon;
-- whether the user wants a pass/fail rule or transparent metrics/trends; and
-- whether TTM support is required initially.
+The currently established requirements direction is:
 
-Unless separately changed at that checkpoint, the approved baseline is:
+- historical completed fiscal-year diluted EPS;
+- historical multi-year FCF (project-defined: `FCF = operating cash flow − capital expenditures`);
+- preferred historical horizon: 5 years;
+- minimum acceptable historical horizon: 3 years;
+- FY1/FY2 forward consensus diluted-EPS evidence when safely obtainable;
+- FCF yield = approved FCF numerator / market capitalization;
+- explicit PASS / FAIL / INDETERMINATE screen semantics;
+- per-criterion typed/auditable evidence;
+- raw historical evidence remains visible;
+- no arbitrary weighted score.
 
-- completed fiscal-year actuals;
-- project-defined `FCF = operating cash flow - capital expenditures`;
-- latest annual FCF and diluted EPS;
-- year-over-year FCF/EPS change where mathematically meaningful;
-- 3-year FCF CAGR and diluted-EPS CAGR using four compatible completed fiscal-year observations;
-- a small descriptive trend classification;
-- no forecast/consensus growth;
-- no P/FCF or FCF yield in the required core;
+Boundaries preserved:
+
 - no DCF;
-- no composite score or investment recommendation.
+- no opaque weighted/composite score;
+- no broad named-investor methodology;
+- no claim that the screen alone proves manipulation/fraud;
+- reuse/minimally extend Step 2.3 fact-resolution/provenance architecture.
 
 #### 4.4.2 Canonical financial semantics
 
@@ -627,7 +638,7 @@ free_cash_flow = operating_cash_flow - capital_expenditures
 
 `capital_expenditures` is normalized at the provider/resolution boundary to a positive expenditure amount before subtraction. Derived FCF must retain complete component lineage.
 
-The baseline earnings measure is completed fiscal-year diluted EPS.
+The baseline earnings measure is completed fiscal-year diluted EPS. FY1/FY2 forward consensus diluted-EPS evidence is included as an additional screen criterion when provider semantics and provenance are adequate.
 
 Annual FCF is valid only when operating cash flow and capital expenditures refer to the same compatible fiscal period and currency. Do not combine cumulative/interim and full-year periods, different fiscal years, incompatible scopes, or facts that were not yet available by the requested `as_of`.
 
@@ -649,7 +660,7 @@ CAGR is:
 ((ending / beginning) ** (1 / years) - 1) × 100
 ```
 
-The default 3-year CAGR requires four compatible completed fiscal-year observations. Beginning and ending values must be strictly positive; sign changes or non-positive endpoints make CAGR unavailable rather than producing NaN, infinity, complex values, absolute-value reinterpretation, or a fabricated fallback.
+The preferred historical horizon is 5 years and the minimum acceptable horizon is 3 years. The exact year-count convention and fallback behavior are governed by the approved policy in `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`; this plan does not duplicate those detailed semantics. Beginning and ending values must be strictly positive; sign changes or non-positive endpoints make CAGR unavailable rather than producing NaN, infinity, complex values, absolute-value reinterpretation, or a fabricated fallback.
 
 Negative latest FCF or EPS is not a software error. The latest raw values remain reportable even when one or more growth metrics are mathematically unavailable.
 
@@ -668,9 +679,11 @@ Do **not** create:
 The minimum new semantic financial facts are:
 
 - operating cash flow / net cash provided by operating activities;
-- capital expenditures.
+- capital expenditures;
+- market capitalization; and
+- forward consensus diluted-EPS estimates for the next one and two comparable fiscal periods.
 
-Annual diluted EPS should reuse the Step 2.3 capability wherever semantically compatible.
+Annual diluted EPS should reuse the Step 2.3 capability wherever semantically compatible. Forecast facts must preserve forecast-period and snapshot semantics rather than being forced into an historical-fact shape that loses meaning.
 
 A Step 2.3 type or class may be renamed/generalized only if reconnaissance demonstrates a concrete new-strategy incompatibility; do not refactor merely because an old name now feels narrow.
 
@@ -706,17 +719,25 @@ Before coding production mappings, document evidence for:
 - amended/restated filing selection;
 - publication/availability timestamp;
 - historical `as_of`;
-- reuse of annual diluted EPS.
+- reuse of annual diluted EPS;
+- market-capitalization field/derivation, security scope, currency, and observation timestamp;
+- FY1/FY2 consensus-EPS meaning, comparable forecast-period mapping, diluted/basic basis, provider field(s), update cadence, and snapshot timestamp;
+- whether historical consensus snapshots are available for point-in-time `as_of` support; and
+- licensing/usage constraints for the selected consensus source.
 
-If multiple plausible CapEx concepts exist, do not guess. Establish and test a conservative selection rule or stop for review.
+If multiple plausible CapEx concepts exist, do not guess. Establish and test a conservative selection rule or stop for review. If no acceptable consensus provider is available, do not fabricate forward estimates or silently pair current consensus with historical actuals.
 
 #### 4.4.7 Deterministic fixtures and pure calculations
 
-Fixtures must provide at least four compatible completed fiscal years and cover:
+Fixtures must provide enough compatible completed fiscal-year history to exercise the preferred and minimum horizons, year-count convention, and fallback behavior approved in `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`.
+
+Fixture coverage must include:
 
 - annual operating cash flow;
 - annual CapEx;
 - annual diluted EPS;
+- market capitalization with an observation timestamp;
+- FY1/FY2 consensus diluted-EPS estimates with forecast periods and snapshot timestamps;
 - availability timestamps and provider concepts;
 - CapEx sign normalization;
 - duplicate/restatement behavior;
@@ -725,6 +746,7 @@ Fixtures must provide at least four compatible completed fiscal years and cover:
 - period mismatch;
 - zero/negative prior values;
 - negative FCF or EPS;
+- missing consensus evidence;
 - provider failure.
 
 Pure calculation code owns arithmetic only. Candidate functions may include:
@@ -733,7 +755,10 @@ Pure calculation code owns arithmetic only. Candidate functions may include:
 compute_free_cash_flow(...)
 compute_growth_percent(...)
 compute_cagr(...)
+compute_fcf_yield(...)
 classify_fcf_earnings_growth(...)
+evaluate_screen_criterion(...)
+evaluate_fcf_earnings_screen(...)
 ```
 
 Exact names follow repository conventions. Pure functions perform no provider/cache/filesystem/settings/clock I/O and never infer periods or missing values.
@@ -746,27 +771,29 @@ Proposed direct command:
 financial-agents fcf-growth TICKER [options]
 ```
 
-Initial options:
+Initial options should remain minimal until the policy locks are approved. Candidate options are:
 
 ```text
 --growth-years INTEGER
+--minimum-growth-years INTEGER
 --as-of DATE_OR_TIMESTAMP
 --data-provider PROVIDER_ID
+--consensus-provider PROVIDER_ID
 --no-cache
 --details
 --diagnostics
 --json
 ```
 
-Default `--growth-years` is 3.
+The CLI must follow the year-count convention and fallback behavior approved in `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`, expose the actual horizon used, and avoid implying any fallback behavior not approved there.
 
 Do not add ambiguous unperiodized repeated-value override flags merely to imitate Graham. If series overrides later prove necessary, use an explicit period-tagged representation.
 
 Reuse the Step 2.3 progressive-disclosure grammar:
 
-1. **Default concise:** latest completed period, latest FCF, diluted-EPS growth, FCF growth, descriptive trend, source/freshness, warnings, method limitation.
-2. **`--details`:** annual CFO, normalized CapEx, FCF, diluted-EPS series, periods, provider concepts, availability, derivation lineage, growth endpoints.
-3. **`--diagnostics`:** cache/provider/selection/derivation behavior and classified unavailable/error outcomes.
+1. **Default concise:** explicit PASS / FAIL / INDETERMINATE screen result, actual historical horizon used, diluted-EPS growth, FY1/FY2 consensus EPS evidence where meaningful, FCF growth/trajectory, FCF yield, source/freshness, warnings, and a short limitation.
+2. **`--details`:** per-criterion evidence plus annual CFO, normalized CapEx, FCF, diluted-EPS series, periods, provider concepts, availability, derivation lineage, growth endpoints, consensus periods/snapshot timestamps, market capitalization, and FCF-yield numerator/denominator dates.
+3. **`--diagnostics`:** cache/provider/selection/derivation behavior and classified unavailable/error outcomes; software status remains separate from investment-screen outcome.
 4. **`--json`:** stable machine-readable strategy result/provenance; unavailable growth metrics are JSON `null`, never `NaN`.
 
 #### 4.4.9 Implementation sequence
@@ -774,11 +801,12 @@ Reuse the Step 2.3 progressive-disclosure grammar:
 Implement and review Step 2.4 in bounded slices:
 
 1. **A — reconnaissance and product-policy lock:** inspect post-Step-2.3 reuse seams, provider evidence candidates, likely files, and resolve the product-policy checkpoint. Make no production changes. Stop for human review.
-2. **B — pure FCF/growth math and typed result semantics:** implement deterministic arithmetic/results and focused tests only.
-3. **C — financial-fact extension, resolution, and fixtures:** minimally extend the provider-neutral fact/resolution system and add period-aligned FCF derivation plus deterministic multi-year fixtures.
-4. **D — provider evidence and production integration:** evidence and implement the minimum safe production path; unsupported evidence shapes remain unavailable.
-5. **E — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
-6. **F — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 diff, and obtain explicit human completion approval before Step 2.5.
+2. **B — pure FCF/growth/yield math and typed screen semantics:** implement deterministic arithmetic/results, typed screen policy/criterion/decision semantics, and focused tests only.
+3. **C — historical financial-fact extension, resolution, and fixtures:** minimally extend the provider-neutral fact/resolution system for CFO/CapEx/market-cap semantics and add period-aligned FCF derivation plus deterministic multi-year fixtures.
+4. **D — provider evidence and forward-consensus integration:** evidence and implement the minimum safe production path for historical actuals, market capitalization, and FY1/FY2 consensus EPS; unsupported evidence shapes remain unavailable.
+5. **E — strategy assembly and hard-screen evaluation:** assemble the resolved historical, valuation, and forward-consensus evidence and evaluate the approved hard-screen criteria across deterministic fixtures.
+6. **F — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
+7. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 diff, and obtain explicit human completion approval before Step 2.5.
 
 #### 4.4.10 Non-goals
 
@@ -787,7 +815,7 @@ Step 2.4 does **not** include:
 - discounted-cash-flow valuation;
 - terminal-value modeling;
 - cost-of-capital estimation;
-- analyst-consensus or LLM-generated growth forecasts;
+- LLM-generated growth forecasts or unverified/opaque provider growth forecasts; evidence-gated FY1/FY2 consensus diluted-EPS point estimates are in scope under the approved Step 2.4 direction;
 - P/FCF or P/CF as required core metrics unless separately approved after the product-policy checkpoint;
 - a broad named-investor methodology;
 - arbitrary composite scoring/ranking;
@@ -800,18 +828,21 @@ Step 2.4 does **not** include:
 
 #### 4.4.11 Acceptance criteria
 
-- [ ] The prospective-user policy question has been explicitly resolved or the historical baseline has been explicitly approved.
+- [ ] All Step 2.4 policy locks that affect Slice B behavior have been explicitly reviewed and approved before Slice B begins.
 - [ ] The strategy is named and typed independently from Momentum and Graham.
 - [ ] The canonical initial FCF definition is explicit and tested.
 - [ ] CapEx provider sign conventions are normalized transparently.
 - [ ] Annual CFO and CapEx are paired only across compatible fiscal periods.
 - [ ] Annual diluted-EPS growth uses an explicit documented basis.
-- [ ] 3-year CAGR uses four completed annual observations and rejects mathematically nonmeaningful endpoints.
+- [ ] FY1/FY2 consensus diluted-EPS evidence preserves provider, forecast-period, snapshot-time, and `as_of` semantics and never masquerades as historical actuals.
+- [ ] FCF yield uses the explicitly approved numerator basis and a strictly positive, timestamped market-capitalization denominator.
+- [ ] PASS / FAIL / INDETERMINATE screen semantics are tested, including the rule that one valid hard failure remains FAIL even when another required criterion is unavailable.
+- [ ] The approved historical-horizon convention and fallback policy are explicit, tested, and truthfully reported; mathematically nonmeaningful endpoints remain unavailable rather than fabricated.
 - [ ] Negative/zero values are represented truthfully without NaN/infinity or fabricated fallbacks.
 - [ ] Strict `as_of` prevents look-ahead.
 - [ ] Derived FCF retains full component lineage.
 - [ ] The Step 2.3 provider/cache/resolver/provenance architecture is reused or minimally extended rather than duplicated.
-- [ ] Deterministic fixtures cover success, missing data, period mismatch, negative/zero growth, restatement, and historical-boundary cases.
+- [ ] Deterministic fixtures cover success, missing data, period mismatch, negative/zero growth, restatement, preferred/fallback horizons, consensus evidence, market capitalization, and historical-boundary cases.
 - [ ] A representative supported production ticker can run the analysis without manual financial-statement arithmetic.
 - [ ] Concise/details/diagnostics/JSON output follows the established investor-facing grammar.
 - [ ] Automated tests make no live network or LLM calls.
@@ -819,7 +850,7 @@ Step 2.4 does **not** include:
 - [ ] Documentation matches implemented semantics.
 - [ ] The final Step 2.4 diff receives explicit human approval.
 
-**Definition of done:** Step 2.4 is complete when one useful, auditable Free Cash Flow & Earnings Growth strategy runs through the existing architecture with explicit historical financial semantics, reproducible provenance/`as_of` behavior, deterministic fixture coverage, a viable production path, coherent investor presentation, green repository gates, and explicit human approval.
+**Definition of done:** Step 2.4 is complete when one useful, auditable Free Cash Flow & Earnings Growth strategy runs through the existing architecture with explicit historical and consensus financial semantics, reproducible provenance/`as_of` behavior, deterministic fixture coverage, a viable production path, coherent investor presentation, green repository gates, and explicit human approval.
 
 ---
 
@@ -1236,7 +1267,7 @@ financial-agents runs list
 financial-agents runs show ANALYSIS_RUN_ID [--details|--diagnostics|--json]
 ```
 
-Exact command spelling may be refined during implementation, but the user capability must remain equivalent. The initial default watchlist profile uses analyses that require no invented forward-growth assumption: Momentum, Graham Number, and the historical FCF/Earnings Growth strategy once Step 2.4 is complete. `graham_growth_value` may be enabled only when an explicit persisted/user-supplied growth configuration is attached and shown as an assumption.
+Exact command spelling may be refined during implementation, but the user capability must remain equivalent. The initial default watchlist profile uses analyses that require no invented user forward-growth assumption: Momentum, Graham Number, and the FCF/Earnings Growth screen once Step 2.4 is complete. The FCF/Earnings Growth screen may consume evidence-approved provider consensus estimates under its own provenance rules; `graham_growth_value` may be enabled only when an explicit persisted/user-supplied growth configuration is attached and shown as an assumption.
 
 **Concurrency boundary**
 `refresh` may run independent jobs concurrently within the user-started process and write completed runs as they finish; a second CLI invocation may read already-persisted completed results under SQLite/WAL. Step 3.4 does **not** install a daemon/service, schedule unattended work, monitor markets proactively, or send notifications.
@@ -1301,8 +1332,9 @@ Phase C — Step 2.3 strategy/data/presentation foundation
         ▼
 Phase D — Step 2.4 FCF & earnings growth
   ├─ reconnaissance + product-policy lock
-  ├─ pure historical FCF/growth semantics
-  ├─ financial-fact extension + fixtures + provider evidence
+  ├─ pure FCF/growth/yield + typed screen semantics
+  ├─ historical facts + fixtures + market-cap/consensus provider evidence
+  ├─ strategy assembly + hard-screen evaluation
   └─ investor CLI/presentation + complete gate
         │
         ▼
@@ -1334,6 +1366,9 @@ The following quality checks must pass on every pull request within this milesto
 * `ruff check . && ruff format --check .`
 * `mypy --strict src tests`
 * `pytest` (unit and integration) with monitored coverage trends
+* Automated repository-internal Markdown link and heading-fragment validation
+  once the documentation-link checker lands; fragment validation must follow
+  GitHub-compatible heading-anchor semantics
 * Zero untyped public interfaces
 * Zero secret or API key leaks in trajectory outputs
 * Verified Light Mode workflow functionality once Step 3.5 lands
@@ -1349,7 +1384,9 @@ All of the following must be true before declaring the milestone complete and op
 3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis, refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.
-6. Temporary scaffolding and blocking TODOs are cleaned up or documented.
+6. Repository-internal Markdown links and heading fragments pass automated
+   validation using GitHub-compatible heading-anchor semantics.
+7. Temporary scaffolding and blocking TODOs are cleaned up or documented.
 
 ---
 
@@ -1375,26 +1412,42 @@ All of the following must be true before declaring the milestone complete and op
 17. **Durable product record** — Step 3.4 stores Analysis Runs as the canonical investor-domain history; report formats are views of those runs.
 18. **Bounded v0.2 agentic behavior** — User-initiated refresh may fan out concurrently and Light Mode may synthesize completed typed results. Unattended scheduling, proactive monitoring, notifications, and autonomous multi-step research remain v1.0 work.
 19. **Step 2.4 roadmap placement** — Free Cash Flow & Earnings Growth is implemented before the Golden Suite to address concrete prospective Real-User demand and to exercise the Step 2.3 strategy/data/provenance architecture before evaluation infrastructure is frozen.
-20. **Step 2.4 baseline interpretation** — Unless the pre-implementation product-policy checkpoint changes it, the first version is a historical actuals screen using project-defined FCF, diluted-EPS growth, and FCF growth; DCF, analyst forecasts, P/FCF, broad named-investor methodology, and composite recommendation scoring are not implied.
+20. **Step 2.4 baseline interpretation** — The first version is a per-security fundamental screen combining multi-year historical diluted-EPS growth, FY1/FY2 forward consensus diluted-EPS evidence (when provider semantics and provenance are adequate), project-defined FCF (operating cash flow − capital expenditures), multi-year FCF growth/trajectory, FCF yield relative to market capitalization, and an auditable hard-screen result with per-criterion evidence. No DCF, no opaque weighted/composite score, no broad named-investor methodology, and no claim that the screen alone proves manipulation/fraud.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
 2. **Provider/analyst consensus-growth policy** — Do not ingest a provider forecast until its field meaning, time horizon, provenance, update behavior, and licensing are verified.
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
-4. **Step 2.4 product refinements** — P/FCF/FCF yield, forward earnings growth, alternate growth horizons, and explicit screen thresholds remain pending the prospective Real-User product-policy checkpoint.
+4. **Step 2.4 policy checkpoint before Slice B** — The detailed policy locks and their resolutions live in Section 3 of `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`. Do not begin Slice B until every lock affecting its math, typed result/screen semantics, horizon behavior, FCF-yield basis, or other Slice B contracts has been explicitly approved there.
+5. **Automated documentation-link validation** — Add a deterministic,
+   repository-local Markdown checker that validates relative file targets and
+   heading fragments before the v0.2.5 real-user-validation window. Fragment
+   validation must reproduce GitHub-compatible heading-anchor semantics,
+   including punctuation removal without silently collapsing surrounding
+   spaces and preservation of underscores in code-like identifiers. Add
+   regression cases for the glossary-link failures discovered during the
+   documentation sweep, then integrate the checker into CI only after it passes
+   against the repository-wide documentation baseline.
+6. **Full Dual-Tier deep-model evaluation** — GitHub issue #19 tracks an
+   empirical comparison of `qwen3.8:27b` against the current larger-model
+   candidates for optional Full Dual-Tier Mode. Evaluate representative
+   multi-step tool use, professional/research workloads, latency/throughput,
+   usable context, tool calling, and any applicable project evaluations before
+   changing the supported default. This evaluation is non-blocking for Step 2.4,
+   the deterministic strategy work, and the Light Mode adoption path. If a new
+   deep-tier model is adopted, update model configuration/routing and the
+   relevant Master Plan and hardware documentation together.
 
 ---
 
 ## 9. Next Immediate Actions
 
-Step 2.3 is complete and approved. The immediate work is to close its PR with the agreed roadmap recorded, then begin Step 2.4 as a separate implementation step.
+Step 2.3 is complete, approved, and merged. Step 2.4 is the active work on `feat/step-2.4-fcf-earnings-growth`.
 
-1. Apply and review the planning/documentation amendment that inserts Step 2.4 Free Cash Flow & Earnings Growth and renumbers Golden evaluation/reliability work.
-2. Add `docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md` as the Step 2.4 design document.
-3. Complete the Step 2.3 closeout PR without including Step 2.4 production code.
-4. Gather the focused prospective Real-User clarification on historical versus forward growth, FCF trend versus valuation multiple, preferred horizon, and desired screening behavior.
-5. Start Step 2.4 on `feat/step-2.4-fcf-earnings-growth` with **Slice A reconnaissance only**; reconcile the product-policy checkpoint before Slice B.
-6. Implement and review Step 2.4 in bounded slices through its full documentation/gate approval.
-7. Begin Step 2.5 Golden Suite only after Step 2.4 is complete and approved.
-8. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
-9. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.
+1. Review and checkpoint the Step 2.4 planning/documentation alignment without representing the step as implementation-complete.
+2. Complete Slice A reconnaissance only: verify reuse seams, provider evidence candidates, forecast/market-cap data options, and likely files without making production changes.
+3. Complete the Step 2.4 product-policy checkpoint recorded in Section 3 of `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md` before beginning Slice B.
+4. Implement and review Step 2.4 in bounded slices only after the applicable policy locks are approved.
+5. Begin Step 2.5 Golden Suite only after Step 2.4 is complete and approved.
+6. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
+7. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.
