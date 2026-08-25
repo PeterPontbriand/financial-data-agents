@@ -41,7 +41,4 @@ def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> No
     assert result.exit_code == 0
     assert "Graham Growth Value: -" in result.output
     assert "Price comparison: unavailable (Graham growth value is non-positive)" in result.output
-    assert (
-        "Warning: The Graham growth value is non-positive; percentage price comparison is omitted."
-        in result.output
-    )
+    assert "Warning: The Graham growth value is non-positive; percentage price comparison is omitted." in result.output
