@@ -1,15 +1,15 @@
 # Step 2.3 Design: Dual-Method Graham Valuation
 
-**Status:** Approved Step 2.3 design; live implementation status is tracked only in `STEP_2_3_GRAHAM_SLICE_PLAN.md`<br/>
-**Last updated:** 2026-08-24<br/>
+**Status:** Step 2.3 complete and approved; retained as the authoritative Graham design record<br/>
+**Last updated:** 2026-08-25<br/>
 **Scope:** Milestone v0.2, Step 2.3 only<br/>
-**Review gate:** Human-approved intermediate checkpoint commits are permitted after review/gates; do not declare Step 2.3 complete or begin Step 2.4 until G is complete and the final Step 2.3 diff is approved
+**Completion:** Human-approved final review and complete repository gate passed on 2026-08-25; later steps may extend shared contracts only through separately approved step designs
 
 ---
 
 ## 1. Purpose and authority
 
-This is the compact implementation specification for Step 2.3. It converts the approved milestone direction into contracts small enough to implement and review without reopening the whole architecture.
+This is the compact implementation specification and final design record for Step 2.3. It converts the approved milestone direction into contracts small enough to implement and review without reopening the whole architecture.
 
 Document precedence for this step is:
 
@@ -24,25 +24,25 @@ If two documents conflict, stop and surface the conflict. Do not silently combin
 
 ---
 
-## 2. Current implementation entering Slice G
+## 2. Completed implementation
 
-Slices A through F2 are complete and approved. The implementation contains the two pure Graham methods; provenance, cache, resolver, and immutable resolver-trace seams; deterministic fixtures; verified production valuation adapters; the conservative SEC-backed BVPS derivation required by the Graham Number using its standard SEC financial facts; strategy-specific investor presenters for Graham and Momentum; and the unified direct-analysis CLI.
+Slices A through G are complete and approved. The implementation contains the two pure Graham methods; provenance, cache, resolver, and immutable resolver-trace seams; deterministic fixtures; verified production valuation adapters; the conservative SEC-backed BVPS derivation required by the Graham Number using its standard SEC financial facts; strategy-specific investor presenters for Graham and Momentum; and the unified direct-analysis CLI.
 
 F1 established concise/details/diagnostics/JSON presentation, `schema_version = 1`, explicit separation of financial provenance from software resolution trace, temporal coherence at the presentation boundary, and explicit unavailable/null Momentum metrics rather than non-finite sentinels.
 
-F2 closed the live direct-command gaps found after F1. `financial-agents graham TICKER` now behaves as a ticker analysis rather than a legacy formula calculator, defaults to the Graham Number, requires provider-backed security evidence before authoritative output, suppresses provider/framework implementation leakage from normal failures, and presents successful concise Graham results in a result-first investor hierarchy.
+F2 closed the live direct-command gaps found after F1. `financial-agents graham TICKER` behaves as a ticker analysis rather than a legacy formula calculator, defaults to the Graham Number, requires provider-backed security evidence before authoritative output, suppresses provider/framework implementation leakage from normal failures, and presents successful concise Graham results in a result-first investor hierarchy.
 
-The production defaults are now explicit:
+The production defaults are explicit:
 
 - default Graham Number → SEC EDGAR annual diluted EPS (three-year average) + conservative SEC-backed fiscal-year-end BVPS derivation + Yahoo Finance current quote comparison;
 - default/SEC Growth → SEC EDGAR three-year-average diluted EPS + explicit expected-growth assumption + explicit AAA-yield override + Yahoo Finance current quote comparison; and
 - explicitly selected Massive Growth → Massive TTM diluted EPS + explicit expected-growth assumption + explicit AAA-yield override + Massive current quote, requiring `MASSIVE_API_KEY`.
 
-No production AAA-yield series is approved in Step 2.3. Historical `--as-of` remains a hard no-look-ahead boundary; current-only quote adapters do not masquerade as historical quote sources.
+No production AAA-yield series was approved in Step 2.3. Historical `--as-of` remains a hard no-look-ahead boundary; current-only quote adapters do not masquerade as historical quote sources.
 
-The remaining Step 2.3 work is **Slice G only**: documentation synchronization, final cleanup, the complete repository gate, remaining-diff review, and explicit human completion approval.
+Slice G completed documentation synchronization, final cleanup, the complete repository gate, remaining-diff review, and explicit human completion approval on 2026-08-25.
 
-Step 2.4 remains out of scope.
+The new Free Cash Flow & Earnings Growth strategy is Step 2.4 work. Golden Suite/evaluator work is Step 2.5. Neither is part of Step 2.3.
 
 ## 3. Locked decisions
 
@@ -74,7 +74,7 @@ Step 2.4 remains out of scope.
 | Momentum unavailable metrics | SMA/crossover unavailability is `None`/JSON `null`, never `NaN`; insufficient history yields `UNKNOWN` |
 | Momentum market metadata | Source/freshness/currency are supplied by execution/presentation context, not added to pure `MomentumMetrics` |
 | Durable report model | Not Step 2.3; Step 3.4 persists Analysis Runs and renders views from them |
-| Commit gate | Coding agents never commit automatically. A reviewed intermediate checkpoint may be committed/pushed after explicit human approval; Step 2.3 completion still requires the final review gate |
+| Commit gate | Coding agents never commit automatically. A reviewed intermediate checkpoint may be committed/pushed after explicit human approval; Step 2.3 completion required the final review gate |
 
 ---
 
@@ -168,7 +168,7 @@ Direct Graham analysis is:
 financial-agents graham TICKER [--method number|growth] [options]
 ```
 
-`--method` defaults to `number`. Direct Momentum remains a peer command. The positional ticker is preferred; the transitional `--ticker/-t` alias remains accepted. A later Light Mode `financial-agents analyze TICKER` entry point may combine default deterministic analyses and bounded synthesis, but it is not required to finish Step 2.3.
+`--method` defaults to `number`. Direct Momentum remains a peer command. The positional ticker is preferred; the transitional `--ticker/-t` alias remains accepted. A later Light Mode `financial-agents analyze TICKER` entry point may combine default deterministic analyses and bounded synthesis, but it was not required to finish Step 2.3.
 
 Common Graham options include:
 
@@ -394,7 +394,7 @@ Complete and approved.
 Complete and approved. SEC EDGAR annual diluted EPS and Massive current TTM EPS/current price are implemented behind the production valuation façade; unsupported capabilities remain explicit unavailable.
 
 ### Human-approved checkpoint
-The coherent foundation through E2 was approved as a durability checkpoint. This did not mark Step 2.3 complete and did not authorize Step 2.4.
+The coherent foundation through E2 was approved as a durability checkpoint. This did not mark Step 2.3 complete and did not authorize later-step work.
 
 ### Slice E3 — user-viable standard Graham data configuration
 Complete and approved. The production Graham Number using its standard SEC financial facts includes the conservative SEC-backed BVPS derivation with narrowly evidenced preferred-share-zero inference and full component lineage; unsupported filings remain unavailable rather than weakening the rule.
@@ -403,14 +403,15 @@ Complete and approved. The production Graham Number using its standard SEC finan
 Complete and approved. Strategy-specific presenters implement concise, `--details`, `--diagnostics`, and `--json` views with shared grammar; `schema_version = 1`, explicit resolver trace, temporal-coherence guards, and unavailable/null Momentum metrics are established.
 
 ### Slice F2 — unified direct-analysis CLI
-Complete and approved after focused quality gates and live KO validation. The direct command now uses the approved method-specific validation/defaults, SEC/Yahoo default routing, explicit Massive routing, provider-backed subject validation, result-first concise output, and clean investor-facing failure semantics.
+Complete and approved after focused quality gates and live KO validation. The direct command uses the approved method-specific validation/defaults, SEC/Yahoo default routing, explicit Massive routing, provider-backed subject validation, result-first concise output, and clean investor-facing failure semantics.
 
 ### Slice G — documentation and full gate
-In progress. Synchronize all current-state documentation, remove stale transitional descriptions, run the complete milestone quality gate including strict typing for `src` and `tests`, review the remaining Step 2.3 diff, then stop for human approval before declaring Step 2.3 complete or beginning Step 2.4.
+Complete and approved. Documentation synchronization and final cleanup were completed; the complete Ruff, format, strict-mypy, pytest, diff, and status gates passed; representative live Momentum and Graham behavior was reviewed; the final non-positive Graham Growth Value presentation correction was validated in concise and JSON output; and human review explicitly approved Step 2.3 completion on 2026-08-25. No Step 2.4 work was begun before this approval.
 
 ## 12. Out of scope
 
-- Golden Suite/evaluator reporting owned by Step 2.4;
+- Free Cash Flow & Earnings Growth strategy work owned by Step 2.4;
+- Golden Suite/evaluator reporting owned by Step 2.5;
 - durable watchlists, Analysis Run persistence/history, batch refresh, and run browsing owned by Step 3.4;
 - background daemons, unattended scheduling, proactive monitoring/notifications, full-screen TUI, and executive report generation;
 - durable SQLite cache and migrations owned by Step 3.1;
@@ -425,7 +426,7 @@ In progress. Synchronize all current-state documentation, remove stale transitio
 
 ## 13. Completion and review checklist
 
-Step 2.3 is ready for final review only when:
+Step 2.3 completion was approved after all of the following were satisfied:
 
 - [x] both methods are explicitly named and mathematically tested;
 - [x] the Graham Number is the CLI default and labeled as a screening ceiling;
@@ -441,8 +442,8 @@ Step 2.3 is ready for final review only when:
 - [x] material overrides/warnings are conspicuous and operational logs are separate from result rendering;
 - [x] Momentum and Graham share presentation grammar without a forced generic result model;
 - [x] fixtures and automated tests are deterministic and offline;
-- [ ] current-vs-target documentation is truthful and synchronized;
-- [ ] the complete quality gate passes; and
-- [ ] the remaining diff since the last approved checkpoint is presented for human review.
+- [x] current-vs-target documentation is truthful and synchronized;
+- [x] the complete quality gate passes; and
+- [x] the remaining diff since the last approved checkpoint was presented for human review.
 
-After this checklist, stop. Do not begin Step 2.4 until the human explicitly approves Step 2.3 completion. If approved, the remaining Step 2.3 changes may then be committed/pushed.
+This completion condition was satisfied on 2026-08-25. Step 2.3 is complete and approved. Subsequent Step 2.4 work is governed by its own separately approved design and branch/review boundary.

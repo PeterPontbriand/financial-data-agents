@@ -12,7 +12,7 @@
 
 **Document versioning:** These documents are versioned by Git. Document version numbers are never used within the Master Plan or Discovery Workbook; references to either document mean the current version unless explicitly qualified as a prior or subsequent version.
 
-**Implementation authority:** The Master Plan defines milestone intent and ordering. During an active milestone, the current milestone implementation plan is the more specific operational source for branch sequencing, guardrails, and acceptance criteria. `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact approved specification for Step 2.3 only; it does not override milestone scope or review gates. `docs/project/ARCHITECTURE.md` describes current boundaries and labeled target seams; `docs/project/DISCOVERY_WORKBOOK.md` records rationale. If documents conflict, do not blend the instructions—use the more specific/current source and surface the conflict.
+**Implementation authority:** The Master Plan defines milestone intent and ordering. During an active milestone, the current milestone implementation plan is the more specific operational source for branch sequencing, guardrails, and acceptance criteria. `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact approved specification for completed Step 2.3; `docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md` is the initial approved design authority for Step 2.4 once its product-policy checkpoint is resolved. Neither overrides milestone scope or review gates. `docs/project/ARCHITECTURE.md` describes current boundaries and labeled target seams; `docs/project/DISCOVERY_WORKBOOK.md` records rationale. If documents conflict, do not blend the instructions—use the more specific/current source and surface the conflict.
 
 ---
 
@@ -23,7 +23,7 @@ This repository delivers a usable local investment analysis engine while demonst
 - **Local LLM Orchestration & Tool Dispatching:** Multi-turn state management, schema enforcement, and async function calling on local open-weight models.
 - **Systems & Architectural Design:** Modular tiering, async runtime loops, provider abstractions, and clean separation of concerns.
 - **Data Engineering & Persistence:** Transactional SQLite storage, schema migration versioning, data quality gates, and local caching pipelines.
-- **Quantitative Financial Modeling:** Mathematical rigor across materially different analytical strategies, including the Graham Number screening ceiling, a separate forecast-dependent Graham growth estimate, market-price momentum, and later risk metrics. Analytical strategies are deterministic Python capabilities exposed through typed, swappable interfaces rather than model-specific reasoning.
+- **Quantitative Financial Modeling:** Mathematical rigor across materially different analytical strategies, including the Graham Number screening ceiling, a separate forecast-dependent Graham growth estimate, market-price momentum, historical free-cash-flow and earnings-growth analysis, and later valuation multiples and risk metrics. Analytical strategies are deterministic Python capabilities exposed through typed, swappable interfaces rather than model-specific reasoning.
 - **Production Quality & Security:** Defensive static typing (`mypy --strict`), automated unit testing, dependency auditing, and local network isolation.
 - **Localization (i18n):** Deep internationalization for Canadian financial standards (`en-CA` / `fr-CA`).
 
@@ -50,34 +50,34 @@ Illustrative use case: A long-time retail investor hears a ticker mentioned info
                                 ▼
                      Typed Tool / Analysis Dispatch
                                 │
-                 ┌──────────────┴──────────────┐
-                 ▼                             ▼
-        Momentum analysis                 Graham analysis
-      historical-price series      number (default) / growth (explicit)
-                 │                             │
-                 │                    resolved typed inputs
-                 │                             ▲
-                 │                    InputResolver
-                 │              override → cache → provider
-                 │                             │
-                 ▼                             ▼
-          BaseDataClient              ValuationFactsProvider
-        historical prices            quote / fundamentals / macro
-                 │                             │
-                 └──────────────┬──────────────┘
-                                ▼
-                    SQLite / durable cache (Step 3.1)
-                                │
-                                ▼
-                   Analysis Run library (Step 3.4)
-                                │
-                                ▼
-              concise · details · diagnostics · JSON views
+          ┌─────────────────────┼─────────────────────┐
+          ▼                     ▼                     ▼
+ Momentum analysis        Graham analysis       FCF / earnings growth
+ historical prices    number / growth methods   annual financial facts
+          │                     │                     │
+          │              resolved typed inputs        │
+          │                     ▲                     │
+          │              InputResolver ◄──────────────┘
+          │         override → cache → provider
+          │                     │
+          ▼                     ▼
+   BaseDataClient       Financial-fact providers
+ historical prices    quote / fundamentals / macro
+          │                     │
+          └─────────────┬───────┘
+                        ▼
+             SQLite / durable cache (Step 3.1)
+                        │
+                        ▼
+            Analysis Run library (Step 3.4)
+                        │
+                        ▼
+       concise · details · diagnostics · JSON views
 ```
 
-The initial Momentum and Graham strategies are intentionally **heterogeneous**. They share the existing tool/orchestration environment and a coherent investor-facing presentation language, but they do not require a common internal result shape. The project must not introduce a speculative strategy/plugin/registry framework or giant generic `AnalysisResult` merely to make the two strategies look alike.
+Momentum, Graham, and the Step 2.4 Free Cash Flow & Earnings Growth strategy are intentionally **heterogeneous**. They share the existing tool/orchestration environment and a coherent investor-facing presentation language, but they do not require a common internal result shape. The project must not introduce a speculative strategy/plugin/registry framework or giant generic `AnalysisResult` merely to make the strategies look alike.
 
-Step 2.3 establishes Graham's method, input-resolution, production-provider, and terminal-presentation foundations. Step 2.4 evaluates the stable deterministic strategy/tool contracts. Step 3.1 adds durable production persistence/cache. Step 3.4 adds the local research workspace: watchlists, user-initiated concurrent refresh, and a durable Analysis Run library. Step 3.5 validates the complete Light Mode investor workflow and adds only bounded local-model synthesis over already-computed typed results.
+Step 2.3 established Graham's method, input-resolution, production-provider, and terminal-presentation foundations. Step 2.4 adds a third deterministic cash-flow/growth strategy to exercise and minimally extend those foundations. Step 2.5 evaluates the stable v0.2 deterministic strategy/tool contracts. Step 3.1 adds durable production persistence/cache. Step 3.4 adds the local research workspace: watchlists, user-initiated concurrent refresh, and a durable Analysis Run library. Step 3.5 validates the complete Light Mode investor workflow and adds only bounded local-model synthesis over already-computed typed results.
 
 ## 3. Core Design Principles
 
@@ -89,8 +89,8 @@ Step 2.3 establishes Graham's method, input-resolution, production-provider, and
 6. **Configurability over Brittle Dependencies:** Prefer clean abstractions and configuration so third-party libraries or engines can be swapped without cascading changes.
 7. **Light Mode First for Adoption:** Core useful analysis must work under Light Mode (single-tier / modest hardware) before external validation and before heavier dual-tier features are treated as required.
 8. **Heterogeneous Strategy Independence:** Financial-analysis strategies remain independently typed and deterministic. The runtime, data layer, and evaluation harness must not assume that every financial-analysis request is a Momentum request or force materially different strategies into one shape.
-9. **Method and Assumption Explicitness:** The Graham Number and forecast-dependent Graham growth value are separate methods. Outputs identify the selected method, input basis, and applicability; the growth method never invents a growth rate.
-10. **Point-in-Time Data Integrity:** Valuation inputs are resolved as of the requested analysis time, carry auditable provenance, and fail unavailable when a provider cannot support the requested historical boundary without look-ahead.
+9. **Method and Assumption Explicitness:** The Graham Number and forecast-dependent Graham growth value are separate methods. Outputs identify the selected method, input basis, and applicability; the growth method never invents a growth rate. Historical FCF/earnings-growth metrics likewise identify their period basis and do not masquerade as forecasts.
+10. **Point-in-Time Data Integrity:** Financial inputs are resolved as of the requested analysis time, carry auditable provenance, and fail unavailable when a provider cannot support the requested historical boundary without look-ahead.
 11. **Progressive Disclosure for Investors:** Default output answers the investment question concisely; detailed provenance, resolution diagnostics, and machine-readable output remain one explicit option away. Operational logs are not the investor-facing presentation surface.
 12. **Bounded Agentic Work Before Unattended Autonomy:** v0.2 may queue and concurrently execute deterministic analyses in response to a user request and retain completed results. Unattended scheduling, proactive monitoring, notifications, and autonomous multi-step research remain later work.
 
@@ -178,17 +178,18 @@ Detailed sequencing, branch strategy, acceptance criteria, implementation guardr
 * **Branch strategy:** Use fine-grained feature branches aligned with coherent implementation units within each step. Reviewed intermediate checkpoints may be committed/pushed after explicit human approval; an incomplete step must not be represented as complete merely because it has a checkpoint commit.
 * **Step 2.1: Trajectory Logging & Telemetry** `[IMPLEMENTED]`: Typed, sink-independent trajectory telemetry with deterministic JSONL persistence. SQLite is added later in Step 3.1 behind the same sink abstraction.
 * **Step 2.2: Native Schema Enforcement** `[IMPLEMENTATION COMPLETE / MERGE-READY]`: Prefer native Ollama JSON-schema constraints at structured-output boundaries, retain Pydantic validation as an application-level defense, and use the documented fallback flow when native capability is unavailable or unknown. **Empirical model-by-model Light Mode compatibility remains a non-blocking validation item and must be completed before the Step 3.5 Light Mode exit criterion.**
-* **Step 2.3: Dual-Method Graham Strategy, Valuation Input Resolution & Investor Presentation** `[SLICES A–F2 COMPLETE / G IN PROGRESS]`: The two Graham methods, provider-neutral resolution/provenance contracts, deterministic fixtures, production SEC/Massive/Yahoo valuation adapters, conservative SEC-backed BVPS derivation, investor-facing presenters, and unified direct CLI are implemented and approved through F2. The Graham Number using its standard SEC financial facts uses SEC three-year-average diluted EPS plus fiscal-year-end BVPS derivation and Yahoo current quote comparison. SEC-backed Growth uses three-year-average EPS; explicitly selected Massive Growth uses TTM EPS/current quote. Expected growth is always explicit, and no production AAA-yield series is currently approved, so the direct Growth command requires an explicit AAA-yield override. Slice G owns documentation synchronization, final cleanup, the complete repository gate, remaining-diff review, and explicit human completion approval. Step 2.4 must not begin before that review. `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` is the compact implementation specification.
-* **Step 2.4: Golden-Test Suite & Strategy Evaluation**: Build the fixture-backed Golden Suite on the stable Step 2.3 contracts. Exercise Momentum, the Graham Number, and the Graham growth-value method. Report method/strategy/tool-selection correctness separately from deterministic numerical correctness and from overall case pass/fail. Keep deterministic/no-LLM regression tests separate from optional real-local-Ollama empirical evaluation. Target ≥90% aggregate pass rate without weakening benchmark criteria.
-* **Step 2.5: Circuit Breakers & Timeout Limits**: Enforce hard execution caps, wall-clock bounds, retry/error thresholds, and clean diagnostics.
+* **Step 2.3: Dual-Method Graham Strategy, Valuation Input Resolution & Investor Presentation** `[COMPLETE / APPROVED]`: Step 2.3 is complete and approved. It establishes the two Graham methods, provider-neutral resolution/provenance contracts, deterministic fixtures, production SEC/Massive/Yahoo valuation adapters, conservative SEC-backed BVPS derivation, investor-facing presenters, and unified direct CLI. The Graham Number using its standard SEC financial facts uses SEC three-year-average diluted EPS plus fiscal-year-end BVPS derivation and Yahoo current quote comparison. SEC-backed Growth uses three-year-average EPS; explicitly selected Massive Growth uses TTM EPS/current quote. Expected growth is always explicit, and no production AAA-yield series is currently approved, so the direct Growth command requires an explicit AAA-yield override. `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` remains the compact implementation specification and historical design record.
+* **Step 2.4: Free Cash Flow & Earnings Growth Analysis**: Add a third materially different deterministic strategy aimed directly at prospective Real-User demand. The initial design is a historical cash-flow/growth screen using project-defined `FCF = CFO - CapEx`, explicit period alignment and provenance, historical FCF growth, and historical diluted-EPS growth. Do not silently turn this into DCF, analyst-forecast growth, a broad named-investor methodology, or a composite recommendation score. Reuse and minimally extend the Step 2.3 financial-fact/resolution/presentation contracts rather than creating parallel strategy infrastructure. `docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md` governs this step after its product-policy checkpoint is approved.
+* **Step 2.5: Golden-Test Suite & Strategy Evaluation**: Build the fixture-backed Golden Suite after Step 2.4 on the stable v0.2 strategy/data contracts. Exercise Momentum, the Graham Number, the Graham growth-value method, and the Free Cash Flow & Earnings Growth strategy. Report method/strategy/tool-selection correctness separately from deterministic numerical correctness and from overall case pass/fail. Keep deterministic/no-LLM regression tests separate from optional real-local-Ollama empirical evaluation. Target ≥90% aggregate pass rate without weakening benchmark criteria.
+* **Step 2.6: Circuit Breakers & Timeout Limits**: Enforce hard execution caps, wall-clock bounds, retry/error thresholds, and clean diagnostics.
 
 #### Step 3: Relational Data Persistence, Data Quality & Local Research Workspace (SQLite)
 * **Branch strategy:** Use fine-grained branches aligned with Step 3 implementation units.
 * Repositories live under `src/data/repositories/`.
-* **Step 3.1: SQLite DB & Migration Infrastructure:** Set up Alembic, enforce WAL mode, establish market-data and trajectory storage, add `SQLiteTrajectorySink`, and implement durable cache/persistence behind the historical-price and valuation-facts contracts established in Step 2.3.
+* **Step 3.1: SQLite DB & Migration Infrastructure:** Set up Alembic, enforce WAL mode, establish market-data and trajectory storage, add `SQLiteTrajectorySink`, and implement durable cache/persistence behind the historical-price and financial-fact contracts established in Steps 2.3–2.4.
 * **Step 3.2: DAO & Repository Layer:** Build strongly typed data-access/repository interfaces and SQLite implementations for market data, trajectory records, and metadata.
 * **Step 3.3: Data Quality & Cache Invalidation Pipeline:** Validate incoming financial data (currency consistency, corporate actions where applicable, continuity/missing data, and staleness) and apply controlled cache refresh/invalidation rules.
-* **Step 3.4: Local Research Workspace & Analysis Run Library:** Add named watchlists, ticker membership and supported analysis selections, durable Analysis Run records, user-initiated concurrent refresh, and commands to list/show completed runs. The initial automatic/default watchlist profile uses analyses that require no invented forecast assumptions (Momentum and Graham Number); the growth method participates only with explicit stored/user-supplied assumptions. An Analysis Run is the durable product artifact; a “report” is a rendering of that run rather than a separately generated canonical object. No background daemon, unattended scheduler, notifications, full-screen TUI, or executive-report generator is introduced here.
+* **Step 3.4: Local Research Workspace & Analysis Run Library:** Add named watchlists, ticker membership and supported analysis selections, durable Analysis Run records, user-initiated concurrent refresh, and commands to list/show completed runs. The initial automatic/default watchlist profile uses analyses that require no invented forecast assumptions (Momentum, Graham Number, and the historical FCF/Earnings Growth strategy once Step 2.4 is complete); the Graham growth method participates only with explicit stored/user-supplied assumptions. An Analysis Run is the durable product artifact; a “report” is a rendering of that run rather than a separately generated canonical object. No background daemon, unattended scheduler, notifications, full-screen TUI, or executive-report generator is introduced here.
 
 #### Step 3.5: Light Mode Support (required before v0.2.5)
 * **Goal:** Ensure the complete investor workflow—data fetch/cache → deterministic analytics → stored Analysis Run → concise/detailed inspection → bounded local-model synthesis—runs cleanly under Light Mode with a 14B-class (or smaller) model.
@@ -207,15 +208,14 @@ This milestone answers a question none of the technical quality gates can answer
 
 ### **Milestone v0.3: Analytics Expansion & Canadian Localization**
 #### Step 4: Analytical Expansion & Quantitative Modeling
-The initial Momentum and Graham strategies are established earlier as architectural/evaluation exemplars. Step 4 expands the analytical library rather than defining its first strategy contracts. New strategies remain independently specified, deterministic, and strongly typed; the roadmap does not treat a broad named-investor philosophy as an implementable strategy unless it is decomposed into explicit, testable analytical rules.
+Momentum, Graham, and the historical Free Cash Flow & Earnings Growth strategy are established earlier as architectural/evaluation exemplars. Step 4 expands the analytical library rather than defining its first strategy contracts. New strategies remain independently specified, deterministic, and strongly typed; the roadmap does not treat a broad named-investor philosophy as an implementable strategy unless it is decomposed into explicit, testable analytical rules.
 
-* **Step 4.1: Additional Fundamental Valuation Multiples & Screening Analyzers:** Add deterministic fundamental and relative-valuation screens using the existing typed `BaseAnalyzer` interface and the valuation-facts boundaries established earlier.
+* **Step 4.1: Additional Fundamental Valuation Multiples & Screening Analyzers:** Add deterministic fundamental and relative-valuation screens using the existing typed analysis and financial-fact boundaries.
   * **Price-to-Cash-Flow and Price-to-Free-Cash-Flow Screens (`P/CF` & `P/FCF`):** Implement analyzers evaluating market capitalization against operating cash flow (`P/CF = Market Cap / Operating Cash Flow`) and free cash flow (`P/FCF = Market Cap / FCF`). These are valuation multiples/screens rather than intrinsic-value models.
-  * **Canonical Free-Cash-Flow Definition:** For the initial implementation, define free cash flow as operating cash flow less capital expenditures (`FCF = CFO - CapEx`), normalizing provider sign conventions so capital expenditure is treated consistently as a positive expenditure amount before subtraction. Broader FCF variants or discounted-cash-flow models require separate explicit specification.
-  * **Data & Resolution Seam:** Extend the Step 2.3 valuation-facts boundary to resolve point-in-time cash-flow statements and capital-expenditure data with explicit `as_of` publication provenance rather than adding provider-specific retrieval logic to the analyzer.
-  * **Edge-Case Handling:** Enforce deterministic guards for zero/negative operating cash flow or FCF, missing/incomparable capital-expenditure data, and non-standard reporting intervals rather than delegating interpretation to the LLM.
+  * **Free-Cash-Flow Reuse:** Reuse the Step 2.4 canonical FCF definition (`FCF = CFO - CapEx`), CapEx sign normalization, period-alignment rules, provenance, and edge-case semantics rather than defining a competing FCF calculation. Broader FCF variants or discounted-cash-flow models require separate explicit specification.
+  * **Data & Resolution Seam:** Reuse and extend the financial-fact boundary established in Steps 2.3–2.4 rather than adding provider-specific retrieval logic to the analyzer.
 * **Step 4.2: Additional Technical Indicators:** Expand beyond the initial SMA/crossover Momentum implementation (for example RSI/EMA/MACD only when explicitly selected and specified).
-* **Step 4.3: Analytical Aggregator & Risk Metrics:** Combine independent strategy outputs (for example Graham ceilings, momentum signals, and cash-flow valuation multiples) into unified typed models with basic risk measures such as maximum drawdown and volatility.
+* **Step 4.3: Analytical Aggregator & Risk Metrics:** Combine independent strategy outputs (for example Graham ceilings, momentum signals, FCF/earnings-growth trends, and cash-flow valuation multiples) into unified typed models with basic risk measures such as maximum drawdown and volatility.
 
 #### Step 5: Localization Engine for Canadian Markets (en-CA / fr-CA)
 * **Status note:** Scope and timing are confirmed at Milestone v0.2.5.
@@ -229,7 +229,7 @@ The initial Momentum and Graham strategies are established earlier as architectu
 #### Step 6: Autonomous Multi-Step Tool Integration (Hardened)
 * **Step 6.1:** Multi-Step Planner, including unattended/scheduled research only after the v0.2.5 evidence gate justifies it.
 * **Step 6.2:** Argument Sanitization & Self-Correction, bounded recovery, and proactive-monitoring guardrails.
-* **Step 6.3:** Continuous Golden-Suite Evaluation Gate using the Step 2.4 benchmark infrastructure. Notifications/proactive monitoring must remain opt-in and policy-bounded.
+* **Step 6.3:** Continuous Golden-Suite Evaluation Gate using the Step 2.5 benchmark infrastructure. Notifications/proactive monitoring must remain opt-in and policy-bounded.
 
 #### Step 7: High-Fidelity Data Visualization & Report Generation
 * **Step 7.1:** Static plotting engine.
@@ -258,13 +258,13 @@ The initial Momentum and Graham strategies are established earlier as architectu
 
 | Risk Event | Potential Impact | Architectural Mitigation Strategy |
 | :--- | :--- | :--- |
-| **External API Changes (`yfinance`)** | Upstream data fetch failures or field-semantic drift | Keep historical prices and valuation facts behind narrow provider boundaries; validate fields and provenance; rely on the appropriate cache where available. |
+| **External API Changes (`yfinance`)** | Upstream data fetch failures or field-semantic drift | Keep historical prices and financial facts behind narrow provider boundaries; validate fields and provenance; rely on the appropriate cache where available. |
 | **Point-in-time look-ahead** | Historical analysis accidentally consumes facts published later | Enforce `as_of` at resolution time, record observation/publication/availability timestamps, and return unavailable when a provider cannot answer safely. |
 | **Local LLM Output Drift / Schema Violation** | Failed tool parsing, infinite retries | Enforce native Ollama JSON schemas (`format`) + Pydantic validation + circuit breaker caps. |
 | **Context Degradation on Long Turns** | Model forgets original goal or tool rules | Prune middle conversation context while strictly locking `Role.SYSTEM` at index 0. |
 | **Database Lock / Concurrency Latency** | DB timeouts during multi-tool execution | Enforce SQLite Write-Ahead Logging (WAL) mode and single-writer/multi-reader connection pooling. |
 | **Hardware barrier excludes target users** | Dual-tier requirements out of reach for most Primary Users | **Light Mode is the default operating mode.** Full Dual-Tier is optional. Hardware requirements are surfaced early in README and `docs/user/HARDWARE.md`. External validation (v0.2.5) runs under Light Mode. |
-| **Strategy fixation / analytical monoculture** | Local model repeatedly selects the first/only familiar analytical strategy even when another is appropriate | Maintain materially different deterministic analyzers behind the same existing runtime interface; Step 2.4 measures strategy selection separately from numerical correctness; do not special-case the orchestrator around one strategy. |
+| **Strategy fixation / analytical monoculture** | Local model repeatedly selects the first/only familiar analytical strategy even when another is appropriate | Maintain materially different deterministic analyzers behind the same existing runtime interface; Step 2.5 measures strategy selection separately from numerical correctness; do not special-case the orchestrator around one strategy. |
 | **User-facing architecture remains developer-shaped** | Real testers can run the software but cannot quickly understand or revisit results | Use concise investor-facing presentation, progressive disclosure, durable Analysis Runs, and Step 3.4 watchlist/run browsing before v0.2.5. |
 
 ---
@@ -277,7 +277,7 @@ Every Pull Request must pass the following automated GitHub Actions pipeline bef
 2. **Strict Static Analysis:** `mypy --strict src tests`
 3. **Unit Tests & Coverage:** `pytest --cov=src --cov-report=term-missing`
 4. **Security & Dependency Audit:** `uv audit` / `pip-audit` for known vulnerabilities.
-5. **Golden Agent Evaluation:** Headless deterministic execution of the Step 2.4 Golden Suite in its no-LLM/test mode. Optional real-local-Ollama evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.
+5. **Golden Agent Evaluation:** Headless deterministic execution of the Step 2.5 Golden Suite in its no-LLM/test mode. Optional real-local-Ollama evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.
 
 ---
 
@@ -287,20 +287,22 @@ The project distinguishes these related but separate concerns:
 
 1. **Operational logs** answer what happened operationally.
 2. **Trajectory telemetry** answers what the agent/runtime did during an execution.
-3. **Historical-price and valuation-facts contracts** define what deterministic analytics may request.
+3. **Historical-price and financial-fact contracts** define what deterministic analytics may request.
 4. **Golden fixtures** provide immutable deterministic evidence for benchmark execution.
 5. **Production persistence/cache** provides durable market/fundamental data storage beginning in Step 3.1.
 6. **Evaluation results** record whether a benchmark run selected the correct strategy/tool and produced the correct deterministic result.
 7. **Analysis Runs** are durable investor-domain records of requested analyses, configurations, typed results, provenance, warnings, status, and timestamps; Step 3.4 owns this product-facing history.
 8. **Result views/reports** render an Analysis Run in concise terminal, detailed, diagnostic, JSON, or later Markdown/PDF form. In v0.2 a report is not a second canonical persisted result object.
 
-Step 2.3 establishes the minimum data capabilities required by the initial heterogeneous strategies:
+Step 2.3 established the minimum data capabilities required by Momentum and Graham:
 
 - historical market data for Momentum through `BaseDataClient`;
 - quote and fundamental facts for Graham through a dedicated valuation boundary, plus a macro-observation contract that does not imply an approved production AAA series;
 - field-by-field input resolution with overrides, a minimal cache seam, strict as-of handling, and provenance.
 
-Step 2.3 also supplies only the minimal in-memory/fixture cache and deterministic adapters needed to prove those contracts. Step 2.4 builds the Golden Suite on those stable foundations. Step 3.1 later supplies production SQLite/cache-backed implementations.
+Step 2.4 minimally extends those financial-fact/resolution foundations for period-aligned operating cash flow and capital expenditures, derives project-defined FCF with explicit lineage, and adds historical FCF/diluted-EPS growth semantics without creating a parallel data architecture.
+
+Step 2.5 builds the Golden Suite on the resulting stable v0.2 strategy/data contracts. Step 3.1 later supplies production SQLite/cache-backed implementations.
 
 The Golden Suite must never silently fall back to live market data when fixture evidence is missing.
 
@@ -308,7 +310,7 @@ The Golden Suite must never silently fall back to live market data when fixture 
 
 ## 11.6 Investor-Facing Presentation Boundary
 
-Investor-facing output is a presentation concern, not an excuse to force heterogeneous strategies into one internal result model. Momentum and Graham retain method-specific typed result objects; strategy-specific presenters map those results into a coherent visual grammar:
+Investor-facing output is a presentation concern, not an excuse to force heterogeneous strategies into one internal result model. Momentum, Graham, and Free Cash Flow & Earnings Growth retain strategy/method-specific typed result objects; strategy-specific presenters map those results into a coherent visual grammar:
 
 - identity: ticker, analysis/method, requested `as_of`;
 - status/applicability;
@@ -348,8 +350,9 @@ Documentation lives in the repository and is updated with the code:
 - **`docs/user/GLOSSARY.md`:** Shared project terminology.
 - **`docs/user/HARDWARE.md`:** Light Mode vs Full Dual-Tier requirements and consumer hardware guidance.
 - **`docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`:** Operational implementation detail for the active v0.2 milestone.
-- **`docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review contract.
-- **`docs/EVALUATIONS.md`:** **Planned for Step 2.4.** Golden Suite usage, scoring, fixtures, and extension policy.
+- **`docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review record.
+- **`docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`:** Initial Step 2.4 financial, data, CLI, presentation, and review design.
+- **`docs/EVALUATIONS.md`:** **Planned for Step 2.5.** Golden Suite usage, scoring, fixtures, and extension policy.
 - **`docs/TOOL_DEVELOPMENT.md`:** **Planned.** Guide for implementing new typed tools.
 - **`docs/I18N_GUIDE.md`:** **Planned for localization work.** Translation/report-localization procedures.
 

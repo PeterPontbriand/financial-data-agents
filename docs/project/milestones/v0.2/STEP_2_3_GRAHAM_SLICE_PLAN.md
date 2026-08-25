@@ -7,13 +7,13 @@
 
 ## 1. Purpose
 
-This document is the concise handoff and execution plan for implementing Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`.
+This document is the concise handoff and execution record for Step 2.3 with a smaller-context coding model. It supplements, but does not replace, the detailed financial, architectural, temporal, and provenance requirements in `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`.
 
-Each slice must be implemented and reviewed independently. Do not begin Step 2.4 or create Step 3 durable persistence during Step 2.3. Reviewed intermediate checkpoints may be committed/pushed only after explicit human approval and a green agreed gate; such a checkpoint does not declare Step 2.3 complete.
+Each slice was implemented and reviewed independently. No Step 2.4 work or Step 3 durable persistence was begun during Step 2.3. Reviewed intermediate checkpoints could be committed/pushed only after explicit human approval and a green agreed gate; such a checkpoint did not declare Step 2.3 complete.
 
 ## 2. Cross-slice rules
 
-The following rules apply to every slice:
+The following rules applied to every slice:
 
 1. Use deterministic code only. No LLM participates in calculations, input selection, growth estimation, or fallback behavior.
 2. Keep the Graham Number and Graham growth-value method explicitly distinct.
@@ -197,7 +197,7 @@ The provider/resolver foundation through E2 is a coherent durability boundary. A
 Rules:
 - the commit message must identify it as a Step 2.3 checkpoint through E2;
 - do not describe Step 2.3 as complete;
-- do not begin Step 2.4; and
+- do not begin later-step work; and
 - subsequent E3/F1/F2/G work proceeds from that preserved baseline.
 
 ### Slice E3 — user-viable standard Graham data configuration
@@ -312,7 +312,7 @@ git diff --check
 git status --short --untracked-files=all
 ```
 
-Generate and review the remaining tracked-and-untracked diff since the last approved checkpoint. Stop for human review. Do not declare Step 2.3 complete or begin Step 2.4 until that review explicitly approves completion; after approval, the remaining Step 2.3 changes may be committed/pushed.
+Generate and review the remaining tracked-and-untracked diff since the last approved checkpoint. Stop for human review. Step 2.3 was not declared complete and no Step 2.4 implementation was begun until that review explicitly approved completion; after approval, the remaining Step 2.3 changes could be committed/pushed.
 
 Completion record (2026-08-25): documentation synchronization and final cleanup were completed; the complete Ruff, format, strict-mypy, pytest, diff, and status gates passed; representative live Momentum and Graham behavior was reviewed; the final non-positive Graham Growth Value presentation correction was validated in concise and JSON output; and human review explicitly approved Step 2.3 completion.
 
@@ -320,7 +320,8 @@ Completion record (2026-08-25): documentation synchronization and final cleanup 
 
 The following are not part of Step 2.3:
 
-- Step 2.4 Golden Suite, evaluator, or reporting work;
+- Step 2.4 Free Cash Flow & Earnings Growth strategy work;
+- Step 2.5 Golden Suite, evaluator, or reporting work;
 - durable SQLite cache storage, migrations, and eviction policy;
 - watchlists, durable Analysis Run history, user-initiated batch refresh, and run browsing (Step 3.4);
 - daemon/service scheduling, proactive monitoring, notifications, full-screen TUI, and executive report generation;
@@ -334,4 +335,4 @@ The following are not part of Step 2.3:
 
 Step 2.3 is complete only when every slice through G has passed review, the standard production Graham Number configuration is genuinely usable for representative supported securities (or the supported promise has been explicitly narrowed), Momentum and Graham share the approved investor-facing presentation grammar, implementation/documentation agree, required inputs retain provenance/temporal semantics, the complete quality gate is clean, and the human explicitly approves Step 2.3 completion. Intermediate checkpoint commits do not satisfy this condition by themselves.
 
-This completion condition was satisfied on 2026-08-25; Step 2.3 is complete and approved. Step 2.4 was not begun as part of Step 2.3.
+This completion condition was satisfied on 2026-08-25; Step 2.3 is complete and approved. No Step 2.4 implementation was begun as part of Step 2.3.
