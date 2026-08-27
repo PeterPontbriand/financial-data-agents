@@ -1,4 +1,4 @@
-"""Analysis modules for the free-cash-flow & earnings-growth strategy (Slice B).
+"""Analysis modules for the free-cash-flow & earnings-growth strategy.
 
 Public exports for the pure calculation layer:
 
@@ -14,6 +14,9 @@ Public exports for the pure calculation layer:
 - ``AnnualGrowthObservation`` — one completed-fiscal-year observation.
 - ``ClassificationDecision`` — outcome of the classification function.
 - ``FCFEarningsGrowthResult`` — complete typed result.
+- ``AnnualGrowthSeriesAssembly`` / ``SeriesSelection`` — C2 resolution result.
+- ``FinancialFieldProvider`` — one semantic-field/provider binding.
+- ``resolve_annual_growth_series`` — deterministic annual-series resolver.
 - ``compute_free_cash_flow`` — pure FCF calculator.
 - ``compute_growth_percent`` — pure one-period growth calculator.
 - ``compute_cagr`` — pure compound annual growth calculator.
@@ -27,6 +30,12 @@ from src.analysis.fcf_earnings_growth.calculators import (
     compute_fcf_yield,
     compute_free_cash_flow,
     compute_growth_percent,
+)
+from src.analysis.fcf_earnings_growth.input_resolver import (
+    AnnualGrowthSeriesAssembly,
+    FinancialFieldProvider,
+    SeriesSelection,
+    resolve_annual_growth_series,
 )
 from src.analysis.fcf_earnings_growth.models import (
     AnnualGrowthObservation,
@@ -47,11 +56,13 @@ from src.core.analysis_status import CalculationStatus
 
 __all__ = [
     "AnnualGrowthObservation",
+    "AnnualGrowthSeriesAssembly",
     "CalculationStatus",
     "Classification",
     "ClassificationDecision",
     "FCFEarningsGrowthPolicy",
     "FCFEarningsGrowthResult",
+    "FinancialFieldProvider",
     "ForwardEvidence",
     "ForwardEvidenceStatus",
     "ForwardPolicy",
@@ -59,10 +70,12 @@ __all__ = [
     "MetricResult",
     "MetricStatus",
     "ReasonCode",
+    "SeriesSelection",
     "TrendClassification",
     "classify_fcf_earnings_growth",
     "compute_cagr",
     "compute_fcf_yield",
     "compute_free_cash_flow",
     "compute_growth_percent",
+    "resolve_annual_growth_series",
 ]

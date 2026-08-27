@@ -185,7 +185,8 @@ class FinancialFactRequest:
         provider_id: Non-empty provider identifier (normalized lowercase).
         basis: Basis/variant label, or None.
         as_of: None = current; timezone-aware = historical boundary.
-        observation_count: Number of observations requested (>= 1; > 1 only EPS).
+        observation_count: Number of observations requested (>= 1; fiscal-year
+            series are supported for EPS, operating cash flow, and CapEx).
     """
 
     subject_kind: FinancialSubjectKind

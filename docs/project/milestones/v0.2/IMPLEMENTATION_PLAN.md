@@ -7,7 +7,7 @@
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-08-27 — Added the C1R financial-fact/resolved-input naming migration before further Step 2.4 strategy coupling.<br/>
-**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A and B complete / Slice C1 complete / C1R naming migration complete and approved / C2 authorized next, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
+**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A and B complete / Slice C1 complete / C1R naming migration complete and approved / C2 implemented and awaiting review, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1425,14 +1425,15 @@ All of the following must be true before declaring the milestone complete and op
 2. **Provider/analyst consensus-growth policy** — Do not ingest a provider forecast until its field meaning, time horizon, provenance, update behavior, and licensing are verified.
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
 4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied.
+5. **Ollama Modelfile consolidation** — The repository currently contains `Modelfile.agents` both at the repository root and under `docs/project/deploy/ollama/`. Determine the canonical location and reconcile or remove the duplicate in a separate reviewed documentation/deployment task; do not mix that cleanup into Step 2.4 strategy slices.
 
 ---
 
 ## 9. Next Immediate Actions
 
-Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; Slices A, B, C1, and C1R are complete and approved. C2 is authorized next.
+Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; Slices A, B, C1, and C1R are complete and approved. C2 is implemented and awaiting human review.
 
-1. Begin C2 annual-series resolution and deterministic fixtures on the approved shared financial-fact and resolved-input cache contracts.
+1. Review and approve C2 annual-series resolution and deterministic fixtures.
 2. Implement and review the remaining Free Cash Flow & Earnings Growth work in the bounded slices in Section 4.4.9.
 3. Complete and review the pre-Golden Graham/shared-contract hardening and Momentum modernization in Section 4.4.10.
 4. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.
