@@ -387,8 +387,6 @@ Machine-readable output may intentionally retain stable identifiers such as snak
 ### JSON (JavaScript Object Notation)
 A widely used text format for structured data made from objects, arrays, names, strings, numbers, booleans, and null values. Financial Data Agents uses JSON for its `--json` machine-readable presentation mode and for other structured software interfaces.
 
-A structured text format used for data exchange and machine-readable results.
-
 ### JSONL (JSON Lines)
 A text format containing one JSON object per line. Financial Data Agents uses JSONL for structured trajectory-telemetry records.
 

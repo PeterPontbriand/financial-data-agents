@@ -133,7 +133,7 @@ Start with the [Project & Technical Documentation Index](docs/project/README.md)
 - the Master Plan and design rationale;
 - the active milestone implementation plan;
 - active step/slice plans and status;
-- engineering quality gates; and
+- [engineering quality gates](docs/project/README.md#quality-gates); and
 - deployment/configuration artifacts intended for project reviewers.
 
 ### Documentation authority

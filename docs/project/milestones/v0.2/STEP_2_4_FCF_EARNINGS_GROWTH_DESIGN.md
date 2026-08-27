@@ -1,1022 +1,563 @@
-# Step 2.4 Design: Free Cash Flow & Earnings Growth Analysis
+# Free Cash Flow & Earnings Growth Analysis Strategy
 
-**Status:** Revised design draft incorporating prospective Real-User clarification; explicit policy locks remain before implementation beyond reconnaissance<br/>
-**Prepared:** 2026-08-25<br/>
-**Revised:** 2026-08-25<br/>
-**Scope:** Milestone v0.2, Step 2.4 only<br/>
-**Entry condition:** Step 2.3 is complete, approved, and merged; Step 2.4 Slice A reconnaissance and design work may proceed, while production implementation remains blocked until the policy locks affecting Slice B are reviewed and approved<br/>
-**Next step:** Step 2.5 Golden-Test Suite & Strategy Evaluation
+This document defines a deterministic analysis strategy for Financial Data Agents. The strategy examines a public company's historical free cash flow and diluted earnings-per-share growth, optionally adds free-cash-flow yield and forward analyst-consensus context, and returns an explicit `PASS`, `FAIL`, or `INDETERMINATE` conclusion.
 
----
+The strategy supports direct analysis from the command line and defines the typed analysis-tool contract used by runtime agents. Both entry points use the same deterministic calculations and return the same structured financial result. A language model never performs or alters the financial arithmetic.
 
-## 1. Purpose and authority
+## Decision summary
 
-Step 2.4 adds a third materially different deterministic investor analysis before the Golden Suite.
-
-The immediate product motivation is concrete: a prospective Real-User has clarified that **“FCF (free cash flow) and earnings growth”** means a fundamental screening strategy that combines:
-
-- multi-year historical diluted-EPS growth;
-- 1–2 year forward consensus EPS expectations;
-- project-defined free cash flow using `CFO - CapEx`;
-- a 3–5 year FCF growth/trend view;
-- FCF yield relative to market capitalization; and
-- an explicit screen result followed by transparent trend/valuation evidence for qualitative investor judgment.
-
-The architectural motivation remains equally useful: Step 2.3 established provider-neutral financial-fact resolution, provenance, strict point-in-time behavior, deterministic fixtures, strategy-specific investor presentation, and a unified direct-analysis CLI. Step 2.4 should prove that those foundations generalize to cash-flow statements, forecast data, valuation ratios, and screen semantics without creating a parallel architecture.
-
-This design treats the prospective-user remarks as **requirements evidence**, not as authority for broad claims about institutional-investor practice. Step 2.4 must implement the requested analytical behavior without pretending to reproduce a generic hedge-fund, long-only, macro, activist, or private-equity methodology.
-
-Document precedence for Step 2.4 should be:
-
-1. `docs/project/MASTER_PLAN.md` — milestone intent and ordering;
-2. `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` — active milestone scope, gates, and sequencing;
-3. this document — Step 2.4 financial/data/screen/CLI/presentation contract;
-4. `docs/user/FINANCE_MATH.md` — formula and financial semantics;
-5. `docs/project/ARCHITECTURE.md` — component boundaries;
-6. `docs/project/DISCOVERY_WORKBOOK.md` — rationale.
-
-If implementation evidence conflicts with this design, stop and surface the conflict rather than silently widening scope.
+| Decision | Contract |
+| :--- | :--- |
+| Historical measures | Completed annual free cash flow and diluted earnings per share |
+| Free-cash-flow definition | Operating cash flow minus capital expenditures |
+| Default period | Longest contiguous span available: prefer 5 elapsed years, then 4, then 3 |
+| Default `PASS` | Both historical compound annual growth rates are meaningful and greater than zero |
+| Default `FAIL` | Required evidence is complete and at least one historical growth rate is zero or negative |
+| `INDETERMINATE` | Required evidence is insufficient, incompatible, or mathematically nonmeaningful |
+| Forward estimates | Supporting information by default; selectable confirmation or hard-gate policy |
+| Free-cash-flow yield | Supporting information only; no yield threshold |
+| Smoothing | None; reported annual history remains canonical |
+| Comparison basis | Company versus its own history, not versus peers |
+| Versions | `strategy_id = fcf_earnings_growth`, `method_id = reported_fcf_eps_cagr`, `method_version = 1`, `schema_version = 1` |
 
 ---
 
-## 2. Stakeholder intent now established
+# Part I — Financial Strategy and Investor Experience
 
-The following product intent is sufficiently clear to replace the earlier historical-only fallback assumptions.
+## 1. Investment question and interpretation
 
-### 2.1 Earnings growth
+The strategy asks:
 
-The strategy should balance historical performance and expected future momentum:
+> Over a clearly identified historical period, did the company produce positive, measurable growth in both free cash flow and diluted earnings per share?
 
-- use trailing multi-year **diluted EPS** history;
-- prefer a 5-year historical growth horizon;
-- permit a 3-year minimum when sufficient 5-year history is unavailable;
-- incorporate **1-year and 2-year forward consensus diluted-EPS estimates** when a provider can supply them with explicit semantics and provenance;
-- show historical and forward evidence separately rather than collapsing them into one opaque growth score.
+Growth in both measures can be evidence of strengthening cash-generation economics. It may be consistent with an advantaged business, particularly when accounting earnings are accompanied by cash generation rather than unsupported by it.
 
-### 2.2 Free cash flow
+The strategy does not prove that a company has a durable competitive moat. Market opportunity, scarcity, competitive position, management quality, and durability of advantage require evidence and judgment beyond the financial series analyzed here.
 
-The canonical initial definition remains deliberately simple and disclosure-consistent:
+The comparison is against the company's own history. It does not determine whether the company has a free-cash-flow lead over competitors. Peer selection, cross-company normalization, and relative ranking require a separate comparative strategy.
 
-```text
-free_cash_flow = operating_cash_flow - capital_expenditures
-```
+## 2. Financial measures
 
-The strategy should:
+### 2.1 Required historical measures
 
-- focus on the 3–5 year FCF history and trajectory rather than one isolated year;
-- prefer a 5-year historical view;
-- use a 3-year minimum when 5-year history is unavailable;
-- expose annual CFO, normalized CapEx, and derived FCF so a CapEx-heavy year is visible rather than hidden;
-- calculate **FCF yield = FCF / market capitalization** using an explicitly documented numerator period and denominator valuation date.
+The analysis uses:
 
-### 2.3 Screening behavior
+- annual free cash flow derived from operating cash flow and capital expenditures;
+- annual diluted earnings per share;
+- compound annual growth in each measure over the same historical period.
 
-The strategy is intended to be a **screen**, not merely a metrics report.
-
-For each analyzed security it should produce:
-
-1. an explicit screen outcome;
-2. per-criterion pass/fail/indeterminate evidence;
-3. the actual historical series and valuation ratios used; and
-4. enough context for a knowledgeable investor to make a qualitative judgment after the initial screen.
-
-The screen outcome must remain separate from software/calculation status. A valid analysis may legitimately return `fail`. Missing evidence may make the screen `indeterminate` without implying a provider or software error.
-
-### 2.4 Important interpretation boundary
-
-The prospective-user remarks also discuss FCF-to-net-income, FCF margin, FCFF, FCFE, owner-earnings adjustments, stock-based compensation, maintenance-versus-growth CapEx, enterprise-value denominators, and working-capital normalization.
-
-Those ideas are useful context, but they are **not automatically approved Step 2.4 requirements**. They remain possible later refinements unless explicitly promoted into the initial screen at the policy checkpoint below.
-
----
-
-## 3. Remaining product-policy locks before Slice B
-
-Repository/provider reconnaissance may begin before these are resolved, but production behavior must not silently choose answers to them.
-
-### 3.1 Exact hard-screen thresholds
-
-The stakeholder intent clearly calls for pass/fail screening, but the exact thresholds are not yet unambiguous.
-
-The design therefore requires an explicit human decision on the initial default criteria. Candidate criteria suggested by the remarks include:
-
-- positive multi-year historical diluted-EPS growth;
-- positive multi-year historical FCF growth;
-- positive 1–2 year forward consensus EPS momentum;
-- positive FCF yield;
-- a minimum FCF-yield threshold, with **6%–8% mentioned as an example rather than an approved default**.
-
-Do not encode `6%`, `8%`, or any other numerical cutoff merely because it appeared in explanatory prose.
-
-The implementation should support typed criterion results so a future threshold change does not require redesigning the result model.
-
-### 3.2 What exactly “5-year” means
-
-Two common interpretations exist and should not be conflated:
-
-- **5 elapsed years of compound growth**: requires six annual endpoint observations (`t-5` through `t`);
-- **a 5-observation annual history window**: contains four elapsed year intervals.
-
-Proposed project convention: `growth_years` means **elapsed years**, so a 5-year CAGR requires six compatible annual observations and a 3-year CAGR requires four. This convention must be explicitly approved before Slice B because it affects fixtures, fallback behavior, CLI language, and stakeholder expectations.
-
-### 3.3 FCF CapEx-distortion treatment
-
-The prospective Real-User specifically warns that a single CapEx-heavy year may depress simple FCF even when the business remains fundamentally strong.
-
-The initial design locks two principles but not yet one exact smoothing formula:
-
-- never alter the canonical annual `FCF = CFO - CapEx` facts to make them look smoother;
-- do not make the hard screen depend only on the latest single-year FCF value.
-
-Before Slice B, choose whether the multi-year FCF screen uses only endpoint CAGR or also a deterministic smoothing/trend statistic such as a rolling-average comparison. Any smoothing metric must be shown separately from raw annual FCF and must not rewrite the underlying FCF series.
-
-### 3.4 4-year intermediate fallback
-
-Section 6.1 must follow whichever fallback policy is approved here rather than silently choosing an intermediate horizon.
-
-Before Slice B, the stakeholder must explicitly approve whether the resolver prefers the longest available compatible horizon (5 → 4 → 3) or drops directly from an unusable 5-year horizon to the 3-year minimum. The 4-year intermediate fallback is a proposal, not an approved default. The chosen behavior affects fixtures, CLI language, and stakeholder expectations.
-
-### 3.5 FCF-yield numerator basis
-
-The remarks specify `FCF / Market Cap` but do not fully specify whether the numerator should be:
-
-- latest completed fiscal-year FCF;
-- trailing-twelve-month FCF; or
-- a normalized/smoothed multi-year FCF amount.
-
-Proposed v0.2 default: **latest completed fiscal-year FCF divided by market capitalization at the analysis `as_of`**, with both dates made explicit. This minimizes new interim-cash-flow complexity while preserving a useful current valuation ratio. This must be resolved before Slice B, not deferred to Slice D.
-
-### 3.6 Forward-consensus screen semantics
-
-The strategy should show 1-year and 2-year consensus EPS estimates, but “forward growth” still needs an exact deterministic definition.
-
-Proposed initial derivations:
+Annual free cash flow is:
 
 ```text
-forward_year_1_growth_percent = (consensus_eps_fy1 - latest_actual_eps) / latest_actual_eps * 100
-forward_year_2_growth_percent = (consensus_eps_fy2 - consensus_eps_fy1) / consensus_eps_fy1 * 100
+free_cash_flow = operating_cash_flow - normalized_capital_expenditures
 ```
 
-These percentages are available only when the relevant denominator is strictly positive under the same sign/zero rules used for historical growth. Raw estimate values remain reportable when a percentage is mathematically nonmeaningful.
+Operating cash flow means net cash provided by operating activities for the completed fiscal year. `normalized_capital_expenditures` is a positive expenditure amount produced by the data-resolution rules in Part II.
 
-The stakeholder should confirm whether the hard screen requires both forward years to be positive, either year to be positive, or merely requires the estimates to be displayed as qualitative evidence.
+Free cash flow is a non-GAAP analytical measure. Companies and data providers may define similarly named measures differently. The detailed result therefore identifies the source components and normalization used; a provider's precomputed “free cash flow” is not accepted merely because its label matches.
 
-### 3.7 “Trendlines” in a terminal product
+### 2.2 Historical period
 
-The requirement to show “actual trendlines” can mean either:
+The investor may request three, four, or five elapsed years:
 
-- the actual annual time series and a deterministic trend classification; or
-- a literal visual sparkline/ASCII chart.
+| Elapsed period | Annual observations | Endpoints |
+| :--- | ---: | :--- |
+| 3 years | 4 | `t-3` through `t` |
+| 4 years | 5 | `t-4` through `t` |
+| 5 years | 6 | `t-5` through `t` |
 
-Proposed Step 2.4 interpretation: the concise/details presentation must expose the annual series and trend direction; a literal chart is optional unless the stakeholder specifically requests one.
+The standard `longest_available` policy prefers five elapsed years and falls back to four and then three. Fewer than three elapsed years is insufficient for classification.
 
-### 3.8 Universe screening versus per-security screen result
+An explicitly requested period is strict. If that history is unavailable, the result is `INDETERMINATE`; the strategy does not silently substitute a shorter period.
 
-Step 2.4 can define a hard pass/fail/indeterminate result for each analyzed security without introducing watchlist/universe infrastructure.
+The difference between observations and elapsed years is important:
 
-Unless separately approved, Step 2.4 does **not** add a new universe loader, market-wide batch scanner, portfolio/watchlist persistence layer, or ranking engine. Those systems may later consume the per-security screen result.
+| Observation | Fiscal year | Elapsed interval from prior observation |
+| ---: | :--- | ---: |
+| 1 | FY2020 | — |
+| 2 | FY2021 | 1 |
+| 3 | FY2022 | 1 |
+| 4 | FY2023 | 1 |
+| 5 | FY2024 | 1 |
+| 6 | FY2025 | 1 |
 
----
+Six annual observations from FY2020 through FY2025 contain five elapsed annual intervals. Five observations would contain only four. Every report states both the elapsed period and observation count.
 
-## 4. Strategy identity and meaning
+### 2.3 Compound annual growth
 
-Stable strategy identifier:
-
-```text
-fcf_earnings_growth
-```
-
-Proposed direct CLI command:
-
-```text
-financial-agents fcf-growth TICKER [options]
-```
-
-Investor-facing name:
-
-```text
-Free Cash Flow & Earnings Growth
-```
-
-This strategy is a **fundamental quality/growth/valuation screen with transparent historical and consensus evidence**. It is not:
-
-- an intrinsic-value model;
-- a discounted-cash-flow model;
-- a P/E- or book-value-based valuation model;
-- a complete quality-of-business assessment;
-- a complete “Druckenmiller” or other named-investor methodology;
-- a claim that accounting manipulation has been proven or disproven;
-- an investment recommendation.
-
-The strategy may identify divergence between reported earnings and cash generation as a warning signal, but it must use neutral wording such as `earnings_cash_flow_divergence` rather than claiming fraud or manipulation from the screen alone.
-
----
-
-## 5. Canonical financial semantics
-
-### 5.1 Free cash flow
-
-For the initial project implementation:
-
-```text
-free_cash_flow = operating_cash_flow - capital_expenditures
-```
-
-Where:
-
-- `operating_cash_flow` means net cash provided by operating activities for the selected reporting period;
-- `capital_expenditures` is normalized by the provider/resolution layer to a **positive expenditure amount** before subtraction;
-- the derived FCF retains complete component lineage.
-
-Example:
-
-```text
-Operating cash flow:       1,000
-Reported CapEx cash flow:   -250
-Normalized expenditure:      250
-Free cash flow:              750
-```
-
-FCF is a project-defined non-GAAP analytical measure. Provider/company presentations may define similarly named measures differently. Output must therefore show the project's definition in details/JSON and must not silently consume a provider's precomputed “free cash flow” field unless its definition is proven compatible.
-
-Do not adjust this canonical FCF for stock-based compensation, working-capital normalization, maintenance-versus-growth CapEx, financing cash flows, or other owner-earnings/FCFF/FCFE concepts in Step 2.4 unless explicitly approved as a named secondary metric.
-
-### 5.2 Earnings basis — historical actuals
-
-The historical earnings measure is **completed fiscal-year diluted EPS**.
-
-Rules:
-
-- preserve basic/diluted basis explicitly;
-- do not mix annual EPS observations with TTM observations in one historical growth series;
-- do not mix incompatible share classes;
-- preserve split/restatement evidence where available;
-- use only observations knowable by the requested `as_of`.
-
-A later explicit variation may support another earnings basis, but it must be named and cannot silently replace diluted annual EPS.
-
-### 5.3 Earnings basis — forward consensus
-
-Forward earnings evidence consists of provider-supplied **consensus diluted-EPS point estimates** for the next one and two comparable fiscal periods.
-
-Every estimate must preserve at least:
-
-- forecast fiscal period/end;
-- estimate value;
-- diluted/basic basis if supplied;
-- currency/units where applicable;
-- provider/source;
-- provider field/concept;
-- estimate snapshot/observation timestamp;
-- retrieved timestamp;
-- analyst-count or dispersion metadata when available, but neither is required for v0.2.
-
-Do not silently use an opaque provider “growth estimate” field when the underlying period, basis, and update semantics cannot be verified. Prefer deriving forward growth from explicit consensus EPS point estimates.
-
-### 5.4 Market capitalization
-
-For the initial FCF-yield denominator, `market_capitalization` means the provider-resolved equity market capitalization for the analyzed security at the applicable valuation timestamp.
-
-Requirements:
-
-- preserve currency;
-- preserve provider and observation timestamp;
-- do not synthesize historical market capitalization from current price unless explicitly approved;
-- do not substitute enterprise value for market capitalization;
-- the output must display the numerator period and denominator date because they are not necessarily the same date.
-
-### 5.5 Period alignment
-
-An annual FCF observation is valid only when operating cash flow and capital expenditures refer to the same compatible fiscal period and currency.
-
-Do not combine:
-
-- year-to-date CFO with full-year CapEx;
-- different fiscal-year ends;
-- different currencies without an approved conversion policy;
-- values from incompatible consolidated scopes;
-- facts not yet published/available by the requested `as_of`.
-
-If compatible component facts cannot be established, that FCF period is unavailable.
-
-Historical EPS and FCF series should align by comparable fiscal-year ordering, but EPS and FCF do not need identical filing timestamps. Provenance must preserve each fact's actual availability.
-
----
-
-## 6. Historical-window and growth semantics
-
-### 6.1 Preferred horizon and fallback
-
-The investor intent is **5-year baseline, 3-year minimum**.
-
-Subject to the policy locks in Sections 3.2 and 3.4, the resolver should:
-
-1. attempt the preferred 5-year historical growth horizon;
-2. if insufficient compatible history exists, apply the fallback policy explicitly approved under Section 3.4;
-3. expose the actual horizon used;
-4. never silently label a shorter-horizon result as 5-year growth.
-
-A shorter-than-3-year history is insufficient for the core historical growth screen unless a future policy explicitly allows it.
-
-### 6.2 Year-over-year change
-
-For a metric `x`:
-
-```text
-yoy_growth_percent = (current - prior) / prior * 100
-```
-
-Baseline rule:
-
-- if `prior > 0`, percentage growth may be calculated;
-- if `prior <= 0`, percentage growth is `None` with a structured reason;
-- retain the raw current/prior values so the investor can still see the economic change.
-
-Do not emit infinity, an enormous pseudo-growth percentage from a zero denominator, or silently reinterpret a loss-to-profit / negative-to-positive transition as ordinary percentage growth.
-
-### 6.3 CAGR
-
-For a positive metric observed `N` elapsed years apart:
+For a positive value observed `N` elapsed years apart:
 
 ```text
 cagr_percent = ((ending / beginning) ** (1 / N) - 1) * 100
 ```
 
-CAGR rules:
+The beginning and ending values must be strictly positive, and the annual series must be contiguous. Zero or negative endpoints and sign changes make compound annual growth nonmeaningful under this policy. The raw history remains visible, but the growth metric is unavailable with a specific reason.
 
-- beginning and ending values must both be strictly positive;
-- periods must represent the requested elapsed-year span without silent gaps;
-- negative/zero endpoints, sign changes, or incompatible periods make CAGR unavailable with a structured reason;
-- raw history remains visible;
-- no clipping, flooring, absolute-value transformation, or sign erasure.
+The strategy rejects absolute-value and “growth from loss” treatments because they erase economically important sign information and can turn a loss-to-profit transition into a deceptively precise percentage. Such a transition may be favorable, but it is not ordinary compound growth.
 
-The same mathematical policy applies independently to FCF CAGR and diluted-EPS CAGR.
+### 2.4 Optional context
 
-### 6.4 FCF trajectory and CapEx-heavy years
+Under the standard settings, free-cash-flow yield and analyst consensus are supporting information only. The headline `PASS`, `FAIL`, or `INDETERMINATE` result is determined by historical free-cash-flow and diluted-earnings-per-share growth.
 
-The strategy must preserve the raw annual series:
+Free-cash-flow yield is:
 
 ```text
-fiscal_year
-operating_cash_flow
-capital_expenditures
-free_cash_flow
+fcf_yield_percent = latest_completed_fiscal_year_fcf / current_market_capitalization * 100
 ```
 
-A large CapEx year is not an error and must not be normalized away merely to improve the screen result.
+The numerator is annual and the denominator is current. The result identifies both dates. Missing market capitalization does not prevent the historical analysis from completing, and no 6%, 8%, or other yield threshold is part of this method.
 
-The presenter should call attention to material year-to-year FCF volatility when it may make an endpoint CAGR misleading. If a smoothing/trend statistic is approved at the Section 3.3 policy lock, it must be:
+Forward evidence uses analyst-consensus diluted earnings per share for the next fiscal year (FY1) and the following fiscal year (FY2). The strategy calculates growth from the latest annual actual to FY1 and from FY1 to FY2. A prior value must be positive, and a positive estimate is not necessarily positive growth.
 
-- deterministic;
-- separately named;
-- calculated from the same raw annual FCF history;
-- fully testable;
-- never substituted for raw FCF without disclosure.
+The investor may select:
 
-### 6.5 Forward consensus growth
+| Forward policy | Effect on the headline result |
+| :--- | :--- |
+| `display_only` | Default. Show available estimates and implied growth; do not alter the historical conclusion. |
+| `confirmation` | State whether both forward intervals confirm continued positive earnings growth; do not alter the historical conclusion. |
+| `hard_gate` | Require both forward intervals to be available and positive for `PASS`. Missing required evidence produces `INDETERMINATE`. |
 
-When valid FY1/FY2 consensus EPS point estimates are available, derive the approved forward metrics from the explicit estimate values.
+Free-cash-flow yield cannot affect classification under `method_version = 1`. Any method that introduces a yield gate requires a new method version or a different method identifier.
 
-Forward estimates are **expectations, not actuals**. Presentation and JSON must label them as consensus estimates and must never place them in the historical actual series.
+## 3. Classification
 
-### 6.6 FCF yield
+The headline conclusion and the software execution status are separate. A provider failure or invalid request remains identifiable and must not masquerade as an unfavorable investment result.
 
-Initial formula:
+### 3.1 PASS
 
-```text
-fcf_yield_percent = free_cash_flow / market_capitalization * 100
-```
+The selected policy returns `PASS` when:
 
-Rules:
+- a valid contiguous historical span is available;
+- free-cash-flow compound annual growth is greater than zero;
+- diluted-earnings-per-share compound annual growth is greater than zero; and
+- under `hard_gate`, both forward implied-growth rates are available and greater than zero.
 
-- market capitalization must be strictly positive;
-- FCF may be positive, zero, or negative;
-- negative FCF produces a negative yield rather than a software error;
-- numerator period and market-cap date must be explicit;
-- no enterprise-value substitution;
-- no reciprocal P/FCF metric is required unless separately approved.
+### 3.2 FAIL
 
----
+The selected policy returns `FAIL` when every required metric is available and meaningful, but at least one required growth rate is zero or negative.
 
-## 7. Screen semantics
+### 3.3 INDETERMINATE
 
-### 7.1 Screen outcome is not calculation status
+The selected policy returns `INDETERMINATE` when required evidence is missing, incompatible, or mathematically nonmeaningful. An indeterminate conclusion is not a failed financial screen. Available raw values and the exact reason remain reportable.
 
-Define a strategy-level screen decision independently from the project's operational/calculation status vocabulary.
+The result also describes the historical relationship as:
 
-Screen decision vocabulary:
-
-```text
-pass
-fail
-indeterminate
-```
-
-Meaning:
-
-- `pass` — all required hard criteria have valid evidence and pass;
-- `fail` — at least one hard criterion has valid evidence and fails. A known hard failure remains FAIL even when another required criterion lacks evidence;
-- `indeterminate` — no hard criterion has valid failing evidence, but one or more required criteria cannot be evaluated because evidence is missing/unavailable or mathematically nonmeaningful.
-
-A known hard failure is never rescued into INDETERMINATE by the absence of evidence for a different criterion. Software/calculation status remains separate from the investment-screen outcome.
-
-A provider failure remains a provider/software status and should not be disguised as an investment-screen `fail`.
-
-### 7.2 Per-criterion evidence
-
-Each hard criterion should produce a typed result containing at least:
-
-```text
-criterion_id
-status = pass | fail | indeterminate
-observed_value(s)
-threshold / rule
-horizon / period
-reason
-```
-
-This keeps the final screen auditable and allows thresholds to change without turning the overall strategy into a hidden composite score.
-
-### 7.3 No arbitrary weighted score
-
-Step 2.4 should not produce a weighted 0–100 quality score or optimize weights. The requested product is a **hard gate followed by evidence**, not an opaque ranking model.
-
-### 7.4 Earnings-versus-FCF divergence
-
-The strategy may produce a deterministic warning/classification when reported earnings expansion and cash-flow expansion materially disagree.
-
-Possible neutral classifications include:
-
-- `both_expanding`;
-- `earnings_expanding_fcf_not`;
-- `fcf_expanding_earnings_not`;
-- `neither_expanding`;
+- `both_growing`;
+- `fcf_growing_earnings_not`;
+- `earnings_growing_fcf_not`;
+- `neither_growing`;
 - `insufficient_or_nonmeaningful_growth`.
 
-This is descriptive evidence. Do not label a company a “fraudster,” “manipulator,” or “earnings trap” solely from these metrics.
+These descriptions are evidence, not scores or recommendations.
 
----
+## 4. Investor controls and output
 
-## 8. Typed result contract
-
-Prefer a strategy-specific typed result rather than adding fields to Graham or Momentum result models.
-
-Illustrative result shape:
-
-```text
-FCFEarningsGrowthResult
-    strategy = fcf_earnings_growth
-    status                         # software/analysis status
-    ticker / subject
-    requested_as_of
-
-    preferred_growth_years
-    actual_growth_years_used
-    minimum_growth_years
-    latest_completed_fiscal_period
-
-    annual_history[]
-        fiscal_period
-        operating_cash_flow
-        capital_expenditures
-        free_cash_flow
-        diluted_eps
-
-    historical_fcf_cagr_percent | None
-    historical_eps_cagr_percent | None
-    fcf_yoy_growth_percent | None
-    eps_yoy_growth_percent | None
-
-    consensus_eps_fy1 | None
-    consensus_eps_fy2 | None
-    forward_fy1_eps_growth_percent | None
-    forward_fy2_eps_growth_percent | None
-
-    market_capitalization | None
-    market_cap_as_of | None
-    fcf_yield_percent | None
-
-    trend_classification
-
-    screen_decision = pass | fail | indeterminate
-    screen_criteria[]
-
-    resolved_inputs / derived lineage
-    warnings
-```
-
-Exact Python names should follow repository conventions after reconnaissance.
-
-### 8.1 Analysis status behavior
-
-Use existing project status vocabulary where it fits. Do not invent a new broad error hierarchy without need.
-
-At minimum distinguish:
-
-- `ok` — the analysis produced the required core evidence; one or more optional/submetrics may still be unavailable with explicit reasons;
-- `input_unavailable` — required financial facts/history could not be resolved;
-- `invalid_input` — invalid requested horizon/configuration or incompatible explicit input;
-- `provider_error` — provider failure distinct from absent evidence.
-
-Negative FCF or negative EPS is not automatically a software error. It is economically meaningful data. Percentage-growth/CAGR submetrics may become unavailable under the rules above while the raw series remains reportable.
-
-For screen purposes, mathematically unavailable or missing required evidence yields `screen_decision = indeterminate` only when no other hard criterion has valid failing evidence. A valid hard failure remains `fail` even when another required criterion is unavailable.
-
----
-
-## 9. Data and resolution boundary
-
-### 9.1 Reuse Step 2.3 foundations
-
-Step 2.4 should reuse the existing provider-neutral financial-fact, cache, resolver, provenance, fixture, and presentation patterns established in Step 2.3.
-
-Do **not** create:
-
-- a parallel FCF-only provider framework;
-- a separate consensus-estimate architecture unless the existing fact contract proves concretely incapable of representing forecasts;
-- a new strategy registry/plugin system;
-- a second provenance model;
-- a second cache hierarchy;
-- a second CLI presentation framework.
-
-The new strategy is allowed to prove that a current Step 2.3 name is too narrow, but a rename/generalization must be justified by concrete incompatibility rather than aesthetics.
-
-### 9.2 Minimum new financial facts
-
-The revised Step 2.4 core requires provider-neutral support for:
-
-- operating cash flow / net cash provided by operating activities;
-- capital expenditures;
-- completed annual diluted EPS history;
-- market capitalization;
-- forward consensus diluted-EPS estimate for the next comparable fiscal period;
-- forward consensus diluted-EPS estimate for the following comparable fiscal period.
-
-EPS should reuse the existing annual EPS capability where semantically compatible.
-
-Likely new semantic fields include:
-
-```text
-OPERATING_CASH_FLOW
-CAPITAL_EXPENDITURES
-MARKET_CAPITALIZATION
-CONSENSUS_EPS
-```
-
-Do not add revenue, net income, debt, enterprise value, stock-based compensation, maintenance CapEx, or other fields unless the product-policy checkpoint explicitly promotes a secondary metric that requires them.
-
-### 9.3 Forecast fact semantics
-
-Consensus estimates are materially different from historical reported facts and must not be squeezed into the existing model if doing so destroys meaning.
-
-A provider-neutral forecast fact/request must be able to represent:
-
-- subject/security;
-- metric and basis;
-- forecast fiscal period;
-- value/units/currency;
-- consensus/provider identity;
-- snapshot/observation timestamp;
-- availability/retrieval timestamp;
-- requested `as_of` behavior.
-
-Historical `as_of` support for consensus estimates is allowed only if the provider supplies point-in-time estimate history or another evidence-approved mechanism. If only current consensus is available, a historical analysis request must not silently pair today's consensus with historical actuals as though it were historically knowable.
-
-### 9.4 Derived FCF lineage
-
-FCF is derived per fiscal period.
-
-Each derived FCF observation must retain lineage sufficient to reconstruct:
-
-```text
-FCF
-├── operating cash flow
-└── normalized capital expenditures
-```
-
-Lineage must preserve:
-
-- source/provider;
-- exact provider concepts/fields;
-- fiscal period start/end;
-- filing/publication/availability timestamp;
-- units/currency;
-- retrieved/resolved timestamps;
-- CapEx sign normalization;
-- any duplicate/restatement selection rule.
-
-### 9.5 `as_of` policy
-
-Step 2.3's no-look-ahead rule remains authoritative.
-
-For every historical fact used:
-
-- fiscal period end alone is insufficient;
-- the fact must be published/filed/available on or before requested `as_of`;
-- later restatements are not eligible for an earlier historical analysis unless already available by that boundary;
-- current snapshots may not masquerade as historical evidence.
-
-For market capitalization and consensus estimates, provenance must separately establish what observation/snapshot was available at the requested boundary.
-
-The resolver captures the analysis boundary once per deterministic assembly operation where the existing clock contract requires a single coherent execution time.
-
----
-
-## 10. Provider evidence gate
-
-Begin production integration with evidence, not field-name guessing.
-
-SEC EDGAR remains the natural first candidate for historical financial-statement actuals because Step 2.3 already established SEC infrastructure. Analyst consensus will probably require a different provider. No production mapping is approved merely by this document.
-
-Before accepting a production mapping, record evidence for:
-
-| Capability | Evidence required |
-| :--- | :--- |
-| Operating cash flow | Exact SEC/provider concept(s), cash-flow-statement semantics, units, annual-period behavior, amended/restated filing behavior, availability timestamp |
-| Capital expenditures | Exact concept(s), what expenditures are included/excluded, reported sign convention, units, period behavior, availability timestamp |
-| Annual diluted EPS | Confirm reuse of the Step 2.3 evidence-approved annual diluted-EPS path or document any necessary difference |
-| Period alignment | Proof that CFO and CapEx can be paired for the same completed fiscal period without mixing cumulative/interim/full-year values |
-| Market capitalization | Exact provider field/derivation, security scope, currency, observation timestamp, historical/current availability |
-| Consensus EPS FY1/FY2 | Exact meaning of “consensus,” fiscal-period mapping, diluted/basic basis, provider field(s), update cadence, snapshot timestamp, analyst-count/dispersion availability if any |
-| Historical consensus `as_of` | Whether prior consensus snapshots are available; if not, document the limitation and reject unsupported historical-forward combinations |
-| Historical `as_of` actuals | Proof that filing/availability time prevents look-ahead |
-| Ticker/security identity | Preserve the Step 2.3 provider-backed subject-validation principle |
-| Licensing/usage | Confirm that the selected consensus-estimate source may be used in the project's intended mode and outputs |
-
-If SEC filings expose multiple plausible CapEx concepts, do not guess. Define and test a conservative selection rule only after evidence review.
-
-If no acceptable consensus provider is available, do not fabricate forward estimates with an LLM. Surface the limitation and keep the screen indeterminate where forward consensus is an approved hard requirement, provided no other hard criterion already has valid failing evidence.
-
----
-
-## 11. Deterministic fixtures
-
-Add deterministic fixture evidence sufficient to test the preferred horizon plus fallback behavior.
-
-Subject to the Section 3.2 horizon convention, fixtures should include enough annual observations to test a full 5-year compound-growth calculation and a 3-year fallback.
-
-Fixture coverage should include:
-
-- multi-year annual operating-cash-flow facts;
-- matching annual CapEx facts;
-- matching annual diluted-EPS facts;
-- market capitalization with observation timestamp;
-- FY1 consensus diluted-EPS estimate;
-- FY2 consensus diluted-EPS estimate;
-- consensus snapshot timestamps;
-- compatible currencies/units;
-- filing/availability timestamps;
-- CapEx reported with provider-native sign and normalized expenditure lineage;
-- one duplicate/restatement scenario;
-- one future-published fact excluded by `as_of`;
-- one missing CapEx period;
-- one mismatched-period case;
-- one 5-year-insufficient / 3-year-valid fallback case;
-- one shorter-than-3-year insufficient-history case;
-- one zero/negative prior value causing percentage growth to be unavailable;
-- one negative FCF or EPS case;
-- one missing FY1/FY2 consensus case;
-- one historical `as_of` request where current-only consensus cannot be used;
-- one negative/zero market-cap validation case;
-- explicit screen pass, fail, and indeterminate cases;
-- one provider-error path.
-
-No fixture execution may silently fall back to live network data.
-
----
-
-## 12. Pure calculation responsibilities
-
-Keep deterministic arithmetic independent from data access.
-
-Candidate pure functions:
-
-```text
-compute_free_cash_flow(operating_cash_flow, capital_expenditures)
-compute_growth_percent(current, prior)
-compute_cagr(beginning, ending, years)
-compute_fcf_yield(free_cash_flow, market_capitalization)
-classify_fcf_earnings_growth(...)
-evaluate_screen_criterion(...)
-evaluate_fcf_earnings_screen(...)
-```
-
-If a smoothing/trend statistic is approved, it must also be a pure deterministic function.
-
-Pure functions must:
-
-- reject non-finite numeric inputs;
-- never perform provider/cache/filesystem/clock I/O;
-- never infer periods;
-- never invent missing values;
-- return explicit unavailable/invalid semantics rather than NaN or infinity.
-
-CapEx sign normalization belongs at the provider/resolution boundary, not hidden inside a generic subtraction formula, so the pure FCF calculator receives a positive expenditure amount.
-
-Screen evaluation must consume already-resolved metric results plus an explicit typed screen policy. It must not reach into provider data or hide thresholds in presentation code.
-
----
-
-## 13. Direct CLI contract
-
-Proposed command:
+### 4.1 Command
 
 ```text
 financial-agents fcf-growth TICKER [options]
 ```
 
-Initial options should remain minimal until the screen policy is locked. Likely options:
-
 ```text
---growth-years INTEGER          # proposed preferred default 5
---minimum-growth-years INTEGER  # proposed default 3
+--growth-years 3|4|5        # omit for automatic 5 -> 4 -> 3 selection
+--forward-policy POLICY     # display-only, confirmation, or hard-gate
 --as-of DATE_OR_TIMESTAMP
 --data-provider PROVIDER_ID
---consensus-provider PROVIDER_ID
 --no-cache
 --details
 --diagnostics
 --json
+--chart
+```
+
+`--details`, `--diagnostics`, and `--json` are mutually exclusive presentation modes. `--chart`, if implemented, is allowed with the concise or detailed mode and rejected with diagnostic or JSON output. An explicit historical period never falls back; automatic fallback is disclosed.
+
+### 4.2 Concise output contract
+
+The concise output uses this order:
+
+| Order | Line | Required when |
+| ---: | :--- | :--- |
+| 1 | Ticker and strategy name | Always |
+| 2 | `PASS`, `FAIL`, or `INDETERMINATE` and primary reason | Always |
+| 3 | Historical endpoints, elapsed years, observation count, and fallback notice | Always |
+| 4 | Latest completed-period free cash flow | Available |
+| 5 | Free-cash-flow compound annual growth or unavailable reason | Always |
+| 6 | Diluted-earnings-per-share compound annual growth or unavailable reason | Always |
+| 7 | Historical relationship description | Always |
+| 8 | Free-cash-flow yield | Available and requested by policy |
+| 9 | Forward evidence and selected forward policy | Any forward evidence exists or the policy requires it |
+| 10 | Source and freshness summary | Always |
+| 11 | Material warnings | Present |
+| 12 | Strategy limitation | Always |
+
+Classification reasons appear before optional metrics. Data-quality warnings appear before the limitation. Optional-data warnings do not obscure a complete historical conclusion.
+
+Example shape:
+
+```text
+KO — Free Cash Flow & Earnings Growth
+
+Screen: PASS
+Period: FY2020–FY2025 (5 elapsed years; 6 annual observations)
+Free cash flow (FY2025):        $X.XXB
+Free cash flow CAGR:            +Y.Y%
+Diluted EPS CAGR:               +Z.Z%
+Trend: Both free cash flow and diluted EPS increased over the measured period.
+
+FCF yield: A.A% (FY2025 FCF / current market capitalization)
+Forward EPS: FY1 +B.B%; FY2 +C.C% (display only)
+Source: SEC EDGAR annual filings; current market data provider
+Note: Historical financial strength may be consistent with an advantaged business,
+but this screen does not establish market opportunity, scarcity, or durability of moat.
+```
+
+### 4.3 Other presentation modes
+
+All modes render the same `FCFEarningsGrowthResult`; presenters do not recalculate or reclassify it.
+
+- `--details` adds the annual series, calculation endpoints, provider fields, availability dates, normalization, lineage, and optional-metric bases.
+- `--diagnostics` adds cache behavior, provider attempts, candidate selection and rejection, derivation steps, and execution errors.
+- `--json` emits the complete versioned result contract in Part II. An unavailable number is `null` with a reason code, never `NaN`.
+- `--chart` plots only the annual series already present in the result.
+
+The runtime-agent tool returns the same typed result used by the command-line presenter. A runtime agent may summarize that result but cannot replace unavailable evidence, alter the policy, or change the classification.
+
+## 5. Interpretation limits
+
+This strategy does not provide:
+
+- direct measurement of moat, scarcity, market opportunity, or management quality;
+- peer grouping, relative free-cash-flow leadership, universe screening, or ranking;
+- discounted-cash-flow valuation, terminal value, or cost-of-capital estimation;
+- alternate, normalized, or trailing-twelve-month free-cash-flow methods;
+- hidden smoothing or user-selected transformations;
+- a free-cash-flow-yield pass threshold;
+- user-defined combinations or weights for `PASS`;
+- a broad named-investor methodology;
+- a composite score or investment recommendation;
+- language-model-generated financial calculations or forecasts.
+
+---
+
+# Part II — Normative Implementation Contract
+
+Part II is authoritative for implementers. Field names, enum values, nullability, selection rules, and version behavior are normative. Established repository conventions govern ordinary Python organization and shared types only where they do not change this public semantic contract. Any necessary incompatibility requires an explicit amendment to this document.
+
+## 6. Versions and evolution
+
+Every result contains:
+
+```text
+strategy_id = "fcf_earnings_growth"
+method_id = "reported_fcf_eps_cagr"
+method_version = 1
+schema_version = 1
+```
+
+- `strategy_id` identifies the user-selectable analysis family and remains stable.
+- `method_id` identifies the financial method. An alternate free-cash-flow definition, smoothing method, or materially different gate receives a different method identifier.
+- `method_version` increments when existing method semantics change. Previously emitted versions remain interpretable and must not be silently reclassified.
+- `schema_version` increments when the machine-readable result shape, enum set, or field meaning changes.
+- Rendering-only changes do not change either version.
+
+Adding a new method does not redefine historical results produced by this method.
+
+## 7. Normative typed contract
+
+### 7.1 Enums
+
+```text
+HistoricalHorizon = longest_available | 3 | 4 | 5
+ForwardPolicy = display_only | confirmation | hard_gate
+Classification = pass | fail | indeterminate
+TrendClassification =
+    both_growing |
+    fcf_growing_earnings_not |
+    earnings_growing_fcf_not |
+    neither_growing |
+    insufficient_or_nonmeaningful_growth
+MetricStatus = ok | unavailable | not_applicable
+ForwardEvidenceStatus = complete | partial | unavailable
+```
+
+Required reason codes:
+
+```text
+insufficient_history
+non_contiguous_history
+missing_fact
+incompatible_period
+incompatible_units
+incompatible_currency
+incompatible_scope
+ambiguous_fact
+not_available_as_of
+nonpositive_beginning
+nonpositive_ending
+sign_change
+fcf_not_growing
+eps_not_growing
+fcf_and_eps_not_growing
+forward_growth_not_confirmed
+consensus_unavailable
+market_cap_unavailable
+provider_error
+invalid_request
+not_requested
+```
+
+A more specific reason code may be added only with a `schema_version` increment. Human-readable reasons accompany but never replace machine-readable codes.
+
+### 7.2 Policy
+
+```text
+FCFEarningsGrowthPolicy
+    historical_horizon: HistoricalHorizon = longest_available
+    forward_policy: ForwardPolicy = display_only
+    include_fcf_yield: bool = true
+```
+
+The minimum automatic horizon is fixed at three elapsed years and is not configurable in `method_version = 1`.
+
+### 7.3 Metric and forward evidence
+
+```text
+MetricResult
+    status: MetricStatus
+    value: float | None
+    reason_code: ReasonCode | None
+    reason: str | None
+```
+
+When `status = ok`, `value` is finite and both reason fields are `None`. Otherwise `value` is `None` and both reason fields are present.
+
+```text
+ForwardEvidence
+    status: ForwardEvidenceStatus
+    latest_actual_eps: ResolvedInput | None
+    fy1_consensus_eps: ResolvedInput | None
+    fy2_consensus_eps: ResolvedInput | None
+    actual_to_fy1_growth: MetricResult
+    fy1_to_fy2_growth: MetricResult
+    confirms_positive_growth: bool | None
+```
+
+- `complete` requires all three EPS values and both growth metrics.
+- `partial` means at least one consensus estimate is available but the full two-interval evaluation is not.
+- `unavailable` means consensus was requested but neither usable estimate was resolved.
+- `confirms_positive_growth` is `true` only when both growth metrics are positive, `false` when both are meaningful and at least one is nonpositive, and `None` otherwise.
+- Under `display_only` and `confirmation`, partial or unavailable evidence does not change the historical classification.
+- Under `hard_gate`, anything other than `complete` produces `INDETERMINATE` with `consensus_unavailable`.
+
+### 7.4 Annual observation and result
+
+```text
+AnnualGrowthObservation
+    fiscal_year: int
+    period_start: datetime
+    period_end: datetime
+    operating_cash_flow: ResolvedInput
+    normalized_capital_expenditures: ResolvedInput
+    free_cash_flow: ResolvedInput
+    diluted_eps: ResolvedInput
+```
+
+```text
+FCFEarningsGrowthResult
+    schema_version: int = 1
+    strategy_id: str = "fcf_earnings_growth"
+    method_id: str = "reported_fcf_eps_cagr"
+    method_version: int = 1
+    ticker: str
+    requested_as_of: datetime | None
+    effective_as_of: datetime
+    policy: FCFEarningsGrowthPolicy
+    execution_status: CalculationStatus
+    classification: Classification
+    classification_reason_code: ReasonCode | None
+    classification_reason: str | None
+    selected_horizon_years: int | None
+    selected_observation_count: int
+    used_horizon_fallback: bool
+    period_start: datetime | None
+    period_end: datetime | None
+    annual_observations: tuple[AnnualGrowthObservation, ...]
+    fcf_cagr: MetricResult
+    eps_cagr: MetricResult
+    trend_classification: TrendClassification
+    market_capitalization: ResolvedInput | None
+    fcf_yield: MetricResult
+    forward_evidence: ForwardEvidence
+    warnings: tuple[str, ...]
+    diagnostics: ResolutionTrace
+```
+
+Result invariants:
+
+- successful `PASS` or `FAIL` has `execution_status = ok`, both historical metrics `ok`, and non-null period fields;
+- `PASS` has no classification reason; `FAIL` and `INDETERMINATE` have both classification-reason fields;
+- `selected_observation_count` equals the length of `annual_observations`;
+- a selected horizon of `N` has exactly `N + 1` observations;
+- `used_horizon_fallback` is true only for `longest_available` when fewer than five elapsed years are selected;
+- optional-metric failure does not change `execution_status` or historical classification unless `forward_policy = hard_gate`;
+- negative financial values remain in `ResolvedInput`; unavailable calculated metrics use `MetricResult` and never `NaN`.
+
+Execution status is assigned independently:
+
+| Condition | Execution status | Classification |
+| :--- | :--- | :--- |
+| Required facts resolve and calculations are meaningful | `ok` | `PASS` or `FAIL` |
+| Valid facts resolve but compound growth is mathematically nonmeaningful | `ok` | `INDETERMINATE` |
+| Required evidence is missing or incompatible | `input_unavailable` | `INDETERMINATE` |
+| A required provider operation fails | `provider_error` | `INDETERMINATE` |
+| The request or policy is invalid | `invalid_input` | `INDETERMINATE` |
+
+When `include_fcf_yield = false`, `fcf_yield` has `status = not_applicable` and `reason_code = not_requested`.
+
+When several conditions apply, `classification_reason_code` identifies the first applicable category in this order: invalid request, required-provider error, incompatible or missing historical fact, insufficient or non-contiguous history, nonmeaningful historical growth, unavailable required consensus, then failed growth gate. More specific details remain in the affected `MetricResult`, diagnostics, and warnings. Failed gates use `fcf_not_growing`, `eps_not_growing`, `fcf_and_eps_not_growing`, or `forward_growth_not_confirmed` as applicable.
+
+`CalculationStatus`, `ResolvedInput`, and `ResolutionTrace` reuse the established shared contracts. If those contracts require minimal generalization beyond their current valuation-oriented names, their behavior and invariants remain unchanged.
+
+## 8. Deterministic data-selection algorithms
+
+### 8.1 Analysis boundary and candidate eligibility
+
+The resolver captures one `effective_as_of` value for the complete analysis:
+
+```text
+effective_as_of = requested_as_of if supplied, otherwise captured_analysis_time
+```
+
+Every historical fact, current-market observation, and consensus estimate is evaluated against this same boundary.
+
+A provider fact is eligible only when:
+
+1. it belongs to the requested security;
+2. it has finite numeric value and supported units;
+3. it represents a completed fiscal-year duration, not an interim, year-to-date, quarterly, or trailing-twelve-month period;
+4. its period end is on or before `effective_as_of`;
+5. its publication or availability timestamp is on or before `effective_as_of`;
+6. its accounting basis matches the requested semantic field.
+
+An incomplete current fiscal year and all trailing-twelve-month facts are excluded before ranking. Completed annual facts remain eligible even when a provider also supplies a trailing-twelve-month series.
+
+### 8.2 Compatibility predicate
+
+Operating cash flow, capital expenditures, and diluted earnings per share form one `AnnualGrowthObservation` only when all of the following match:
+
+- normalized security identity;
+- fiscal-year label;
+- exact period start and period end;
+- annual duration basis;
+- ISO 4217 currency for monetary facts;
+- compatible unit families: currency for cash-flow components and currency-per-share for diluted earnings per share;
+- consolidated reporting scope and share class;
+- diluted earnings-per-share basis and split treatment.
+
+Unknown currency, scope, or basis does not equal a known value. If the provider cannot prove compatibility, the period is unavailable. Currency conversion is not supported by this method.
+
+### 8.3 Capital-expenditure normalization
+
+Each approved provider mapping declares a sign convention and one transform:
+
+```text
+positive_expenditure: normalized = raw
+negative_cash_outflow: normalized = -raw
 ```
 
 Rules:
 
-- positional ticker remains the preferred identity style established in Step 2.3;
-- default analysis prefers the approved 5-year horizon and truthfully falls back to the longest approved valid horizon down to 3 years;
-- the actual horizon used is always exposed;
-- unsupported requested horizons and insufficient history are reported through the appropriate software/analysis status (`invalid_input` or `input_unavailable`) and do not automatically imply screen `FAIL`;
-- do not add threshold flags until there is a real user need for per-run threshold customization; first lock a named default screen policy in configuration/code;
-- do not add awkward unperiodized repeated numeric override flags merely to mimic Graham;
-- if series/forecast overrides are later needed, design an explicit period-tagged representation rather than accepting ambiguous ordered floats;
-- normal failure output must not expose provider-library implementation details or framework tracebacks.
+- normalized capital expenditures must be finite and greater than or equal to zero;
+- zero is valid and remains zero;
+- a value that contradicts the declared sign convention is rejected as `ambiguous_fact`, not passed through `abs()`;
+- missing capital expenditures makes that annual free-cash-flow observation unavailable;
+- multiple candidate concepts follow the approved provider precedence rule;
+- concepts are never summed unless the approved mapping proves that they are non-overlapping components of the project's capital-expenditure definition;
+- the raw value, convention, transform, and selected concept remain in lineage.
 
-A future batch/universe command may consume this per-security screen, but is not required for Step 2.4.
+### 8.4 Amendments, restatements, and duplicates
 
----
+Selection occurs after eligibility filtering:
 
-## 14. Investor-facing presentation
+1. group candidates by semantic field, security, fiscal period, basis, units, currency, and scope;
+2. exclude every candidate with `available_at > effective_as_of`;
+3. select the eligible candidate with the latest `available_at`;
+4. if equally timed candidates have the same normalized value, select deterministically by a stable provider fact identifier and record the duplicate in lineage;
+5. if equally ranked candidates have different normalized values and no approved provider rule resolves them, return `ambiguous_fact` and do not choose silently.
 
-Reuse the Step 2.3 progressive-disclosure grammar with a strategy-specific presenter.
+This selects the latest restatement knowable at the analysis boundary while preventing a later amendment from leaking into an earlier analysis.
 
-### 14.1 Default concise view
+### 8.5 Series and horizon selection
 
-Recommended information order:
+After compatible annual observations are assembled:
 
-1. ticker + `Free Cash Flow & Earnings Growth`;
-2. **screen result: PASS / FAIL / INDETERMINATE**;
-3. historical horizon actually used;
-4. historical diluted-EPS growth;
-5. FY1/FY2 consensus EPS estimates and forward growth where meaningful;
-6. historical FCF growth/trajectory;
-7. current FCF yield;
-8. short earnings-versus-FCF comparison;
-9. high-level source/freshness line;
-10. material warnings / unavailable criterion reasons;
-11. short limitation.
+1. sort by period end from oldest to newest;
+2. reject duplicate fiscal years and any gap inside a candidate span;
+3. when a horizon is explicit, select the newest exact `N + 1` contiguous observations or return `insufficient_history`;
+4. for `longest_available`, attempt five, four, and three elapsed years in that order;
+5. use the first valid span and record whether fallback occurred;
+6. do not use fewer than four observations.
 
-Example shape only:
+Before calculating compound annual growth, reject a selected series whose beginning or ending value is nonpositive or whose values change sign within the selected span. The result preserves the annual values and uses the applicable reason code.
+
+## 9. Provider mapping record
+
+No production provider mapping for operating cash flow, capital expenditures, market capitalization, or FY1/FY2 consensus is approved merely by this design.
+
+Before a provider capability is enabled, its approved mapping must be added to this document or to a companion document titled **Free Cash Flow & Earnings Growth Provider Mapping Record**. That record is part of the strategy contract and contains:
+
+| Required field | Meaning |
+| :--- | :--- |
+| Provider and capability | Provider identifier and semantic field |
+| Exact source concepts | Every accepted provider field or filing concept |
+| Selection precedence | Deterministic priority among candidates |
+| Financial meaning | Included and excluded amounts |
+| Sign transform | `positive_expenditure`, `negative_cash_outflow`, or not applicable |
+| Period rules | Annual-duration and fiscal-period interpretation |
+| Units, currency, and scope | Compatibility evidence |
+| Availability timestamp | How public knowability is established |
+| Amendments and duplicates | Provider-specific deterministic selection |
+| Security identity | How the ticker maps to the intended security |
+| Evidence | Authoritative source, retrieval date, and reviewed examples |
+| Approval | Human approval date and resulting tests |
+
+The implementation cannot enable a production mapping until this record and its deterministic tests exist. Unsupported capabilities remain explicitly unavailable.
+
+## 10. Deterministic calculation boundary
+
+Financial arithmetic resides in pure Python functions. Candidate functions are:
 
 ```text
-KO — Free Cash Flow & Earnings Growth
-Screen: PASS
-Historical window: 5-year growth horizon
-
-Diluted EPS growth:              +X.X% CAGR
-Consensus EPS FY1:               $Y.YY  (+A.A% vs latest actual)
-Consensus EPS FY2:               $Z.ZZ  (+B.B% vs FY1 consensus)
-Free cash flow growth:           +C.C% CAGR
-FCF yield:                        D.D%
-
-Trend: Historical earnings and free cash flow are both expanding.
-Source: SEC EDGAR actuals; <consensus provider> estimates; <market-data provider> market cap
-Note: FCF = operating cash flow - capital expenditures.
+compute_free_cash_flow(operating_cash_flow, normalized_capital_expenditures)
+compute_growth_percent(current, prior)
+compute_cagr(beginning, ending, elapsed_years)
+compute_fcf_yield(free_cash_flow, market_capitalization)
+classify_fcf_earnings_growth(...)
 ```
 
-A failing or indeterminate screen should identify the decisive criterion in concise form without dumping all diagnostics.
+Pure functions reject non-finite inputs, perform no provider/cache/filesystem/clock/language-model access, infer no periods or accounting bases, and return typed results rather than `NaN` or infinity. Data selection, sign normalization, and provenance assembly occur outside these functions.
 
-Do not hard-code this exact formatting before presenter tests; preserve the common visual grammar rather than exact whitespace.
+## 11. Verification contract
 
-### 14.2 `--details`
+Deterministic fixtures provide at least six compatible completed fiscal years and never fall back to live data. Automated verification covers:
 
-Show:
+1. exact free-cash-flow, growth, and yield arithmetic;
+2. each capital-expenditure sign convention, zero, missing data, contradictory signs, concept precedence, and forbidden summing;
+3. compatibility across identity, period, basis, units, currency, scope, and split treatment;
+4. exclusion of interim, incomplete, year-to-date, quarterly, and trailing-twelve-month facts;
+5. amendment/restatement selection before and after `as_of`, including unresolved ties;
+6. three-, four-, and five-year compound annual growth and the six-observation/five-interval example;
+7. automatic fallback, strict explicit periods, gaps, and insufficient history;
+8. positive, zero, negative, and sign-changing endpoints;
+9. every classification, trend description, execution status, reason code, and invariant;
+10. complete, partial, unavailable, and not-requested forward evidence under every forward policy;
+11. optional market-capitalization failure and the prohibition on yield affecting classification;
+12. complete free-cash-flow component lineage and historical point-in-time behavior;
+13. exact concise-output order, warning precedence, and presentation-mode combinations;
+14. identical typed results across command-line, JSON, chart, and runtime-agent presentation paths;
+15. schema and method version behavior;
+16. clean invalid-request, missing-input, and provider-error surfaces;
+17. absence of live provider and language-model calls from deterministic tests.
 
-- per-criterion screen results, observed values, rules, and reasons;
-- annual CFO, normalized CapEx, derived FCF, and diluted-EPS series;
-- fiscal periods;
-- FCF growth endpoints and actual horizon used;
-- any approved smoothing/trend statistic alongside raw FCF;
-- FY1/FY2 consensus EPS values, forecast periods, snapshot timestamp, and derived forward growth;
-- market capitalization, valuation date, and FCF-yield numerator period;
-- provider concepts/fields;
-- availability dates;
-- CapEx normalization;
-- derived lineage;
-- fallback-horizon warnings;
-- other material limitations.
-
-### 14.3 `--diagnostics`
-
-Show software resolution behavior only:
-
-- cache behavior;
-- provider attempts;
-- selection/rejection reasons;
-- derivation steps;
-- forecast-period matching;
-- horizon fallback decisions;
-- unavailable/error classification.
-
-Do not confuse cache state with financial source provenance or screen failure with software failure.
-
-### 14.4 `--json`
-
-Use the existing machine-readable presentation conventions and explicit schema versioning policy.
-
-Requirements:
-
-- unavailable growth metrics are JSON `null` with a structured reason, never `NaN`;
-- screen decision and criterion results are explicit;
-- historical actuals and forward consensus estimates are separate arrays/objects;
-- numerator/denominator dates for FCF yield are explicit;
-- actual growth horizon used is explicit.
-
----
-
-## 15. Testing requirements
-
-At minimum test:
-
-1. exact FCF arithmetic;
-2. CapEx sign normalization outside the pure calculator;
-3. exact YoY growth;
-4. exact 5-year preferred CAGR behavior under the approved horizon convention;
-5. exact 3-year fallback behavior;
-6. shorter-than-3-year history → insufficient;
-7. zero/negative prior denominator → percentage growth unavailable;
-8. zero/negative CAGR endpoint → CAGR unavailable;
-9. negative latest FCF remains reportable;
-10. exact FCF-yield arithmetic;
-11. nonpositive/invalid market-cap denominator is rejected explicitly;
-12. incompatible periods are rejected;
-13. incompatible units/currencies are rejected;
-14. missing CapEx makes the affected FCF period unavailable;
-15. strict `as_of` excludes later filings/restatements;
-16. eligible duplicate/restatement selection is deterministic;
-17. annual diluted-EPS reuse preserves basis/provenance;
-18. FY1/FY2 consensus periods are mapped deterministically;
-19. exact forward-growth derivation under the approved rule;
-20. current-only consensus cannot masquerade as historical consensus evidence;
-21. missing required consensus evidence with no other valid hard failure → screen indeterminate, not fabricated fail;
-22. screen pass with all hard criteria satisfied;
-23. screen fail with valid evidence and at least one hard criterion missed;
-24. screen indeterminate with required evidence unavailable/nonmeaningful and no valid hard failure;
-25. valid hard failure plus another required criterion unavailable → screen fail;
-26. earnings-versus-FCF divergence classification uses neutral deterministic semantics;
-27. cache/provider/derived lineage remains truthful;
-28. concise/details/diagnostics/JSON presentation semantics;
-29. invalid/missing ticker and provider errors produce one clean user-facing failure surface;
-30. no live provider or LLM calls in automated tests.
-
-If a CapEx-smoothing/trend statistic is approved, add exact tests for its calculation, missing-history behavior, and presentation.
-
-After implementation, run the complete repository quality gate required by the milestone plan.
-
----
-
-## 16. Proposed implementation slices
-
-### Slice A — reconnaissance and policy lock
-
-Inspect the current post-Step-2.3 repository and answer:
-
-- which Step 2.3 fact/resolver/provenance types can be reused unchanged;
-- which enums/requests need minimal extension;
-- whether `ValuationFactsProvider` naming is tolerable for the new strategy or a concrete incompatibility exists;
-- which SEC/provider concepts plausibly represent CFO and CapEx;
-- how annual period pairing/restatement selection currently works;
-- which provider can supply market capitalization with adequate timestamp semantics;
-- which provider(s) can supply FY1/FY2 consensus diluted-EPS estimates with adequate period, snapshot, and licensing semantics;
-- whether historical consensus snapshots are supported;
-- what presenter/CLI patterns are reusable;
-- the exact files likely to change.
-
-Make no production changes.
-
-**Stop for human review and resolve all Section 3 policy locks that affect Slice B before implementation begins.**
-
-### Slice B — pure FCF/growth/yield math and screen semantics
-
-Implement:
-
-- pure FCF calculation;
-- percentage-growth helper;
-- CAGR helper;
-- FCF-yield helper;
-- approved FCF trajectory/smoothing helper, if any;
-- typed strategy result and submetric-status semantics;
-- typed screen policy / criterion result / screen decision;
-- deterministic unit tests.
-
-No provider or CLI work.
-
-### Slice C — historical financial-fact extension, resolution, and fixtures
-
-Minimally extend the existing provider-neutral fact/resolution system for CFO and CapEx, add period-aligned FCF derivation with lineage, annual EPS/FCF history assembly, preferred-horizon/fallback resolution, market-cap fact semantics, and deterministic multi-year fixtures.
-
-No production provider guessing.
-
-### Slice D — provider evidence and forward-consensus integration
-
-Evidence and implement the minimum safe production path:
-
-- preferably reuse SEC EDGAR infrastructure for historical CFO/CapEx/annual EPS if proven compatible;
-- integrate an evidence-approved market-cap source;
-- integrate evidence-approved FY1/FY2 consensus EPS data;
-- enforce forecast-period and `as_of` semantics;
-- preserve provider/source boundaries explicitly.
-
-Unsupported filings, securities, forecast histories, or provider semantics remain unavailable rather than guessed.
-
-### Slice E — strategy assembly and hard-screen evaluation
-
-Assemble the historical, valuation, and forward-consensus evidence into the strategy result and evaluate the approved hard-screen criteria.
-
-Confirm explicit pass/fail/indeterminate behavior across deterministic fixtures before investor presentation work.
-
-### Slice F — investor CLI and presentation
-
-Add `fcf-growth` direct execution plus concise/details/diagnostics/JSON output using the approved shared grammar.
-
-Perform representative live validation only after deterministic tests are green.
-
-### Slice G — documentation and full gate
-
-Synchronize documentation, run full Ruff/format/strict-mypy/pytest/diff gates, review the complete Step 2.4 diff, and stop for explicit human completion approval before Step 2.5 Golden work begins.
-
----
-
-## 17. Acceptance criteria
-
-Step 2.4 is complete only when:
-
-- [ ] the Section 3 policy locks are explicitly resolved;
-- [ ] the strategy is named and typed independently from Momentum and Graham;
-- [ ] screen decision is represented separately from software/calculation status;
-- [ ] explicit pass/fail/indeterminate criterion semantics are tested;
-- [ ] the canonical initial `FCF = CFO - CapEx` definition is explicit and tested;
-- [ ] CapEx provider sign conventions are normalized transparently;
-- [ ] annual CFO and CapEx are paired only across compatible fiscal periods;
-- [ ] the preferred 5-year historical horizon and 3-year minimum/fallback are implemented under an explicitly approved year-count convention;
-- [ ] annual diluted-EPS growth uses an explicit documented basis;
-- [ ] FY1/FY2 consensus diluted-EPS estimates use explicit provider, forecast-period, and snapshot semantics;
-- [ ] forward growth derivation is explicit and tested;
-- [ ] historical `as_of` does not silently use current-only consensus estimates;
-- [ ] FCF yield uses an explicit numerator basis, market-cap denominator, currency, and valuation timestamp;
-- [ ] negative/zero values are represented truthfully without NaN/infinity or fabricated fallbacks;
-- [ ] the screen does not rely solely on a single latest FCF year;
-- [ ] any approved smoothing/trend metric is separately named and does not rewrite raw annual FCF;
-- [ ] strict `as_of` prevents look-ahead for historical facts and for any provider capability claiming point-in-time consensus support;
-- [ ] derived FCF retains full component lineage;
-- [ ] the Step 2.3 provider/cache/resolver/provenance architecture is reused or minimally extended rather than duplicated;
-- [ ] deterministic fixtures cover pass, fail, indeterminate, preferred horizon, fallback horizon, missing data, period mismatch, negative/zero growth, restatement, consensus, market-cap, and historical-boundary cases;
-- [ ] a representative supported production ticker can run the analysis without manual financial-statement arithmetic;
-- [ ] concise/details/diagnostics/JSON output follows the established investor-facing grammar;
-- [ ] actual annual history and forward consensus evidence are visible enough for qualitative investor judgment after the screen;
-- [ ] automated tests make no live network or LLM calls;
-- [ ] full repository quality gates pass;
-- [ ] documentation matches implemented semantics;
-- [ ] the final Step 2.4 diff receives explicit human approval.
-
-After approval, stop. Step 2.5 Golden-Suite implementation begins only as a separately reviewed step.
-
----
-
-## 18. Explicit non-goals
-
-Step 2.4 does not include unless separately approved during the policy checkpoint:
-
-- discounted cash-flow valuation;
-- terminal-value modeling;
-- cost-of-capital estimation;
-- LLM-generated growth forecasts;
-- enterprise-value-based FCF yield / FCFF valuation;
-- FCFE modeling;
-- owner-earnings normalization;
-- maintenance-versus-growth CapEx estimation;
-- stock-based-compensation adjustment;
-- working-capital normalization beyond the CFO reported in the canonical FCF formula;
-- FCF-to-net-income as a required core ratio;
-- FCF margin as a required core ratio;
-- P/FCF as a required core metric;
-- a broad named-investor methodology;
-- arbitrary composite scoring/ranking;
-- claims that the screen proves accounting fraud or manipulation;
-- investment recommendations;
-- market-wide universe ingestion/batch scanning unless separately approved;
-- Golden Suite/evaluator implementation;
-- durable SQLite persistence/migrations;
-- watchlists or Analysis Run persistence;
-- a generic strategy/plugin registry;
-- unrelated refactoring.
-
-The purpose is to add one useful, auditable screening strategy that combines cash-flow reality, earnings growth, forward expectations, and a simple FCF valuation ratio while proving the existing architecture can accommodate the necessary historical and forecast data cleanly.
+The completed implementation also satisfies the repository's formatting, linting, strict type-checking, coverage, documentation, and full test gates.
