@@ -10,7 +10,7 @@ import pytest
 from src.analysis.graham_value.input_resolver import GrowthValueInputAssembly
 from src.analysis.graham_value.models import GrahamGrowthValueResult
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.provenance import ResolvedInput, SourceKind
+from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.reporting.graham import GrahamGrowthPresentation, render_graham_growth
 from src.reporting.presentation import PresentationMode
 

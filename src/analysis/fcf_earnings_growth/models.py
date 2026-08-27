@@ -17,8 +17,8 @@ from datetime import datetime
 from enum import StrEnum
 
 from src.core.analysis_status import CalculationStatus
-from src.data.valuation.provenance import ResolvedInput
-from src.data.valuation.resolution_trace import ResolutionTrace
+from src.data.financial.provenance import ResolvedInput
+from src.data.financial.resolution_trace import ResolutionTrace
 
 # ---------------------------------------------------------------------------
 # Fixed identifiers (method_version = 1 / schema_version = 1)

@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-26 — Reconciled the Graham design with the completed implementation and added a bounded shared-contract hardening gate to Step 2.4 closeout, before Golden Suite work begins.<br/>
-**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slice A complete and approved / Slice B authorized but not started, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
+**Revised:** 2026-08-27 — Added the C1R financial-fact/resolved-input naming migration before further Step 2.4 strategy coupling.<br/>
+**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A and B complete / Slice C1 complete / C1R naming migration complete and approved / C2 authorized next, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -665,7 +665,9 @@ The minimum new semantic financial facts are:
 
 Annual diluted EPS should reuse the Step 2.3 capability wherever semantically compatible.
 
-A Step 2.3 type or class may be renamed/generalized only if reconnaissance demonstrates a concrete new-strategy incompatibility; do not refactor merely because an old name now feels narrow.
+Slice C1 demonstrated a concrete new-strategy incompatibility in the shared vocabulary: operating cash flow and capital expenditures are general financial-statement facts, while the shared cache accepts provider- or derived-origin `ResolvedInput` objects and does not enforce a valuation-only domain. C1R therefore performs one deliberate naming migration before C2 adds another consumer. Provider-facing `Valuation*` fact contracts become `Financial*` fact contracts, and cache-facing `ValuationCache*` contracts become `ResolvedInputCache*` contracts. Numeric `value` fields retain that name because they denote a fact's numeric payload, not a company valuation.
+
+The migration changes vocabulary, imports, and documentation without changing provider, resolution, cache, or financial semantics. Do not retain competing permanent aliases unless review identifies a concrete external compatibility requirement. Pass focused Graham and FCF regressions and the complete repository quality gate, then stop for human review before C2.
 
 #### 4.4.5 Point-in-time and provenance rules
 
@@ -770,11 +772,13 @@ Implement and review Step 2.4 in bounded slices:
 
 1. **A — reconnaissance and product-policy lock:** inspect post-Step-2.3 reuse seams, provider evidence candidates, likely files, and resolve the product-policy checkpoint. Make no production changes. Stop for human review.
 2. **B — pure FCF/growth math and typed result semantics:** implement deterministic arithmetic/results and focused tests only.
-3. **C — financial-fact extension, resolution, and fixtures:** minimally extend the provider-neutral fact/resolution system and add period-aligned FCF derivation plus deterministic multi-year fixtures.
-4. **D — provider evidence and production integration:** evidence and implement the minimum safe production path; unsupported evidence shapes remain unavailable.
-5. **E — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
-6. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout.
-7. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
+3. **C1 — financial-fact contracts and period-aware cache:** minimally extend the shared fact/provenance contracts for annual operating cash flow, capital expenditures, and period-scoped cache entries. Stop for human review.
+4. **C1R — deliberate shared-boundary naming migration:** before another strategy couples to the Step 2.3 names, rename the provider-facing `Valuation*` fact vocabulary to `Financial*` and the cache-facing `ValuationCache*` vocabulary to `ResolvedInputCache*`. Reconcile production code, tests, type annotations, documentation, and imports in one bounded migration; preserve behavior and stop for human review after the complete gate passes.
+5. **C2 — annual-series resolution and fixtures:** add period-aligned FCF derivation plus deterministic multi-year fixtures on the renamed shared contracts.
+6. **D — provider evidence and production integration:** evidence and implement the minimum safe production path; unsupported evidence shapes remain unavailable.
+7. **E — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
+8. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout.
+9. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
 
 #### 4.4.10 Pre-Golden shared-contract hardening
 
@@ -1399,7 +1403,7 @@ All of the following must be true before declaring the milestone complete and op
 4. **Branch granularity** — Fine-grained branches mapped to coherent implementation units.
 5. **Telemetry boundaries** — Telemetry captures observable provider output; missing metrics are stored explicitly as `None` rather than estimated.
 6. **Heterogeneous strategy validation** — Momentum and Benjamin Graham are established in Step 2.3; Free Cash Flow & Earnings Growth is added in Step 2.4; Step 2.5 evaluates broad strategy selection, Graham method selection, and deterministic numerical correctness across the approved v0.2 set.
-7. **Current quote abstraction** — Current market-price retrieval is a first-class valuation-input capability rather than an implicit one-day historical-data workaround.
+7. **Current quote abstraction** — Current market-price retrieval is a first-class financial-fact capability rather than an implicit one-day historical-data workaround.
 8. **Graham result semantics** — The Graham Number is a screening ceiling/maximum indicated price, while the growth formula is a separate forecast-dependent estimate. An unavailable current price produces an unavailable (`None`) margin of safety rather than numeric zero. Positive margin of safety means price is below the selected method's reference value; negative means it exceeds that value.
 9. **Strategy-specific determinism** — Each analytical strategy owns its deterministic mathematical implementation and typed configuration/result models. The LLM selects and orchestrates strategies but does not perform the underlying financial calculations.
 10. **Step 2.2 enforcement fallback** — Native schema enforcement is preferred when capability is confirmed; prompt-based schema instructions with Pydantic validation/retry provide the configured fallback when native capability is unavailable or unknown; legacy parsing remains the final compatibility fallback.
@@ -1414,6 +1418,7 @@ All of the following must be true before declaring the milestone complete and op
 19. **Step 2.4 roadmap placement** — Free Cash Flow & Earnings Growth is implemented before the Golden Suite to address concrete prospective Real-User demand and to exercise the Step 2.3 strategy/data/provenance architecture before evaluation infrastructure is frozen.
 20. **Step 2.4 baseline interpretation** — The reviewed governing design resolves the product-policy checkpoint: the first version is a historical actuals screen using project-defined FCF, diluted-EPS CAGR, longest-available 5 → 4 → 3-year selection, and explicit `PASS` / `FAIL` / `INDETERMINATE` semantics. FCF yield and FY1/FY2 consensus EPS are optional evidence-gated context under the documented policies; DCF, P/FCF thresholds, peer ranking, broad named-investor methodology, and composite recommendation scoring are not implied.
 21. **Pre-Golden hardening placement** — The Graham design-to-implementation reconciliation does not reopen completed Step 2.3. Its bounded result, presentation, quote, compatibility, routing, and regression corrections are a mandatory Step 2.4 closeout gate before Step 2.5 begins.
+22. **Shared financial-fact naming** — Slice C1 proved that the Step 2.3 `Valuation*` names no longer describe a valuation-only boundary. Complete the bounded C1R migration to provider-facing `Financial*` fact names and cache-facing `ResolvedInputCache*` names before C2 adds another strategy consumer. Preserve semantics and avoid permanent aliases without a demonstrated compatibility need.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1425,9 +1430,9 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; its governing design, Slice A reconnaissance, and product-policy checkpoint are approved. Slice B is authorized but not started.
+Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; Slices A, B, C1, and C1R are complete and approved. C2 is authorized next.
 
-1. Begin Slice B with pure FCF/growth/yield calculations, strategy-local typed result/classification semantics, and focused deterministic tests only.
+1. Begin C2 annual-series resolution and deterministic fixtures on the approved shared financial-fact and resolved-input cache contracts.
 2. Implement and review the remaining Free Cash Flow & Earnings Growth work in the bounded slices in Section 4.4.9.
 3. Complete and review the pre-Golden Graham/shared-contract hardening and Momentum modernization in Section 4.4.10.
 4. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.

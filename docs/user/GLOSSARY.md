@@ -54,7 +54,7 @@ The principle that materially different financial strategies may use different i
 ## Market data
 
 ### `BaseDataClient`
-The existing historical-price provider boundary used by deterministic analyzers and data consumers. Financial Data Agents supplements it with a separate valuation-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
+The existing historical-price provider boundary used by deterministic analyzers and data consumers. Financial Data Agents supplements it with a separate financial-facts provider/resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics rather than enlarging `BaseDataClient` into a generic financial-data interface.
 
 ### Data Provider
 An external or local source that supplies market prices, company financial facts, or economic-series observations. Examples include a quote API, a financial-statements service, or a macroeconomic data service.
@@ -83,7 +83,7 @@ A **cache hit** finds a valid reusable observation. A **cache miss** finds none.
 A time-indexed series of observations used for time-series calculations such as Momentum.
 
 ### Current Quote / Current Market Price
-A point-in-time market price used for current valuation comparison. For an analysis with an explicit historical `as_of`, a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical valuation requests rather than substituting today's price.
+A point-in-time market price used for current valuation comparison. For an analysis with an explicit historical `as_of`, a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical financial-fact requests rather than substituting today's price.
 
 ### Company Financial Facts / Fundamentals
 Reported accounting values such as earnings, common shareholders' equity, and shares outstanding. They come from financial statements and have reporting periods that usually differ from market-quote timestamps.

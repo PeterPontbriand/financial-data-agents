@@ -102,7 +102,7 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 - LLM and data providers sit behind narrow boundaries.
 - `BaseAnalyzer` is the existing analyzer abstraction; do not invent a parallel strategy framework without evidence it is required.
 - `BaseDataClient` remains the historical-price provider boundary.
-- Step 2.3 valuation facts use a dedicated provider/resolution boundary rather than enlarging a historical-price-shaped interface.
+- Step 2.3 financial facts use a dedicated provider/resolution boundary rather than enlarging a historical-price-shaped interface.
 - Historical prices, current quotes, company fundamentals, and macro series are distinct capabilities even when a composed façade coordinates them.
 - Different strategies may have different inputs and result models.
 - Financial method names and result meanings are explicit; Graham Number and Graham growth value are not interchangeable.
@@ -183,9 +183,9 @@ CLI / bounded orchestrator
            └─ graham_growth_value (explicit)
       → data boundaries
         ├─ BaseDataClient → historical prices
-        └─ ValuationFactsProvider → quote/fundamentals/macro contract
+        └─ FinancialFactsProvider → quote/fundamentals/macro contract
              → GrahamInputResolver ← override/cache
-             → SEC / Massive / Yahoo valuation adapters
+             → SEC / Massive / Yahoo financial-facts adapters
       → deterministic result
   → investor presentation
       → concise / details / diagnostics / JSON
@@ -254,9 +254,9 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 # 11. Data Strategy
 
 - **Historical-price boundary:** `BaseDataClient` remains focused on historical market series.
-- **Valuation-input boundary:** Step 2.3 uses Option A—a dedicated valuation-facts provider boundary, narrow cache seam, input resolver, and typed provenance models.
+- **Financial-fact boundary:** Step 2.3 uses a dedicated financial-facts provider boundary, narrow resolved-input cache seam, input resolver, and typed provenance models.
 - **SEC EDGAR production facts:** eligible completed fiscal-year diluted EPS plus fiscal-year-end balance-sheet components used for conservative BVPS derivation. Direct SEC BVPS is not claimed.
-- **Yahoo production quote:** narrow current-price valuation adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts; historical valuation-quote support is not claimed.
+- **Yahoo production quote:** narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts; historical valuation-quote support is not claimed.
 - **Massive when explicitly selected:** current TTM diluted EPS and current quote when explicitly selected; live access requires `MASSIVE_API_KEY` and current facts do not masquerade as historical evidence.
 - **Historical data:** first-class capability used by Momentum/time-series strategies.
 - **Current quote:** first-class valuation input used for Graham price comparison; it is not a one-day historical request.
@@ -266,7 +266,7 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 - **Resolution:** each field uses override → valid cache → provider → unavailable precedence.
 - **Subject validation:** override arithmetic alone does not verify a ticker; authoritative direct Graham output requires provider-backed security evidence.
 - **Temporal correctness:** requested `as_of` rejects information not yet available; current snapshots do not silently answer historical requests.
-- **Step 2.3 fixtures:** minimal deterministic data proving historical-price and valuation-input contracts plus resolution precedence/provenance; no live fallback.
+- **Step 2.3 fixtures:** minimal deterministic data proving historical-price and financial-fact contracts plus resolution precedence/provenance; no live fallback.
 - **Step 2.4 fixtures:** Golden evidence using the stable Step 2.3 contract.
 - **Step 3.1 production persistence:** SQLite/WAL/cache-backed implementation of the shared contract.
 - **Step 3.4 Analysis Run persistence:** durable investor-domain history of requested analyses, configs, typed results, provenance, warnings, and timestamps; distinct from execution telemetry.
@@ -345,7 +345,7 @@ Single-node local usage is the primary target. Optimize deterministic local oper
 Extension points include:
 - new analyzers under `src/analysis/`;
 - new historical-price adapters behind `BaseDataClient`;
-- new valuation quote/fundamentals/macro adapters behind the dedicated Step 2.3 valuation-input boundary;
+- new valuation quote/fundamentals/macro adapters behind the dedicated Step 2.3 financial-fact boundary;
 - new typed tools through existing registration/dispatch;
 - repository implementations under `src/data/repositories/`.
 
@@ -466,7 +466,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 
 - **BaseAnalyzer** — Existing abstract analysis boundary.
 - **BaseDataClient** — Historical-price provider boundary.
-- **ValuationFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro-observation contracts required by Graham analysis.
+- **FinancialFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro-observation contracts required by Graham analysis.
 - **GrahamInputResolver** — Field-level override/cache/provider/unavailable resolution with typed provenance and time boundaries.
 - **Analysis Run** — Durable investor-domain record of one requested analysis, distinct from trajectory telemetry; contains configuration, status, typed result, provenance, warnings, timestamps, and version identifiers.
 - **Watchlist** — Named local set of tickers plus supported requested analysis configuration used by Step 3.4 user-initiated refresh.
@@ -492,7 +492,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | 2026-08-13 | Positioning, user-validation gate, and Light Mode decisions |
 | 2026-08-16 | Telemetry/persistence sequencing and deterministic Golden-data boundary clarified |
 | 2026-08-19 | Heterogeneous strategy independence adopted; Graham moved into v0.2 Step 2.3; current quote made first-class; Golden Suite separated into Step 2.4; circuit breakers bumped to Step 2.5; speculative strategy framework explicitly rejected |
-| 2026-08-20 | Graham split into default Graham Number and explicit growth-value methods; Option A valuation provider/cache/resolver boundary adopted; provenance, `as_of`, and no-look-ahead rules made explicit; compact Step 2.3 specification added |
+| 2026-08-20 | Graham split into default Graham Number and explicit growth-value methods; Option A financial-facts provider/cache/resolver boundary adopted; provenance, `as_of`, and no-look-ahead rules made explicit; compact Step 2.3 specification added |
 | 2026-08-21 | Investor-facing UX reconsidered before Slice F: E3 added for a user-viable standard Graham data configuration; F split into presentation/direct CLI; Step 3.4 watchlists + Analysis Run library added; Light Mode validation strengthened; bounded v0.2 agentic workflow separated from v1.0 unattended autonomy |
 | 2026-08-24 | F2 investor workflow synchronized: standard Graham analyses using SEC EDGAR financial facts, Yahoo quote routing, explicit Massive TTM configuration, provider-backed ticker verification, result-first concise presentation, and explicit AAA-yield override policy recorded; Slice G final synchronization/gate began |
 
@@ -525,7 +525,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | D21 | 2026-08-19 | Current quote is a first-class market-data capability distinct from historical series | Avoids one-day-history workaround; supports valuation cleanly | Accepted |
 | D22 | 2026-08-19 | Split Graham/data foundation (2.3) from Golden evaluation (2.4); bump circuit breakers to 2.5; reject speculative strategy registry | Gives Cline/humans a review gate and limits scope creep | Accepted |
 | D23 | 2026-08-20 | Implement two explicit Graham methods: default `graham_number` and secondary `graham_growth_value` | Avoids conflating a defensive screening ceiling with a forecast-dependent growth estimate | Accepted |
-| D24 | 2026-08-20 | Use Option A: keep `BaseDataClient` historical-price focused and add a dedicated valuation-facts provider boundary, cache seam, resolver, and provenance models | Keeps materially different quote/fundamental/macro inputs out of a price-history-shaped interface while preserving narrow contracts | Accepted |
+| D24 | 2026-08-20 | Use Option A: keep `BaseDataClient` historical-price focused and add a dedicated financial-facts provider boundary, cache seam, resolver, and provenance models | Keeps materially different quote/fundamental/macro inputs out of a price-history-shaped interface while preserving narrow contracts | Accepted |
 | D25 | 2026-08-20 | Resolve each valuation input through override → valid cache → provider → unavailable with strict `as_of` and availability-date rules | Makes results reproducible, auditable, and resistant to silent look-ahead bias | Accepted |
 | D26 | 2026-08-20 | Use one `graham` CLI with an explicit method discriminator; omitted method selects the Graham Number | Keeps the user-facing strategy coherent while preventing silent method substitution | Accepted |
 | D27 | 2026-08-21 | Treat the pre-validation product as a terminal-first investor research workbench with concise/default and detailed/diagnostic/JSON views | Real-user validation must test usefulness and trust, not merely command execution | Accepted |

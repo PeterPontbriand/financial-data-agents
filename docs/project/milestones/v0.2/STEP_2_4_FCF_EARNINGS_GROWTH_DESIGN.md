@@ -417,7 +417,9 @@ When `include_fcf_yield = false`, `fcf_yield` has `status = not_applicable` and 
 
 When several conditions apply, `classification_reason_code` identifies the first applicable category in this order: invalid request, required-provider error, incompatible or missing historical fact, insufficient or non-contiguous history, nonmeaningful historical growth, unavailable required consensus, then failed growth gate. More specific details remain in the affected `MetricResult`, diagnostics, and warnings. Failed gates use `fcf_not_growing`, `eps_not_growing`, `fcf_and_eps_not_growing`, or `forward_growth_not_confirmed` as applicable.
 
-`CalculationStatus`, `ResolvedInput`, and `ResolutionTrace` reuse the established shared contracts. If those contracts require minimal generalization beyond their current valuation-oriented names, their behavior and invariants remain unchanged.
+`CalculationStatus`, `ResolvedInput`, and `ResolutionTrace` reuse the established shared contracts. Slice C1 confirmed that the Step 2.3 `Valuation*` vocabulary is narrower than the shared boundary it now describes: operating cash flow and capital expenditures are general financial facts, and the cache stores resolved provider or derived inputs rather than valuation results. Before C2, the bounded C1R migration therefore renames provider-facing fact contracts to `Financial*` and cache-facing contracts to `ResolvedInputCache*`, without changing their behavior or invariants.
+
+In this vocabulary, a reporting-period observation is one period-identified occurrence of a financial fact; an annual series is an ordered collection of those facts. Numeric `value` fields continue to mean the fact's numeric payload, not a company valuation. Permanent compatibility aliases are added only if a concrete external consumer is identified during review.
 
 ## 8. Deterministic data-selection algorithms
 

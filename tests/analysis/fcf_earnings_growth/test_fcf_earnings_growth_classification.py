@@ -19,7 +19,7 @@ from src.analysis.fcf_earnings_growth.models import (
     ReasonCode,
     TrendClassification,
 )
-from src.data.valuation.provenance import ResolvedInput, SourceKind
+from src.data.financial.provenance import ResolvedInput, SourceKind
 
 RESOLVED_AT = datetime(2025, 12, 31, tzinfo=UTC)
 

@@ -9,15 +9,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, time
 from typing import cast
 
-from src.data.http_json import JsonFetcher, fetch_json
-from src.data.valuation.facts import (
+from src.data.financial.facts import (
+    FinancialFactRequest,
+    FinancialField,
+    FinancialProviderError,
+    FinancialUnit,
     ProviderFact,
-    ValuationFactRequest,
-    ValuationField,
-    ValuationProviderError,
-    ValuationUnit,
 )
-from src.data.valuation.provenance import ValuationSubjectKind
+from src.data.financial.provenance import FinancialSubjectKind
+from src.data.http_json import JsonFetcher, fetch_json
 
 SEC_PROVIDER_ID = "sec_edgar"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
@@ -33,10 +33,10 @@ _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 _ACCEPTED_FORMS = frozenset({"10-K", "10-K/A"})
 _BALANCE_SHEET_FORMS = _ACCEPTED_FORMS
-_BALANCE_SHEET_FIELDS: Mapping[ValuationField, tuple[str, ValuationUnit]] = {
-    ValuationField.STOCKHOLDERS_EQUITY: ("StockholdersEquity", ValuationUnit.CURRENCY),
-    ValuationField.COMMON_SHARES_OUTSTANDING: ("CommonStockSharesOutstanding", ValuationUnit.SHARES),
-    ValuationField.PREFERRED_SHARES_OUTSTANDING: ("PreferredStockSharesOutstanding", ValuationUnit.SHARES),
+_BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
+    FinancialField.STOCKHOLDERS_EQUITY: ("StockholdersEquity", FinancialUnit.CURRENCY),
+    FinancialField.COMMON_SHARES_OUTSTANDING: ("CommonStockSharesOutstanding", FinancialUnit.SHARES),
+    FinancialField.PREFERRED_SHARES_OUTSTANDING: ("PreferredStockSharesOutstanding", FinancialUnit.SHARES),
 }
 
 
@@ -44,9 +44,9 @@ _BALANCE_SHEET_FIELDS: Mapping[ValuationField, tuple[str, ValuationUnit]] = {
 class _BalanceSheetParseContext:
     """Context shared while converting one SEC balance-sheet observation."""
 
-    request: ValuationFactRequest
+    request: FinancialFactRequest
     provider_field: str
-    unit: ValuationUnit
+    unit: FinancialUnit
     currency: str | None
     acceptance_by_accession: Mapping[str, datetime]
     retrieved_at: datetime
@@ -64,7 +64,7 @@ class _SecShareObservation:
     available_at: datetime
 
 
-class SecEdgarValuationAdapter:
+class SecEdgarFinancialFactsAdapter:
     """Provide verified SEC observations for deterministic valuation analysis.
 
     Supported facts are fiscal-year diluted EPS plus fiscal-year-end balance-sheet
@@ -100,7 +100,7 @@ class SecEdgarValuationAdapter:
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
 
-    def fetch_facts(self, request: ValuationFactRequest) -> tuple[ProviderFact, ...]:
+    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return supported SEC facts, or explicit unavailability."""
         if not self._supports(request):
             return ()
@@ -117,7 +117,7 @@ class SecEdgarValuationAdapter:
             )
             acceptance_by_accession = _acceptance_times(submissions)
             provider_now = self._clock()
-            if request.field_name is ValuationField.EPS:
+            if request.field_name is FinancialField.EPS:
                 candidates = _annual_eps_candidates(
                     company_facts,
                     request=request,
@@ -126,7 +126,7 @@ class SecEdgarValuationAdapter:
                 )
                 return _select_one_fact_per_period(candidates, request=request, now=provider_now)
 
-            if request.field_name is ValuationField.COMMON_SHARES_OUTSTANDING:
+            if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
                 return _common_shares_facts(
                     company_facts,
                     request=request,
@@ -134,7 +134,7 @@ class SecEdgarValuationAdapter:
                     retrieved_at=provider_now,
                     now=provider_now,
                 )
-            if request.field_name is ValuationField.PREFERRED_SHARES_OUTSTANDING:
+            if request.field_name is FinancialField.PREFERRED_SHARES_OUTSTANDING:
                 return _preferred_shares_facts(
                     company_facts,
                     request=request,
@@ -150,16 +150,16 @@ class SecEdgarValuationAdapter:
                 retrieved_at=provider_now,
             )
             return _select_latest_balance_sheet_fact(candidates, request=request, now=provider_now)
-        except ValuationProviderError:
+        except FinancialProviderError:
             raise
         except (KeyError, TypeError, ValueError, OSError) as exc:
             msg = f"SEC EDGAR valuation retrieval failed for {request.subject_id}: {exc}"
-            raise ValuationProviderError(msg) from exc
+            raise FinancialProviderError(msg) from exc
 
-    def _supports(self, request: ValuationFactRequest) -> bool:
-        if request.provider_id != SEC_PROVIDER_ID or request.subject_kind is not ValuationSubjectKind.SECURITY:
+    def _supports(self, request: FinancialFactRequest) -> bool:
+        if request.provider_id != SEC_PROVIDER_ID or request.subject_kind is not FinancialSubjectKind.SECURITY:
             return False
-        if request.field_name is ValuationField.EPS:
+        if request.field_name is FinancialField.EPS:
             return request.basis == "fiscal_year" and request.observation_count >= 1
         return (
             request.field_name in _BALANCE_SHEET_FIELDS
@@ -177,7 +177,7 @@ class SecEdgarValuationAdapter:
             return ticker_to_cik[ticker]
         except KeyError as exc:
             msg = f"SEC EDGAR has no CIK mapping for ticker {ticker!r}."
-            raise ValuationProviderError(msg) from exc
+            raise FinancialProviderError(msg) from exc
 
 
 def _resolve_sec_user_agent(explicit_user_agent: str | None) -> str:
@@ -244,7 +244,7 @@ def _acceptance_times(payload: object) -> dict[str, datetime]:
 def _annual_eps_candidates(
     payload: object,
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
 ) -> tuple[ProviderFact, ...]:
@@ -311,7 +311,7 @@ def _balance_sheet_concept_units(
 def _balance_sheet_fact_candidates(
     payload: object,
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
 ) -> tuple[ProviderFact, ...]:
@@ -332,7 +332,7 @@ def _balance_sheet_fact_candidates(
     result: list[ProviderFact] = []
     for unit_name, observations in units.items():
         currency: str | None
-        if expected_unit is ValuationUnit.CURRENCY:
+        if expected_unit is FinancialUnit.CURRENCY:
             currency = _currency_from_sec_monetary_unit(unit_name)
             if currency is None:
                 continue
@@ -440,7 +440,7 @@ def _parse_share_observation(  # noqa: PLR0911
 def _select_latest_share_observation(
     observations: tuple[_SecShareObservation, ...],
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     now: datetime,
 ) -> tuple[_SecShareObservation, ...]:
     """Select one unambiguous latest raw share observation at the boundary."""
@@ -469,7 +469,7 @@ def _select_latest_share_observation(
 def _common_shares_facts(
     payload: object,
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
     now: datetime,
@@ -525,11 +525,11 @@ def _common_shares_facts(
 
     return (
         ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=request.subject_id,
-            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            field_name=FinancialField.COMMON_SHARES_OUTSTANDING,
             value=derived_value,
-            units=ValuationUnit.SHARES,
+            units=FinancialUnit.SHARES,
             provider_id=SEC_PROVIDER_ID,
             provider_field=_SEC_DERIVED_COMMON_SHARES_FIELD,
             retrieved_at=max(issued_fact.retrieved_at, treasury_fact.retrieved_at),
@@ -551,7 +551,7 @@ def _common_shares_facts(
 def _preferred_shares_facts(  # noqa: PLR0911
     payload: object,
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
     now: datetime,
@@ -571,10 +571,10 @@ def _preferred_shares_facts(  # noqa: PLR0911
     if selected_direct:
         return selected_direct
 
-    equity_request = ValuationFactRequest(
+    equity_request = FinancialFactRequest(
         subject_kind=request.subject_kind,
         subject_id=request.subject_id,
-        field_name=ValuationField.STOCKHOLDERS_EQUITY,
+        field_name=FinancialField.STOCKHOLDERS_EQUITY,
         provider_id=request.provider_id,
         basis=request.basis,
         as_of=request.as_of,
@@ -588,10 +588,10 @@ def _preferred_shares_facts(  # noqa: PLR0911
     selected_equity = _select_latest_balance_sheet_fact(equity_candidates, request=equity_request, now=now)
     common = _common_shares_facts(
         payload,
-        request=ValuationFactRequest(
+        request=FinancialFactRequest(
             subject_kind=request.subject_kind,
             subject_id=request.subject_id,
-            field_name=ValuationField.COMMON_SHARES_OUTSTANDING,
+            field_name=FinancialField.COMMON_SHARES_OUTSTANDING,
             provider_id=request.provider_id,
             basis=request.basis,
             as_of=request.as_of,
@@ -636,11 +636,11 @@ def _preferred_shares_facts(  # noqa: PLR0911
 
     return (
         ProviderFact(
-            subject_kind=ValuationSubjectKind.SECURITY,
+            subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=request.subject_id,
-            field_name=ValuationField.PREFERRED_SHARES_OUTSTANDING,
+            field_name=FinancialField.PREFERRED_SHARES_OUTSTANDING,
             value=0.0,
-            units=ValuationUnit.SHARES,
+            units=FinancialUnit.SHARES,
             provider_id=SEC_PROVIDER_ID,
             provider_field=_SEC_INFERRED_PREFERRED_ABSENCE_FIELD,
             retrieved_at=anchor.retrieved_at,
@@ -793,7 +793,7 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
         availability_note,
     )
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=request.subject_id,
         field_name=request.field_name,
         value=float(value),
@@ -812,7 +812,7 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
 def _parse_eps_observation(  # noqa: PLR0911
     observation: Mapping[object, object],
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     currency: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
@@ -859,11 +859,11 @@ def _parse_eps_observation(  # noqa: PLR0911
         availability_note,
     )
     return ProviderFact(
-        subject_kind=ValuationSubjectKind.SECURITY,
+        subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=request.subject_id,
-        field_name=ValuationField.EPS,
+        field_name=FinancialField.EPS,
         value=float(value),
-        units=ValuationUnit.CURRENCY_PER_SHARE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=SEC_PROVIDER_ID,
         provider_field=SEC_EPS_FIELD,
         retrieved_at=retrieved_at,
@@ -879,7 +879,7 @@ def _parse_eps_observation(  # noqa: PLR0911
 def _select_one_fact_per_period(
     facts: tuple[ProviderFact, ...],
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     now: datetime,
 ) -> tuple[ProviderFact, ...]:
     """Select the latest restatement knowable at the request boundary per period."""
@@ -901,7 +901,7 @@ def _select_one_fact_per_period(
 def _select_latest_balance_sheet_fact(
     facts: tuple[ProviderFact, ...],
     *,
-    request: ValuationFactRequest,
+    request: FinancialFactRequest,
     now: datetime,
 ) -> tuple[ProviderFact, ...]:
     """Select one unambiguous latest fiscal-year-end fact knowable at the boundary.
@@ -933,11 +933,11 @@ def _select_latest_balance_sheet_fact(
     return (latest_version[0],)
 
 
-def _balance_sheet_definition_note(field_name: ValuationField) -> str:
+def _balance_sheet_definition_note(field_name: FinancialField) -> str:
     """Describe the accounting/share semantics retained for a balance-sheet concept."""
-    if field_name is ValuationField.STOCKHOLDERS_EQUITY:
+    if field_name is FinancialField.STOCKHOLDERS_EQUITY:
         return "definition=stockholders equity attributable to parent; preferred-stock guard required for BVPS"
-    if field_name is ValuationField.COMMON_SHARES_OUTSTANDING:
+    if field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
         return "definition=period-end common stock shares outstanding; ambiguous class values are rejected"
     return "definition=nonredeemable preferred stock shares outstanding as reported by us-gaap taxonomy"
 

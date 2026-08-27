@@ -23,16 +23,16 @@ from src.core.constants import ConfigKeys
 from src.core.telemetry import RunContext
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.base_client import DataFetchError
-from src.data.valuation.cache import InMemoryValuationCache
-from src.data.valuation.facts import ValuationFactsProvider
-from src.data.valuation.provenance import ResolvedInput, SourceKind
-from src.data.valuation.providers import (
+from src.data.financial.cache import InMemoryResolvedInputCache
+from src.data.financial.facts import FinancialFactsProvider
+from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.data.financial.providers import (
     MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
     YFINANCE_PROVIDER_ID,
-    MassiveValuationAdapter,
-    ProductionValuationProvider,
-    SecEdgarValuationAdapter,
+    MassiveFinancialFactsAdapter,
+    ProductionFinancialFactsProvider,
+    SecEdgarFinancialFactsAdapter,
 )
 from src.data.yfinance import YFinanceClient
 from src.reporting.graham import (
@@ -162,7 +162,7 @@ def graham(  # noqa: PLR0913
         "--data-provider",
         help="Security-fact provider override; defaults to SEC EDGAR",
     ),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the in-memory valuation cache"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the in-memory resolved-input cache"),
     eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
     eps_basis: str | None = typer.Option(
         None,
@@ -262,7 +262,7 @@ def graham(  # noqa: PLR0913
         raise typer.Exit(code=exit_code)
 
 
-def _build_sec_production_provider() -> ProductionValuationProvider:
+def _build_sec_production_provider() -> ProductionFinancialFactsProvider:
     """Build the SEC-backed production provider from declared application identity."""
     user_agent = settings.sec_user_agent
     if user_agent is None or not user_agent.strip():
@@ -271,13 +271,13 @@ def _build_sec_production_provider() -> ProductionValuationProvider:
             "Set SEC_USER_AGENT to a declared identity such as "
             '"Your Name your-email@example.com" and retry.'
         )
-    sec_edgar = SecEdgarValuationAdapter(user_agent=user_agent)
-    return ProductionValuationProvider(sec_edgar=sec_edgar)
+    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent)
+    return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
 
 
-def _build_massive_production_provider() -> MassiveValuationAdapter:
+def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     """Build Massive only when usable API credentials are configured."""
-    massive = MassiveValuationAdapter()
+    massive = MassiveFinancialFactsAdapter()
     if not massive.is_configured:
         raise ValueError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
     return massive
@@ -285,7 +285,7 @@ def _build_massive_production_provider() -> MassiveValuationAdapter:
 
 def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None) -> GrahamInputResolver:
     """Build only the production provider capabilities needed by this invocation."""
-    provider: ValuationFactsProvider
+    provider: FinancialFactsProvider
     if data_provider == MASSIVE_PROVIDER_ID:
         provider = _build_massive_production_provider()
     elif data_provider == SEC_PROVIDER_ID:
@@ -300,7 +300,7 @@ def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None
     else:
         raise AssertionError(f"Unhandled Graham method: {method!r}")
 
-    return GrahamInputResolver(provider, cache=InMemoryValuationCache())
+    return GrahamInputResolver(provider, cache=InMemoryResolvedInputCache())
 
 
 def _effective_graham_provider_id(method: GrahamCliMethod, data_provider: str | None) -> str:

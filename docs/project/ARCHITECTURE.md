@@ -17,7 +17,7 @@ This document describes current boundaries and approved near-term target seams. 
 2. **Typed boundaries:** Tool/analyzer/data inputs and outputs are explicitly typed at application boundaries.
 3. **Heterogeneous strategies:** Different financial strategies may have different config/data/result shapes. The architecture must not make every analysis Momentum-shaped.
 4. **No speculative strategy framework:** Reuse the existing `BaseAnalyzer` and current tool-dispatch flow unless implementation proves a new abstraction is necessary.
-5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 valuation facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
+5. **Provider isolation:** Historical-price access remains behind `BaseDataClient`; Step 2.3 financial facts use a dedicated provider/resolution boundary rather than enlarging a price-history-shaped interface.
 6. **Historical prices, quotes, fundamentals, and macro series are distinct capabilities:** A composed valuation façade may coordinate narrow providers, but no upstream service is assumed to supply every capability.
 7. **Evaluation is not persistence:** Golden fixtures, evaluation results, trajectory telemetry, and production market-data storage are separate concerns.
 8. **Local-LLM boundary:** The LLM cannot directly execute shell/code or access the external network. Registered data tools may perform controlled provider access.
@@ -53,7 +53,7 @@ This document describes current boundaries and approved near-term target seams. 
       historical prices              GrahamInputResolver
                │               override → cache → provider
                │                             │
-       BaseDataClient              ValuationFactsProvider
+       BaseDataClient              FinancialFactsProvider
                │              SEC · Massive · Yahoo quote
                └──────────────┬──────────────┘
                               ▼
@@ -103,14 +103,14 @@ Existing provider boundary for historical market prices. Under the selected Step
 
 Current quote retrieval is a separate valuation capability; it is not implemented as a one-day historical request.
 
-### `ValuationFactsProvider` boundary (Step 2.3 implemented)
-A dedicated provider-neutral valuation-input boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
+### `FinancialFactsProvider` boundary (Step 2.3 implemented)
+A dedicated provider-neutral financial-fact boundary supplies or composes the minimum quote and company-fundamental capabilities required by the two Graham methods. The contract can represent macro observations, but the production CLI does not currently claim an approved live AAA-yield series.
 
 Implemented production adapters are deliberately narrow:
 
 - **SEC EDGAR (`sec_edgar`)** — completed fiscal-year diluted EPS and fiscal-year-end balance-sheet components used for conservative BVPS derivation. Common shares may use the verified issued-minus-treasury derivation; zero preferred shares may be inferred only under the narrowly approved evidence rules. Direct BVPS remains unsupported by SEC Company Facts in this adapter.
 - **Massive (`massive`)** — current TTM diluted EPS and current price for the Massive when explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
-- **Yahoo Finance (`yfinance`)** — narrow current-price valuation adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the valuation-facts contract.
+- **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
 The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. SEC-backed Growth also defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data.
 
@@ -123,14 +123,14 @@ explicit override → valid cache → configured provider → unavailable
 
 Calculators receive resolved values and do not perform I/O. The resolver enforces requested `as_of` boundaries and preserves typed provenance. Method-input assembly adds only method-semantic annotations that are justified by retained evidence, such as fiscal-year-end basis on derived BVPS.
 
-### Valuation cache seam (Step 2.3 implemented)
+### Resolved-input cache seam (Step 2.3 implemented)
 A narrow in-memory/fixture-backed `get`/`put` seam proves precedence, temporal eligibility, and provenance. The resolver—not the cache—owns provider fallback. Durable SQLite-backed caching remains Step 3.1.
 
 ### Resolved input and provenance models (Step 2.3 implemented)
 Typed records preserve value, units/currency, source kind, provider field/series, reporting/observation period, availability/filing date where supplied, analysis `as_of`, retrieval time, transformations/derived lineage, and override/cache state.
 
 ### Fixture-backed data capabilities
-Introduced minimally in Step 2.3 to prove the historical-price and valuation-input contracts:
+Introduced minimally in Step 2.3 to prove the historical-price and financial-fact contracts:
 - deterministic;
 - historical data for Momentum;
 - quote, EPS history/TTM EPS, BVPS facts/components, and AAA-yield observations for Graham;
@@ -233,7 +233,7 @@ Provider Adapter Boundary
       │
       ├── BaseDataClient ─────────────► historical series ─► Momentum
       │
-      └── ValuationFactsProvider
+      └── FinancialFactsProvider
               ├── quote
               ├── company fundamentals
               └── macro observation contract

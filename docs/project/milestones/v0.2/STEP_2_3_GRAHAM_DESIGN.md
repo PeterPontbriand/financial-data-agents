@@ -318,7 +318,7 @@ Warnings are human-readable strings ordered as emitted by the presenter. Graham 
 
 ### 9.1 Data boundaries
 
-`BaseDataClient` remains the historical-price-series boundary for the existing Momentum analysis strategy; it does not absorb valuation facts or cache policy. `ValuationFactsProvider` supplies or composes the current quotes, annual or trailing earnings, reported book value per share or derivation components, and any specifically approved macroeconomic observations required by the Benjamin Graham valuation methods. Its production façade composes narrow SEC EDGAR, Massive, and Yahoo Finance adapters. The macroeconomic capability remains unused until an AAA series is approved.
+`BaseDataClient` remains the historical-price-series boundary for the existing Momentum analysis strategy; it does not absorb financial facts or cache policy. `FinancialFactsProvider` supplies or composes the current quotes, annual or trailing earnings, reported book value per share or derivation components, and any specifically approved macroeconomic observations required by the Benjamin Graham valuation methods. Its production façade composes narrow SEC EDGAR, Massive, and Yahoo Finance adapters. The macroeconomic capability remains unused until an AAA series is approved.
 
 ### 9.2 Input resolution
 

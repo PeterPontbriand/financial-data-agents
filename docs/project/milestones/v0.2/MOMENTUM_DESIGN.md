@@ -297,7 +297,7 @@ The following prioritized work items document technical debt and design gaps bet
   * *Remediation:* Refactor `sma_50`, `sma_200`, and `rsi_14` to `MetricResult` structures. When history is insufficient (e.g., 100 bars for SMA200), populate `status = unavailable` and `reason_code = insufficient_history` instead of unannotated `None`.
 
 * **Work Item 3: Standardize Provider Interface & Provenance**
-  * *Issue:* Momentum connects to legacy `BaseDataClient`, while newer strategies utilize `ValuationFactsProvider` / `MarketDataProvider` with structured `ResolvedInput` provenance objects.
+  * *Issue:* Momentum connects to legacy `BaseDataClient`, while newer strategies utilize `FinancialFactsProvider` / `MarketDataProvider` with structured `ResolvedInput` provenance objects.
   * *Remediation:* Refactor market data fetching to use `MarketDataProvider`, wrapping price points in `ResolvedInput` containers to retain provider identity, retrieval timestamps, and currency attributes in the result envelope.
 
 ### Priority 2: Configurability & Enhancements
