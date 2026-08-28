@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-27 — Added the C1R financial-fact/resolved-input naming migration before further Step 2.4 strategy coupling.<br/>
-**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A and B complete / Slice C1 complete / C1R naming migration complete and approved / C2 implemented and awaiting review, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
+**Revised:** 2026-08-27 — Split Slice D into evidence-gated D0–D5 work units after approval of C2.<br/>
+**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A, B, C1, C1R, C2, and D0 complete and approved / Slice D1 authorized next, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -775,10 +775,15 @@ Implement and review Step 2.4 in bounded slices:
 3. **C1 — financial-fact contracts and period-aware cache:** minimally extend the shared fact/provenance contracts for annual operating cash flow, capital expenditures, and period-scoped cache entries. Stop for human review.
 4. **C1R — deliberate shared-boundary naming migration:** before another strategy couples to the Step 2.3 names, rename the provider-facing `Valuation*` fact vocabulary to `Financial*` and the cache-facing `ValuationCache*` vocabulary to `ResolvedInputCache*`. Reconcile production code, tests, type annotations, documentation, and imports in one bounded migration; preserve behavior and stop for human review after the complete gate passes.
 5. **C2 — annual-series resolution and fixtures:** add period-aligned FCF derivation plus deterministic multi-year fixtures on the renamed shared contracts.
-6. **D — provider evidence and production integration:** evidence and implement the minimum safe production path; unsupported evidence shapes remain unavailable.
-7. **E — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
-8. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout.
-9. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
+6. **D0 — provider-evidence checkpoint:** inspect authoritative provider documentation and representative payloads for exact concepts, financial meaning, signs, units, periods, availability timestamps, restatements, duplicates, and security identity. Record each supported mapping and each explicitly unsupported shape. Make no production changes and stop for human approval.
+7. **D1 — operating-cash-flow adapter:** implement and test only the approved operating-cash-flow mapping from D0. Stop for human review.
+8. **D2 — capital-expenditure adapter:** implement and test only the approved capital-expenditure mapping and sign normalization from D0. Stop for human review.
+9. **D3 — annual diluted-EPS reconciliation:** implement and test only the approved annual diluted-EPS compatibility and selection rules from D0. Stop for human review.
+10. **D4 — production composition:** compose the approved provider capabilities through the C2 annual-series resolver, preserving typed unavailability and provenance. Stop for human review.
+11. **D5 — integration closeout:** add bounded provider regressions, run the complete repository gate, and reconcile the provider mapping record with the implemented behavior. Unsupported evidence shapes remain explicitly unavailable.
+12. **E — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
+13. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout.
+14. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
 
 #### 4.4.10 Pre-Golden shared-contract hardening
 
@@ -1431,10 +1436,10 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; Slices A, B, C1, and C1R are complete and approved. C2 is implemented and awaiting human review.
+Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; Slices A, B, C1, C1R, C2, and D0 are complete and approved. D1 is authorized next.
 
-1. Review and approve C2 annual-series resolution and deterministic fixtures.
-2. Implement and review the remaining Free Cash Flow & Earnings Growth work in the bounded slices in Section 4.4.9.
+1. Implement and review D1–D5 independently, beginning with the authorized D1 operating-cash-flow adapter and using only the provider semantics approved in D0.
+2. Preserve classified unavailability so representative live validation can measure the useful-result ratio and identify whether a separately reviewed provider-mapping expansion is warranted.
 3. Complete and review the pre-Golden Graham/shared-contract hardening and Momentum modernization in Section 4.4.10.
 4. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.
 5. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.

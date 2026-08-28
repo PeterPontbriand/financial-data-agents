@@ -526,6 +526,19 @@ Before a provider capability is enabled, its approved mapping must be added to t
 
 The implementation cannot enable a production mapping until this record and its deterministic tests exist. Unsupported capabilities remain explicitly unavailable.
 
+### 9.1 Evidence-gated Slice D sequence
+
+Provider research and production implementation are deliberately separated:
+
+1. **D0 — provider evidence:** complete the mapping record from authoritative documentation and representative payloads. Decide exact concepts, meanings, signs, units, periods, availability, amendment/duplicate handling, and security identity. Make no production changes and stop for human approval.
+2. **D1 — operating cash flow:** implement only the approved operating-cash-flow mapping and its deterministic tests.
+3. **D2 — capital expenditures:** implement only the approved capital-expenditure mapping, sign transform, and deterministic tests.
+4. **D3 — diluted EPS:** implement only the approved annual diluted-EPS compatibility, selection, and reconciliation rules with deterministic tests.
+5. **D4 — composition:** connect the approved capabilities to the annual-series resolver while preserving typed unavailability and complete provenance.
+6. **D5 — closeout:** add bounded integration regressions, run the complete quality gate, and verify that this record describes production behavior exactly.
+
+Implementation agents receive approved mappings as inputs; they do not decide provider accounting semantics while writing adapters. Each production-capability slice stops for review, and any shape not supported by the approved evidence remains explicitly unavailable.
+
 ## 10. Deterministic calculation boundary
 
 Financial arithmetic resides in pure Python functions. Candidate functions are:
