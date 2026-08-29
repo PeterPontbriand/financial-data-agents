@@ -1479,8 +1479,8 @@ def test_c2c_current_future_dated_fact_excluded() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_c2c_duplicate_in_selected_period_provider_error() -> None:
-    """Two candidates with same period_end in a selected period => PROVIDER_ERROR."""
+def test_c2c_duplicate_in_selected_period_is_unavailable() -> None:
+    """Ambiguous restatement evidence makes the EPS series unavailable."""
     facts = (
         _fy_fact(2.0, FY2022_START, FY2022_END),
         _fy_fact(3.0, FY2023_START, FY2023_END),
@@ -1490,7 +1490,7 @@ def test_c2c_duplicate_in_selected_period_provider_error() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
-    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
 def test_c2c_duplicate_in_unselected_period_harmless() -> None:
@@ -1517,8 +1517,8 @@ def test_c2c_duplicate_in_unselected_period_harmless() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_c2c_incompatible_provider_field_provider_error() -> None:
-    """Incompatible provider_field in selected facts => PROVIDER_ERROR."""
+def test_c2c_incompatible_provider_field_is_unavailable() -> None:
+    """Incompatible provider concepts make the EPS series unavailable."""
     facts = (
         _fy_fact(2.0, FY2022_START, FY2022_END),
         _fy_fact(3.0, FY2023_START, FY2023_END),
@@ -1527,11 +1527,11 @@ def test_c2c_incompatible_provider_field_provider_error() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
-    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
-def test_c2c_incompatible_currency_provider_error() -> None:
-    """Incompatible currency in selected facts => PROVIDER_ERROR."""
+def test_c2c_incompatible_currency_is_unavailable() -> None:
+    """Incompatible currencies make the EPS series unavailable."""
     facts = (
         _fy_fact(2.0, FY2022_START, FY2022_END),
         _fy_fact(3.0, FY2023_START, FY2023_END),
@@ -1540,7 +1540,7 @@ def test_c2c_incompatible_currency_provider_error() -> None:
     provider = FakeProvider(facts=facts)
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request())
-    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
 # ---------------------------------------------------------------------------

@@ -8,12 +8,13 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 2.3 — dual-method Graham valuation and investor-facing direct analysis — complete and approved<br/>
-**Active step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis — Slice A complete and approved; Slice B authorized but not started<br/>
+**Active step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis — implemented through Slice F pre-Golden shared-contract hardening; Slice F review/approval pending<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
 **Governing Step 2.4 design:** [Step 2.4 FCF & Earnings Growth Design](milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md)<br/>
-**Current Step 2.4 review record:** [Step 2.4 Slice A Reconnaissance](milestones/v0.2/STEP_2_4_SLICE_A_RECONNAISSANCE.md)
+**Step 2.4 provider mapping record:** [Step 2.4 Provider Mapping Record](milestones/v0.2/STEP_2_4_PROVIDER_MAPPING_RECORD.md)<br/>
+**Initial Step 2.4 reconnaissance:** [Step 2.4 Slice A Reconnaissance](milestones/v0.2/STEP_2_4_SLICE_A_RECONNAISSANCE.md)
 
 Update **this section** when the active milestone, step, or slice changes. General user documentation and the root README should link here rather than duplicating current project status.
 

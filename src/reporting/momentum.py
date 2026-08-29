@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.analysis.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
+from src.core.metric_result import MetricResult
 from src.data.market_data import MarketDataContext
 from src.reporting.presentation import (
     PresentationMode,
@@ -66,6 +67,7 @@ def _concise_lines(p: MomentumPresentation) -> list[str]:
         f"Price used ({_close_label(p.market_data)}): {format_money(metrics.current_price, currency)}",
         f"{short_label}: {_optional_money(metrics.short_sma_val, currency)}",
         f"{long_label}: {_optional_money(metrics.long_sma_val, currency)}",
+        f"RSI ({p.config.rsi_period} observations): {_metric_result_text(metrics.rsi_14)}",
     ]
 
     if spread is not None:
@@ -100,6 +102,7 @@ def _detail_lines(p: MomentumPresentation) -> list[str]:
         "-------",
         "Method: simple moving-average crossover",
         f"Configured windows: {p.config.short_window} / {p.config.long_window} {_window_basis(context)}",
+        f"Configured RSI period: {p.config.rsi_period} observations",
         f"Price basis: {_price_basis_detail(context)}",
         f"Analysis timestamp: {format_datetime(p.metrics.timestamp)}",
         f"Data provider: {provider_display_name(provider)}",
@@ -271,6 +274,11 @@ def _optional_metric(value: float | None, *, decimals: int) -> str:
     return "unavailable" if value is None else format_number(value, decimals=decimals)
 
 
+def _metric_result_text(result: MetricResult) -> str:
+    """Render a standard metric result without leaking machine reason codes."""
+    return "unavailable" if result.value is None else format_number(result.value)
+
+
 def _sma_spread(metrics: MomentumMetrics) -> float | None:
     if metrics.short_sma_val is None or metrics.long_sma_val is None:
         return None
@@ -330,10 +338,17 @@ def _payload(p: MomentumPresentation) -> dict[str, Any]:
             "trend_relationship": _trend_relationship(metrics),
             "crossover_signal": metrics.crossover_signal,
             "crossover_state": _crossover_state(metrics.crossover_signal),
+            "rsi": {
+                "status": metrics.rsi_14.status.value,
+                "value": metrics.rsi_14.value,
+                "reason_code": metrics.rsi_14.reason_code.value if metrics.rsi_14.reason_code else None,
+                "reason": metrics.rsi_14.reason,
+            },
         },
         "parameters": {
             "short_window": p.config.short_window,
             "long_window": p.config.long_window,
+            "rsi_period": p.config.rsi_period,
         },
         "source": {
             "provider": context.provider_id if context is not None else None,

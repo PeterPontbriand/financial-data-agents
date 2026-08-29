@@ -81,7 +81,7 @@ The derived value retains:
 - units, currency, provider fields, and availability dates; and
 - complete component lineage.
 
-The resolver requires the three observations to use the same provider field, units, currency, and accounting basis, and it does not silently substitute trailing-twelve-month earnings. The SEC mapping selects `EarningsPerShareDiluted`, but the implementation does not independently inspect filing dimensions to prove share-class compatibility or apply a separate split normalization. It retains the selected provider field and the source filing's restatement semantics. Trailing-twelve-month diluted earnings per share is used only when the investor selects it explicitly and the chosen provider supports it.
+The resolver accepts the three observations only when one explicit compatibility predicate establishes the same provider concept, diluted/basic EPS basis, units, currency, and fiscal basis across distinct completed fiscal years. Provider-exposed `share_class=` and `split_treatment=` provenance tags must also agree. Duplicate candidates for one selected fiscal period are treated as ambiguous restatement evidence and make the series unavailable; the resolver does not guess which filing to use or perform silent split normalization. The accepted derivation retains components plus a compatibility-policy note. Trailing-twelve-month diluted earnings per share is used only when the investor selects it explicitly and the chosen provider supports it.
 
 ### 2.3 Book value per common share
 
@@ -148,7 +148,7 @@ The following production routing matrix is normative:
 | Graham growth-value method; explicit Massive | Trailing-twelve-month diluted earnings per share | Accepted | Massive |
 | Graham growth-value method; explicit Massive | Three-year average annual diluted earnings per share | Usage error | Not attempted |
 
-The Graham Number method accepts either named earnings basis at its method boundary, defaults to the three-year average, and still requires the configured provider or an override to supply every required input. Massive does not acquire an undocumented book-value-per-share capability merely because it can supply trailing-twelve-month earnings.
+The Graham Number defaults to SEC EDGAR three-year-average earnings. The deliberate Massive route requires trailing-twelve-month Massive earnings plus an explicit book-value-per-share override; it may then use a Massive quote. SEC/TTM, Massive/three-year-average, and Massive Graham Number without the book-value override are rejected before provider work begins. Massive does not acquire an undocumented book-value-per-share capability merely because it can supply trailing-twelve-month earnings.
 
 No production AAA corporate-bond-yield series is approved. Direct analysis therefore requires `--aaa-yield`, retains `--current-aaa-yield` as a compatibility alias, and labels the value as user-supplied rather than provider-verified.
 
@@ -165,7 +165,7 @@ margin_of_safety_percent =
 
 If a provider quote is unavailable or the provider reports an error, the method result remains available while `current_price` and `margin_of_safety_percent` are null. An invalid explicit quote override instead makes input assembly fail with `invalid_input`, so the calculation is not performed. SEC-backed analyses use Yahoo Finance quotes; analyses explicitly configured for Massive use Massive quotes. This includes a Graham Number analysis that combines Massive trailing-twelve-month earnings with an explicit book-value-per-share override. Both quote adapters are current-only, so a historical analysis may have a valid valuation without a price comparison.
 
-A successfully resolved finite quote is displayed even when no comparison can be made. The price relationship is unavailable when both valuation and quote currencies are known and differ, the reference value is non-positive, or the comparison percentage is otherwise unavailable. An explicit quote override may omit currency and is accepted on that basis. Yahoo Finance classifies a provider quote with missing currency as unavailable; the Massive adapter classifies missing currency as a provider error. In either provider case, the valuation can still succeed without a quote. No foreign-exchange conversion is attempted.
+A successfully resolved finite quote is displayed even when no comparison can be made. The price relationship is unavailable when both valuation and quote currencies are known and differ, the reference value is non-positive, or the comparison percentage is otherwise unavailable. An explicit quote override may omit currency and is accepted on that basis. Both Yahoo Finance and Massive classify a provider quote with missing required currency as `input_unavailable`. In either provider case, the valuation can still succeed without a quote. No foreign-exchange conversion is attempted.
 
 ## 5. Investor controls
 
@@ -212,11 +212,11 @@ Successful concise output is result-first:
 
 Redundant `Status: ok` and `As of: current` lines are omitted. A historical `as_of` appears in the heading.
 
-When calculation has begun and returns a non-success result, the presenter shows a status and reason. `not_applicable` is translated to `not applicable`; other status labels currently use their machine spelling, such as `invalid_input`. Required-input, provider, and ticker-verification failures that occur during assembly take a different command-line path: concise and detailed modes emit one friendly error message without a status line, while diagnostic and JSON modes receive a typed presentation. Non-positive Graham Number inputs therefore produce a clear not-applicable result, not a malformed calculation.
+When calculation has begun and returns a non-success result, the presenter shows a status and reason. Every `CalculationStatus` has an exhaustive plain-English label (`ok`, `not applicable`, `invalid input`, `input unavailable`, or `provider error`). Required-input, provider, and ticker-verification failures use the same typed presentation boundary: concise mode renders its friendly one-line error from that typed state, while detailed mode shows the plain-English status and reason and diagnostic/JSON modes retain machine identifiers. Non-positive Graham Number inputs therefore produce a clear not-applicable result, not a malformed calculation.
 
 ### 6.2 Detailed, diagnostic, and JSON output
 
-For successful analyses, every view consumes the same typed presentation assembled from the resolved inputs and calculation result. `--details` exposes values, bases, periods, availability, sources, derivations, lineage, and assumptions. `--diagnostics` exposes only resolver events actually observed; it does not invent the reason for an opaque cache miss. `--json` emits the result envelope in Section 8.4, using null rather than `NaN`. For assembly failures, concise and detailed modes use the friendly command-line failure path described above; diagnostic and JSON modes use a typed presentation with no calculation result. Financial provenance remains distinct from software-resolution diagnostics, and cache use never replaces original source identity.
+Every view consumes the same typed presentation assembled from the resolved inputs and optional calculation result. `--details` exposes values, bases, periods, availability, sources, derivations, lineage, assumptions, and typed failure state. `--diagnostics` exposes only resolver events actually observed; it does not invent the reason for an opaque cache miss. `--json` emits the result envelope in Section 8.4, using null rather than `NaN`. Financial provenance remains distinct from software-resolution diagnostics, and cache use never replaces original source identity.
 
 ## 7. Interpretation limits
 
@@ -255,7 +255,7 @@ GrahamGrowthValueResult
     reason: str | None
 ```
 
-For either result, model validation requires the method value when `status = ok`. The current pure calculators return no reason on success, but the result models do not themselves prohibit a non-null success reason. Every non-success status requires a null method value and a non-empty reason.
+For either result, model validation requires the method value and a null reason when `status = ok`. Every non-success status requires a null method value and a non-empty reason.
 
 ### 8.2 Execution status
 

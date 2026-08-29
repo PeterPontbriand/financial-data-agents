@@ -19,6 +19,7 @@ from src.reporting.presentation import (
     format_money,
     format_number,
     format_utc_minute,
+    humanized_status,
     json_document,
     provider_display_name,
 )
@@ -194,6 +195,15 @@ def render_graham_number(
 
     lines = _number_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
+        if presentation.result is None:
+            status, reason = _effective_status_and_reason(
+                presentation.assembly.status, presentation.assembly.reason, presentation.result
+            )
+            lines = [
+                _analysis_heading(presentation.ticker, "Graham Number", presentation.as_of),
+                f"Status: {_status_label(status)}",
+                f"Reason: {reason or 'No reason was retained.'}",
+            ]
         lines.extend(_number_detail_lines(presentation))
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
@@ -210,6 +220,15 @@ def render_graham_growth(
 
     lines = _growth_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
+        if presentation.result is None:
+            status, reason = _effective_status_and_reason(
+                presentation.assembly.status, presentation.assembly.reason, presentation.result
+            )
+            lines = [
+                _analysis_heading(presentation.ticker, "Graham Growth Value", presentation.as_of),
+                f"Status: {_status_label(status)}",
+                f"Reason: {reason or 'No reason was retained.'}",
+            ]
         lines.extend(_growth_detail_lines(presentation))
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
@@ -246,6 +265,8 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
             )
         )
     else:
+        if p.result is None and reason:
+            return [_number_reason(p, status, reason)]
         lines = [_analysis_heading(p.ticker, "Graham Number", p.as_of), f"Status: {_status_label(status)}"]
         if reason:
             lines.append(f"Reason: {_number_reason(p, status, reason)}")
@@ -278,6 +299,8 @@ def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
             )
         ]
     else:
+        if p.result is None and reason:
+            return [reason]
         lines = [_analysis_heading(p.ticker, "Graham Growth Value", p.as_of), f"Status: {_status_label(status)}"]
         if reason:
             lines.append(f"Reason: {reason}")
@@ -504,7 +527,7 @@ def _comparison_lines(
 
 
 def _number_warnings(p: GrahamNumberPresentation) -> list[str]:
-    warnings = _override_warnings((p.assembly.eps, p.assembly.bvps))
+    warnings = _override_warnings((p.assembly.eps, p.assembly.bvps, p.assembly.current_price))
     status, _ = _effective_status_and_reason(p.assembly.status, p.assembly.reason, p.result)
     if status is CalculationStatus.OK:
         warnings.extend(_quote_warnings(p.assembly.quote_status, p.assembly.quote_reason))
@@ -527,6 +550,7 @@ def _growth_warnings(p: GrahamGrowthPresentation) -> list[str]:
     aaa_yield = p.assembly.current_aaa_yield
     if aaa_yield is not None and aaa_yield.source_kind is SourceKind.OVERRIDE:
         warnings.append("AAA yield is user-supplied rather than provider-verified.")
+    warnings.extend(_override_warnings((p.assembly.current_price,)))
     warnings.extend(_quote_warnings(p.assembly.quote_status, p.assembly.quote_reason))
     return warnings
 
@@ -581,7 +605,7 @@ def _display_basis(value: ResolvedInput) -> str:
 
 def _status_label(status: CalculationStatus) -> str:
     """Render enum status values in investor-facing prose."""
-    return "not applicable" if status is CalculationStatus.NOT_APPLICABLE else status.value
+    return humanized_status(status)
 
 
 def _number_reason(

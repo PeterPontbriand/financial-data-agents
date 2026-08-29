@@ -480,7 +480,7 @@ class InputResolver:
                     f"observation_period_end={end.isoformat()} in a selected period."
                 )
                 return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
+                    status=CalculationStatus.INPUT_UNAVAILABLE,
                     reason=reason,
                     resolution_trace=trace.append(
                         _event(
@@ -495,39 +495,15 @@ class InputResolver:
         selected_facts = [by_period_end[end][0] for end in selected_ends]
 
         # --- 7. Selected-series compatibility ---
-        common_provider_field = selected_facts[0].provider_field
         common_units = selected_facts[0].units
         common_currency = selected_facts[0].currency
-        common_basis = selected_facts[0].basis
-        for fact in selected_facts[1:]:
-            if fact.provider_field != common_provider_field:
-                reason = f"Incompatible provider_field: {fact.provider_field!r} != {common_provider_field!r}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
-            if fact.units is not common_units:
-                reason = f"Incompatible units: {fact.units.name} != {common_units.name}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
-            if fact.currency != common_currency:
-                reason = f"Incompatible currency: {fact.currency!r} != {common_currency!r}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
-            if fact.basis != common_basis:
-                reason = f"Incompatible basis: {fact.basis!r} != {common_basis!r}."
-                return InputResolutionResult(
-                    status=CalculationStatus.PROVIDER_ERROR,
-                    reason=reason,
-                    resolution_trace=_derivation_error_trace(trace, field_name, reason),
-                )
+        compatibility_reason = _earnings_compatibility_reason(selected_facts)
+        if compatibility_reason is not None:
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=compatibility_reason,
+                resolution_trace=_derivation_error_trace(trace, field_name, compatibility_reason),
+            )
 
         # --- 8. Composition ---
         def _end_key(f: ProviderFact) -> datetime:
@@ -595,6 +571,11 @@ class InputResolver:
             as_of=request.as_of,
             retrieved_at=derived_retrieved_at,
             lineage=lineage,
+            notes=(
+                "Annual EPS compatibility established for provider concept, earnings-per-share basis, "
+                "currency, units, fiscal periods, and exposed share-class/split metadata.",
+                "Duplicate-period restatements are rejected unless the provider adapter has already selected one fact.",
+            ),
         )
 
         # --- 9. Cache the DERIVED result ---
@@ -1294,3 +1275,59 @@ def _validate_provider_response(
             f"Fact available_at ({fact.available_at.isoformat()}) is later than current time ({now.isoformat()}).",
         )
     return None
+
+
+def _earnings_compatibility_reason(facts: list[ProviderFact]) -> str | None:
+    """Return why annual EPS observations cannot safely form one series."""
+    first = facts[0]
+    expected = (
+        first.provider_id,
+        first.provider_field,
+        _eps_share_basis(first.provider_field),
+        first.units,
+        first.currency,
+        first.basis,
+        _note_value(first.notes, "share_class"),
+        _note_value(first.notes, "split_treatment"),
+    )
+    for fact in facts[1:]:
+        actual = (
+            fact.provider_id,
+            fact.provider_field,
+            _eps_share_basis(fact.provider_field),
+            fact.units,
+            fact.currency,
+            fact.basis,
+            _note_value(fact.notes, "share_class"),
+            _note_value(fact.notes, "split_treatment"),
+        )
+        if actual != expected:
+            return (
+                "Annual EPS observations are incompatible across provider concept, diluted/basic basis, "
+                "share class, currency, units, fiscal basis, or split treatment."
+            )
+    fiscal_years = [fact.fiscal_year for fact in facts]
+    if all(year is not None for year in fiscal_years) and len(set(fiscal_years)) != len(fiscal_years):
+        return "Annual EPS observations do not represent distinct fiscal years."
+    return None
+
+
+def _eps_share_basis(provider_field: str) -> str:
+    """Classify an upstream EPS concept as diluted, basic, or unspecified."""
+    normalized = provider_field.lower()
+    if "diluted" in normalized:
+        return "diluted"
+    if "basic" in normalized:
+        return "basic"
+    return "unspecified"
+
+
+def _note_value(notes: tuple[str, ...], key: str) -> str | None:
+    """Read optional structured compatibility evidence from provenance notes."""
+    prefix = f"{key}="
+    values = {note.removeprefix(prefix).strip().lower() for note in notes if note.startswith(prefix)}
+    if len(values) == 1:
+        return next(iter(values))
+    if not values:
+        return None
+    return "ambiguous"

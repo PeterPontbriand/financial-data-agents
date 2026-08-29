@@ -20,6 +20,12 @@ from src.data.massive.constants import MASSIVE_PROVIDER_ID
 
 MASSIVE_TTM_EPS_FIELD = "diluted_earnings_per_share"
 MASSIVE_LAST_TRADE_FIELD = "results.p"
+
+
+class _CurrencyMetadataUnavailableError(FinancialProviderError):
+    """Massive supplied no verified quote currency metadata."""
+
+
 _BASE_URL = "https://api.massive.com"
 
 
@@ -147,7 +153,10 @@ class MassiveFinancialFactsAdapter:
         )
 
     def _fetch_current_price(self, request: FinancialFactRequest) -> ProviderFact | None:
-        currency = self._currency_for_ticker(request.subject_id)
+        try:
+            currency = self._currency_for_ticker(request.subject_id)
+        except _CurrencyMetadataUnavailableError:
+            return None
         payload = self._get(f"/v2/last/trade/{request.subject_id}")
         result = _result_object(payload)
         if result is None:
@@ -217,7 +226,7 @@ class MassiveFinancialFactsAdapter:
             return currency
 
         msg = f"Massive returned no verified currency metadata for {ticker!r}."
-        raise FinancialProviderError(msg)
+        raise _CurrencyMetadataUnavailableError(msg)
 
     def _get(self, path: str) -> object:
         assert self._api_key is not None

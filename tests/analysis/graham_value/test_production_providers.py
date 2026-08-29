@@ -597,6 +597,19 @@ def test_massive_latest_trade_price_has_observation_timestamp_and_currency() -> 
     assert "trade_id=trade-123" in fact.notes
 
 
+def test_massive_quote_without_verified_currency_is_unavailable() -> None:
+    """Missing required quote currency is absence, not an operational failure."""
+    fetcher = FakeJsonFetcher(
+        {
+            "/v3/reference/tickers?": {"status": "OK", "results": []},
+            "/v2/last/trade/": _massive_trade_payload(),
+        }
+    )
+    adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)
+
+    assert adapter.fetch_facts(_massive_request(FinancialField.CURRENT_PRICE)) == ()
+
+
 def test_massive_historical_request_is_unavailable_without_network_call() -> None:
     fetcher = _massive_fetcher()
     adapter = MassiveFinancialFactsAdapter(api_key="secret-key", json_fetcher=fetcher, clock=lambda: NOW)

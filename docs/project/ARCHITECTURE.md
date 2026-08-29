@@ -5,7 +5,7 @@
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Last updated:** 2026-08-29<br/>
-**Current status:** Steps 2.2 and 2.3 are complete and approved. In Step 2.4, Slices A, B, C1, C1R, C2, and D0 are complete and approved; D1–D5 and the initial E CLI/presentation are implemented, with their combined review outcome still to be recorded. The approved E1–E3 FCF/share extension and Slice F pre-Golden hardening remain ahead of Step 2.5. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Current status:** Steps 2.2 and 2.3 are complete and approved. Step 2.4 Free Cash Flow & Earnings Growth is implemented through the E1–E3 FCF/share extension and Slice F pre-Golden shared-contract hardening; final Slice F review/approval remains outstanding before Step 2.5. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 
@@ -25,7 +25,7 @@ This document describes current boundaries and approved near-term target seams. 
 10. **Light Mode first:** Core useful analysis must remain viable under the documented Light Mode workflow.
 11. **Method-explicit financial semantics:** Graham Number and Graham growth value retain distinct names, inputs, typed results, and limitations.
 12. **Time-bounded provenance:** Resolved inputs preserve source, reporting/observation and availability dates, transformations, cache/override state, and requested analysis `as_of`.
-13. **Presentation without homogenization:** Momentum and Graham use a coherent investor-facing visual grammar while retaining strategy-specific typed result models.
+13. **Presentation without homogenization:** Momentum, Graham, and Free Cash Flow & Earnings Growth use a coherent investor-facing visual grammar while retaining strategy-specific typed result models.
 14. **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
 15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
 16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
@@ -45,17 +45,14 @@ This document describes current boundaries and approved near-term target seams. 
                               ▼
                     Tool / analysis dispatch
                               │
-               ┌──────────────┴──────────────┐
-               ▼                             ▼
-      MomentumAnalyzer                  Graham analysis
-        (implemented)              number / growth methods
-               │                             │
-      historical prices              GrahamInputResolver
-               │               override → cache → provider
-               │                             │
-       BaseDataClient              FinancialFactsProvider
-               │              SEC · Massive · Yahoo quote
-               └──────────────┬──────────────┘
+       ┌───────────────┬───────────────────┐
+       ▼               ▼                   ▼
+ MomentumAnalyzer  Graham analysis   FCFEarningsGrowthAnalyzer
+       │           number / growth           │
+historical prices  GrahamInputResolver  AnnualGrowthSeriesResolver
+       │               │                   │
+ BaseDataClient   FinancialFactsProvider  SEC annual facts
+       └───────────────┴───────────────────┘
                               ▼
                      typed strategy result
                               │
@@ -86,7 +83,7 @@ Existing abstract analysis boundary. A strategy owns:
 - only the data capabilities it actually requires.
 
 ### `MomentumAnalyzer`
-Existing deterministic SMA/crossover analyzer. It consumes historical market data and returns Momentum-specific metrics.
+Deterministic SMA/crossover/RSI analyzer. `MomentumInputResolver` consumes the provider-neutral `MarketDataProvider` boundary, applies strict `bar_timestamp <= effective_as_of` truncation before calculation, wraps retained closes in `ResolvedInput` provenance, and records a `ResolutionTrace`. `MomentumPolicy` owns the short/long/RSI defaults. SMA and RSI availability is exposed through standard `MetricResult` values with `insufficient_history` reason codes while compatibility views preserve the existing optional numeric fields.
 
 ### Graham analysis (Step 2.3 implemented through F2)
 The Graham family has two method identifiers:
@@ -97,6 +94,13 @@ The Graham family has two method identifiers:
 The implemented direct command is `financial-agents graham TICKER [--method number|growth]`. Invalid cross-method combinations are rejected at the CLI boundary. Existing transitional flag aliases remain only where intentionally retained for compatibility.
 
 Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
+
+### Free Cash Flow & Earnings Growth analysis (Step 2.4 implemented through Slice F)
+`FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status.
+
+`ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
+
+The direct command is `financial-agents fcf-growth TICKER`. The strategy retains its own policy, annual-observation, metric, classification, and forward-evidence types rather than being forced into either the Momentum or Graham result shape.
 
 ### `BaseDataClient`
 Existing provider boundary for historical market prices. Under the selected Step 2.3 Option A direction, it remains price-history focused rather than becoming the owner of fundamentals, valuation quotes, macro series, and cache policy.
@@ -112,7 +116,7 @@ Implemented production adapters are deliberately narrow:
 - **Massive (`massive`)** — current TTM diluted EPS and current price for the Massive when explicitly selected. Live use requires `MASSIVE_API_KEY`; current-only facts do not masquerade as historical evidence.
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
-The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. SEC-backed Growth also defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data.
+The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
 
 ### `GrahamInputResolver` / input resolution (Step 2.3 implemented)
 Resolves each required field independently using:
@@ -141,10 +145,10 @@ Introduced minimally in Step 2.3 to prove the historical-price and financial-fac
 
 Fixture support for a capability does not claim that the same capability exists in a production adapter. Step 2.4 reuses this foundation for Golden cases.
 
-### Investor-facing result presentation (Step 2.3 implemented)
-A narrow presentation seam maps Momentum and Graham typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first where a successful method has a headline value; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes stable machine-readable data with `schema_version = 1`. Material overrides and warnings remain visible.
+### Investor-facing result presentation (Steps 2.3 and 2.4 implemented)
+A narrow presentation seam maps Momentum, Graham, and Free Cash Flow & Earnings Growth typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes each strategy's stable versioned machine-readable contract. Material overrides and warnings remain visible.
 
-The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading.
+The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
 
 ### `AnalysisRun` (Step 3.4 target)
 A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, and calculation/version identifiers. It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
@@ -185,6 +189,11 @@ src/
 ├── analysis/
 │   ├── base.py
 │   ├── momentum/
+│   ├── fcf_earnings_growth/
+│   │   ├── analyzer.py
+│   │   ├── calculators.py
+│   │   ├── input_resolver.py
+│   │   └── models.py
 │   └── graham_value/
 │       ├── calculators.py
 │       ├── input_resolver.py
@@ -209,6 +218,7 @@ src/
 │       └── valuation.py
 ├── reporting/
 │   ├── graham.py
+│   ├── fcf_earnings_growth.py
 │   ├── momentum.py
 │   └── presentation.py
 ├── llm/

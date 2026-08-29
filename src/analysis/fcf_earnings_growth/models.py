@@ -1,7 +1,7 @@
 """Typed models for the free-cash-flow & earnings-growth strategy (Slice B).
 
-Defines the normative enums, the typed policy, the invariant-checked
-``MetricResult`` / ``ForwardEvidence`` containers, the annual observation
+Defines the normative strategy enums, the typed policy, the invariant-checked
+shared ``MetricResult`` and strategy-specific ``ForwardEvidence`` containers, the annual observation
 record, and the fixed-identifier ``FCFEarningsGrowthResult`` result type
 required by ``docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``.
 
@@ -17,8 +17,11 @@ from datetime import datetime
 from enum import StrEnum
 
 from src.core.analysis_status import CalculationStatus
+from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from src.data.financial.provenance import ResolvedInput
 from src.data.financial.resolution_trace import ResolutionTrace
+
+__all__ = ["MetricResult", "MetricStatus", "ReasonCode"]
 
 # ---------------------------------------------------------------------------
 # Fixed identifiers (method_version = 1 / schema_version = 1)
@@ -77,46 +80,12 @@ class TrendClassification(StrEnum):
     INSUFFICIENT_OR_NONMEANINGFUL_GROWTH = "insufficient_or_nonmeaningful_growth"
 
 
-class MetricStatus(StrEnum):
-    """Outcome of one calculated metric."""
-
-    OK = "ok"
-    UNAVAILABLE = "unavailable"
-    NOT_APPLICABLE = "not_applicable"
-
-
 class ForwardEvidenceStatus(StrEnum):
     """Completeness of the forward consensus evidence block."""
 
     COMPLETE = "complete"
     PARTIAL = "partial"
     UNAVAILABLE = "unavailable"
-
-
-class ReasonCode(StrEnum):
-    """Machine-readable reason codes required by the strategy contract."""
-
-    INSUFFICIENT_HISTORY = "insufficient_history"
-    NON_CONTIGUOUS_HISTORY = "non_contiguous_history"
-    MISSING_FACT = "missing_fact"
-    INCOMPATIBLE_PERIOD = "incompatible_period"
-    INCOMPATIBLE_UNITS = "incompatible_units"
-    INCOMPATIBLE_CURRENCY = "incompatible_currency"
-    INCOMPATIBLE_SCOPE = "incompatible_scope"
-    AMBIGUOUS_FACT = "ambiguous_fact"
-    NOT_AVAILABLE_AS_OF = "not_available_as_of"
-    NONPOSITIVE_BEGINNING = "nonpositive_beginning"
-    NONPOSITIVE_ENDING = "nonpositive_ending"
-    SIGN_CHANGE = "sign_change"
-    FCF_NOT_GROWING = "fcf_not_growing"
-    EPS_NOT_GROWING = "eps_not_growing"
-    FCF_AND_EPS_NOT_GROWING = "fcf_and_eps_not_growing"
-    FORWARD_GROWTH_NOT_CONFIRMED = "forward_growth_not_confirmed"
-    CONSENSUS_UNAVAILABLE = "consensus_unavailable"
-    MARKET_CAP_UNAVAILABLE = "market_cap_unavailable"
-    PROVIDER_ERROR = "provider_error"
-    INVALID_REQUEST = "invalid_request"
-    NOT_REQUESTED = "not_requested"
 
 
 # ---------------------------------------------------------------------------
@@ -146,62 +115,6 @@ class FCFEarningsGrowthPolicy:
 # ---------------------------------------------------------------------------
 # Metric result
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class MetricResult:
-    """Typed outcome of one calculated metric, never ``NaN`` or ``Inf``.
-
-    Invariants:
-        - ``status = ok`` requires a finite numeric ``value`` and both reason
-          fields ``None``.
-        - Any other status requires ``value`` to be ``None`` and a non-empty
-          ``reason`` string with a machine-readable ``reason_code``.
-
-    Attributes:
-        status: Metric outcome discriminator.
-        value: Finite metric value in the metric's native units (percent for growth/yield).
-        reason_code: Machine-readable reason, present exactly when status is not ``ok``.
-        reason: Human-readable reason; accompanies, never replaces, ``reason_code``.
-    """
-
-    status: MetricStatus
-    value: float | None = None
-    reason_code: ReasonCode | None = None
-    reason: str | None = None
-
-    def __post_init__(self) -> None:
-        """Enforce the ok/failure field invariants."""
-        if self.status is MetricStatus.OK:
-            if self.value is None or not math.isfinite(self.value):
-                msg = "MetricResult with status=ok requires a finite numeric value."
-                raise ValueError(msg)
-            if self.reason_code is not None or self.reason is not None:
-                msg = "MetricResult with status=ok requires both reason fields to be None."
-                raise ValueError(msg)
-        else:
-            if self.value is not None:
-                msg = f"MetricResult with status={self.status.value} requires value to be None."
-                raise ValueError(msg)
-            if self.reason_code is None:
-                msg = f"MetricResult with status={self.status.value} requires a reason_code."
-                raise ValueError(msg)
-            if self.reason is None or not self.reason.strip():
-                msg = f"MetricResult with status={self.status.value} requires a non-empty reason string."
-                raise ValueError(msg)
-
-    @classmethod
-    def ok(cls, value: float) -> MetricResult:
-        """Build a successful metric result for a finite *value*."""
-        return cls(status=MetricStatus.OK, value=value)
-
-    @classmethod
-    def failure(cls, status: MetricStatus, reason_code: ReasonCode, reason: str) -> MetricResult:
-        """Build a non-ok metric result with a machine code and human reason."""
-        if status is MetricStatus.OK:
-            msg = "MetricResult.failure requires a non-ok status."
-            raise ValueError(msg)
-        return cls(status=status, reason_code=reason_code, reason=reason)
 
 
 # ---------------------------------------------------------------------------

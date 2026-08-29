@@ -103,6 +103,11 @@ def momentum(  # noqa: PLR0913
         "-l",
         help="Long SMA window in daily market observations",
     ),
+    rsi_period: int = typer.Option(
+        _MOMENTUM_CLI_DEFAULTS.rsi_period,
+        "--rsi-period",
+        help="RSI lookback period in daily market observations",
+    ),
     details: bool = typer.Option(False, "--details", help="Show calculation and data-context details"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
@@ -110,12 +115,12 @@ def momentum(  # noqa: PLR0913
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     target_ticker = _resolve_ticker(ticker, ticker_option, required=False)
     mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    _validate_momentum_windows(short_window, long_window)
+    _validate_momentum_windows(short_window, long_window, rsi_period)
 
     try:
         data_client = YFinanceClient()
         analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=data_client)
-        config = MomentumConfig(short_window=short_window, long_window=long_window)
+        config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         run = analyzer.run_with_context(config=config, ticker=target_ticker)
         presentation = MomentumPresentation(
             metrics=run.metrics,
@@ -544,8 +549,6 @@ def _number_failure_output(
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    if mode in (PresentationMode.CONCISE, PresentationMode.DETAILS):
-        return reason, 1
     safe_assembly = _number_with_public_quote_reason(replace(assembly, reason=reason))
     presentation = GrahamNumberPresentation(ticker=ticker, assembly=safe_assembly, result=None, as_of=as_of)
     return render_graham_number(presentation, mode), 1
@@ -560,8 +563,6 @@ def _growth_failure_output(
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    if mode in (PresentationMode.CONCISE, PresentationMode.DETAILS):
-        return reason, 1
     safe_assembly = _growth_with_public_quote_reason(replace(assembly, reason=reason))
     base_pe, growth_multiplier, baseline_aaa_yield = _growth_assumptions()
     presentation = GrahamGrowthPresentation(
@@ -686,6 +687,13 @@ def _validate_graham_options(  # noqa: PLR0912, PLR0913
         selected = normalized_basis or "three_year_average"
         if selected not in ("three_year_average", "ttm"):
             raise typer.BadParameter("Number EPS basis must be 'three_year_average' or 'ttm'.")
+        if provider_id == MASSIVE_PROVIDER_ID and (selected != "ttm" or bvps is None):
+            raise typer.BadParameter("Massive Graham Number requires --eps-basis ttm and an explicit --bvps override.")
+        if provider_id == SEC_PROVIDER_ID and selected != "three_year_average":
+            raise typer.BadParameter(
+                "SEC EDGAR Graham Number supports --eps-basis three_year_average only; "
+                "use --data-provider massive with --bvps for TTM EPS."
+            )
         return selected
 
     if bvps is not None:
@@ -721,13 +729,16 @@ def _validate_graham_options(  # noqa: PLR0912, PLR0913
     return selected
 
 
-def _validate_momentum_windows(short_window: int, long_window: int) -> None:
-    """Reject invalid SMA windows with investor-readable domain language."""
+def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
+    """Reject invalid SMA/RSI periods with investor-readable domain language."""
     if short_window <= 0:
         typer.echo(f"Invalid momentum window: short window must be positive (received {short_window}).", err=True)
         raise typer.Exit(code=2)
     if long_window <= 0:
         typer.echo(f"Invalid momentum window: long window must be positive (received {long_window}).", err=True)
+        raise typer.Exit(code=2)
+    if rsi_period <= 0:
+        typer.echo(f"Invalid momentum period: RSI period must be positive (received {rsi_period}).", err=True)
         raise typer.Exit(code=2)
     if short_window >= long_window:
         typer.echo(
