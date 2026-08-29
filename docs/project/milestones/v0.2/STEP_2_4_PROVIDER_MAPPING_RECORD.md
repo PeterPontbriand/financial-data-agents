@@ -1,8 +1,8 @@
 # Free Cash Flow & Earnings Growth Provider Mapping Record
 
-**Status:** D0-D5 implementation complete; D5 ready for human review<br/>
-**Scope:** SEC EDGAR required annual actuals only  
-**Prepared:** 2026-08-27  
+**Status:** D0 and E1 approved; D1-D5 implemented with combined review outcome not yet recorded; E2 implemented and ready for human review<br/>
+**Scope:** SEC EDGAR required annual actuals and E1 weighted-average diluted-share evidence<br/>
+**Prepared:** 2026-08-27; E1 amended 2026-08-29<br/>
 **Governing design:** `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`  
 **Production changes:** D1-D4 implement the approved SEC mappings and production
 composition; D5 adds integration regressions and completes this reconciliation.
@@ -18,6 +18,7 @@ adds and verifies each capability.
 | Annual operating cash flow | Supported candidate | `us-gaap:NetCashProvidedByUsedInOperatingActivities` |
 | Annual capital expenditures | Supported candidate | `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` |
 | Annual diluted EPS | Supported candidate with the split-basis reconciliation rule in Section 5 | `us-gaap:EarningsPerShareDiluted` |
+| Annual weighted-average diluted shares | E1 supported candidate with the joint split-basis reconciliation rule in Section 11 | `us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding` |
 | Market capitalization | Unsupported | None approved |
 | FY1/FY2 consensus EPS | Unsupported | None approved |
 
@@ -357,3 +358,154 @@ documented set of intended securities and report, at minimum:
 
 No target ratio is invented at D0. A persistently low useful-result ratio is a
 product-policy review trigger, not permission for an adapter fallback.
+
+## 11. E1 weighted-average diluted-share evidence and contract checkpoint
+
+### 11.1 Evidence and disposition
+
+Authoritative sources and official Company Concept payloads were inspected on
+2026-08-29. The SEC Company Concept API describes
+`WeightedAverageNumberOfDilutedSharesOutstanding` as the average shares or
+units used to calculate diluted EPS, based on the timing of issuance during the
+period. Its taxonomy type is a duration `sharesItemType`, and Company Concept
+groups the observations under the `shares` unit. The common SEC API,
+availability, filing, identity, and annual-period evidence in Sections 2, 3,
+and 6 continues to apply.
+
+The E1 production candidate is deliberately limited to:
+
+| Mapping field | Approved E1 candidate rule |
+| :--- | :--- |
+| Provider and capability | `sec_edgar` / annual weighted-average diluted shares |
+| Exact source concept | `us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding` only |
+| Selection precedence | No basic-share, ending-share, custom-concept, or arithmetic fallback |
+| Financial meaning | Average shares or units used by the filer in calculating diluted EPS for the exact completed annual period |
+| Sign transform | None; the value must be finite and strictly positive |
+| Period rules | Common annual eligibility in Section 3; exact `start` and `end` must match the FCF components and diluted EPS |
+| Units/currency/scope | `shares`; consolidated entire-entity, non-dimensional fact; no currency is attached to the share count |
+| Availability | Section 6 |
+| Restatements/duplicates | Section 6 and the joint common-basis rule in Section 11.2 |
+| Security identity | Section 3.1; multi-ticker CIKs remain unsupported |
+
+Representative official payload observations:
+
+- Apple exposes annual facts from FY2007 onward and proves that independent
+  latest-value selection is unsafe. FY2012 and FY2013 comparatives were later
+  re-presented at seven times their earlier values, and FY2018 and FY2019 were
+  later re-presented at four times their earlier values, matching Apple's
+  subsequent split bases. Repeated unchanged values are also present.
+- Microsoft exposes a long annual series with repeated unchanged comparative
+  values in later 10-K filings. No changed annual exact-period group was found
+  in the reviewed payload.
+- Coca-Cola's Company Concept response exposes the standard concept metadata
+  but an empty `shares` observation collection. Its issuer disclosure may show
+  diluted average shares, but no custom concept or rendered-table extraction is
+  approved; this capability is therefore unavailable for Coca-Cola under E1.
+- JPMorgan exposes annual standard-concept facts, but remains unavailable for
+  the complete strategy under the existing multiple-tickers-per-CIK identity
+  rule (and separately lacks the approved PP&E concept).
+
+These live payloads are research evidence, not production fixtures. E2 must use
+minimal deterministic mocked excerpts and must not call EDGAR.
+
+### 11.2 Split, share-class, and period compatibility
+
+For each fiscal period, weighted-average diluted shares and diluted EPS must be
+selected from the same accession after applying the common eligibility and
+availability rules. This ties the denominator to the filer's reported diluted
+EPS basis without deriving shares from income divided by EPS.
+
+For a candidate CAGR span:
+
+1. retain every eligible share and diluted-EPS candidate for each exact annual
+   period;
+2. treat a later filing's different value for the same share concept, exact
+   period, unit, and scope as a share-basis remeasurement;
+3. combine the share remeasurement events with the diluted-EPS events defined
+   in Section 5.1; the latest event affecting the span establishes the minimum
+   common-basis filing/availability boundary;
+4. require every period in the span to contain both facts in one accession on
+   or after that boundary; and
+5. select deterministic equal-value duplicates as in Section 6, but return
+   `ambiguous_fact` for equally ranked disagreement.
+
+The project applies no independent stock-split arithmetic. An older period not
+re-presented on the common basis is unavailable. A dimensional, class-specific,
+or custom share fact is unsupported. The one-ticker-CIK rule is the initial
+proof that the entity-wide denominator is applicable to the requested security;
+E1 does not claim support for dual-class or preferred/common allocations.
+
+FCF compatibility requires the same normalized security, fiscal-year label,
+exact period start/end, completed annual duration, consolidated scope, and
+availability boundary. FCF remains a monetary total and weighted-average
+diluted shares remains a share count; their units are intentionally different.
+The derived FCF/share unit is `<FCF currency>/share`, and its currency comes
+only from the compatible FCF components.
+
+### 11.3 Frozen versioned contract
+
+E1 freezes the following contract for E2/E3:
+
+- `strategy_id = "fcf_earnings_growth"` and
+  `method_id = "reported_fcf_eps_cagr"` remain unchanged;
+- the amended semantics use `method_version = 2` and result
+  `schema_version = 2`; version 1 results remain interpretable and are never
+  silently reclassified;
+- `FCFClassificationBasis = total_fcf | fcf_per_share` is stored in the typed
+  policy and copied into the typed result; `total_fcf` remains the default;
+- every annual observation has nullable typed
+  `weighted_average_diluted_shares` and
+  `free_cash_flow_per_diluted_share` evidence with full provenance;
+- both `fcf_cagr` and `fcf_per_share_cagr` are always emitted as
+  `MetricResult` values, never raw nullable numbers or non-finite values;
+- missing, incompatible, nonpositive, or nonmeaningful share evidence makes
+  `fcf_per_share_cagr` unavailable with a typed reason;
+- unavailable FCF/share evidence does not alter classification when
+  `classification_basis = total_fcf`; when `fcf_per_share` is selected, that
+  same condition produces `execution_status = input_unavailable` and
+  `classification = indeterminate`;
+- presenters display the typed result and never calculate or reclassify it.
+
+No FCF-yield gate, P/FCF threshold, alternate FCF definition, custom share
+concept, split adjustment, share-class allocation, or provider fallback is
+approved by E1.
+
+### 11.4 E1 approval gate
+
+**Human approval:** Approved<br/>
+**Approval date:** 2026-08-29<br/>
+**Production changes:** None in E1
+
+The approval explicitly includes the evidence, exact SEC mapping, joint
+common-basis compatibility rule, unsupported shapes, and frozen versioned
+contract. E2 is authorized next.
+
+### 11.5 E2 implementation reconciliation
+
+E2 implements the approved contract without broadening the evidence mapping:
+
+- the provider-neutral financial-field contract and SEC completed-annual
+  capability now include only the exact approved diluted-share concept;
+- the SEC adapter accepts positive annual `shares` facts, retains availability
+  and accession provenance, applies the approved remeasurement reconciliation,
+  and preserves the existing single-ticker-CIK restriction;
+- the annual resolver aligns diluted shares with the exact FCF/EPS period and,
+  for SEC evidence, requires the selected diluted-share and diluted-EPS facts
+  to come from the same accession;
+- pure Python derives FCF/share and both CAGRs with typed unavailable outcomes;
+- typed policy and result contracts use method/schema version 2 and preserve
+  total-company FCF as the default classification basis;
+- selecting FCF/share makes missing or incompatible required evidence typed
+  `input_unavailable` / `INDETERMINATE`; unavailable noncontrolling share
+  evidence does not change total-FCF classification; and
+- deterministic fixtures cover derivation, provenance, policy-controlled
+  classification, missing selected evidence, exact SEC mapping, positive-share
+  validation, and Apple-like split re-presentation.
+
+The complete repository gate passed on 2026-08-29: Ruff check and format,
+strict mypy, and 913 pytest tests at 85% total line coverage.
+
+**E2 human review:** Pending<br/>
+**E2 approval date:** Pending
+
+E3 is not authorized until E2 receives explicit human approval.

@@ -25,6 +25,7 @@ import math
 from src.analysis.fcf_earnings_growth.models import (
     Classification,
     ClassificationDecision,
+    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     ForwardEvidence,
     ForwardEvidenceStatus,
@@ -71,6 +72,18 @@ def compute_free_cash_flow(operating_cash_flow: float, normalized_capital_expend
     if not math.isfinite(free_cash_flow):
         return _invalid_request("Free cash flow overflows the finite double range for the supplied inputs.")
     return MetricResult.ok(free_cash_flow)
+
+
+def compute_fcf_per_diluted_share(free_cash_flow: float, diluted_shares: float) -> MetricResult:
+    """Compute FCF per diluted share using a strictly positive denominator."""
+    if not math.isfinite(free_cash_flow) or not math.isfinite(diluted_shares):
+        return _invalid_request("free_cash_flow and diluted_shares must be finite.")
+    if diluted_shares <= 0:
+        return _unavailable(ReasonCode.NONPOSITIVE_ENDING, "Diluted shares must be strictly positive.")
+    result = free_cash_flow / diluted_shares
+    if not math.isfinite(result):
+        return _invalid_request("FCF per diluted share overflows the finite double range.")
+    return MetricResult.ok(result)
 
 
 def compute_growth_percent(current: float, prior: float) -> MetricResult:
@@ -221,6 +234,7 @@ def classify_fcf_earnings_growth(
     fcf_cagr: MetricResult,
     eps_cagr: MetricResult,
     forward_evidence: ForwardEvidence,
+    fcf_per_share_cagr: MetricResult | None = None,
 ) -> ClassificationDecision:
     """Classify historical growth and apply the selected forward policy.
 
@@ -232,6 +246,7 @@ def classify_fcf_earnings_growth(
     Args:
         policy: Investor-selected policy controlling the forward evidence gate.
         fcf_cagr: Free-cash-flow CAGR metric for the selected historical span.
+        fcf_per_share_cagr: FCF/share CAGR used when selected by policy.
         eps_cagr: Diluted-EPS CAGR metric for the selected historical span.
         forward_evidence: Forward consensus evidence block for FY1/FY2.
 
@@ -242,10 +257,15 @@ def classify_fcf_earnings_growth(
         ValueError: If a non-ok ``MetricResult`` used for classification is
             missing a reason code or reason.
     """
-    trend = _trend_classification(fcf_cagr, eps_cagr)
-    if fcf_cagr.status is not MetricStatus.OK or eps_cagr.status is not MetricStatus.OK:
+    controlling_fcf = (
+        fcf_per_share_cagr if policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE else fcf_cagr
+    )
+    if controlling_fcf is None:
+        controlling_fcf = _unavailable(ReasonCode.MISSING_FACT, "FCF/share evidence is unavailable.")
+    trend = _trend_classification(controlling_fcf, eps_cagr)
+    if controlling_fcf.status is not MetricStatus.OK or eps_cagr.status is not MetricStatus.OK:
         # Nonmeaningful historical growth: report the first non-ok metric (FCF first).
-        failing = fcf_cagr if fcf_cagr.status is not MetricStatus.OK else eps_cagr
+        failing = controlling_fcf if controlling_fcf.status is not MetricStatus.OK else eps_cagr
         if failing.reason_code is None or failing.reason is None:
             msg = "A non-ok metric used for classification must carry a reason code and reason."
             raise ValueError(msg)
@@ -256,7 +276,7 @@ def classify_fcf_earnings_growth(
             reason=failing.reason,
         )
 
-    fcf_value = fcf_cagr.value
+    fcf_value = controlling_fcf.value
     eps_value = eps_cagr.value
     if fcf_value is None or eps_value is None:
         msg = "An ok metric used for classification must carry a finite value."

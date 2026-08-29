@@ -82,6 +82,7 @@ class FCFEarningsGrowthAnalyzer:
             decision = classify_fcf_earnings_growth(
                 policy=policy,
                 fcf_cagr=assembly.fcf_cagr,
+                fcf_per_share_cagr=assembly.fcf_per_share_cagr,
                 eps_cagr=assembly.eps_cagr,
                 forward_evidence=forward,
             )
@@ -119,6 +120,7 @@ class FCFEarningsGrowthAnalyzer:
             period_end=assembly.observations[-1].period_end if assembly.observations else None,
             annual_observations=assembly.observations,
             fcf_cagr=assembly.fcf_cagr,
+            fcf_per_share_cagr=assembly.fcf_per_share_cagr,
             eps_cagr=assembly.eps_cagr,
             trend_classification=trend,
             market_capitalization=None,

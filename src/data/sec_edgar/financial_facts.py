@@ -22,6 +22,7 @@ from src.data.http_json import JsonFetcher, fetch_json
 
 SEC_PROVIDER_ID = "sec_edgar"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
+SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding"
 SEC_OPERATING_CASH_FLOW_FIELD = "us-gaap:NetCashProvidedByUsedInOperatingActivities"
 SEC_CAPITAL_EXPENDITURES_FIELD = "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
@@ -57,6 +58,7 @@ _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
         FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     }
 )
 
@@ -68,6 +70,7 @@ _SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY = frozenset(
         FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     }
 )
 
@@ -78,6 +81,7 @@ _SEC_COMPLETED_ANNUAL_FIELDS = frozenset(
         FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     }
 )
 
@@ -212,6 +216,15 @@ class SecEdgarFinancialFactsAdapter:
                 return _eligible_annual_candidates(candidates, request=request, now=provider_now)
             if request.field_name is FinancialField.EPS:
                 candidates = _annual_eps_candidates(
+                    company_facts,
+                    request=request,
+                    cik=cik,
+                    acceptance_by_accession=acceptance_by_accession,
+                    retrieved_at=provider_now,
+                )
+                return _reconcile_annual_eps(candidates, request=request, now=provider_now)
+            if request.field_name is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES:
+                candidates = _annual_diluted_share_candidates(
                     company_facts,
                     request=request,
                     cik=cik,
@@ -415,6 +428,40 @@ def _annual_eps_candidates(
             )
             if fact is not None:
                 result.append(fact)
+    return tuple(result)
+
+
+def _annual_diluted_share_candidates(
+    payload: object,
+    *,
+    request: FinancialFactRequest,
+    cik: str,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+) -> tuple[ProviderFact, ...]:
+    """Parse exact-concept annual weighted-average diluted-share facts."""
+    if not isinstance(payload, Mapping) or not _company_facts_matches_cik(payload, cik):
+        return ()
+    facts = payload.get("facts")
+    us_gaap = facts.get("us-gaap") if isinstance(facts, Mapping) else None
+    concept = us_gaap.get("WeightedAverageNumberOfDilutedSharesOutstanding") if isinstance(us_gaap, Mapping) else None
+    units = concept.get("units") if isinstance(concept, Mapping) else None
+    observations = units.get("shares") if isinstance(units, Mapping) else None
+    if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+        return ()
+    result: list[ProviderFact] = []
+    for observation in observations:
+        if not isinstance(observation, Mapping):
+            continue
+        fact = _parse_diluted_share_observation(
+            observation,
+            request=request,
+            cik=cik,
+            acceptance_by_accession=acceptance_by_accession,
+            retrieved_at=retrieved_at,
+        )
+        if fact is not None:
+            result.append(fact)
     return tuple(result)
 
 
@@ -1249,6 +1296,60 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
         observation_period_end=period_end,
         available_at=available_at,
         notes=notes,
+    )
+
+
+def _parse_diluted_share_observation(  # noqa: PLR0911
+    observation: Mapping[object, object],
+    *,
+    request: FinancialFactRequest,
+    cik: str,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+) -> ProviderFact | None:
+    """Parse one completed-annual diluted-share denominator observation."""
+    if observation.get("form") not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+        return None
+    value = observation.get("val")
+    start = observation.get("start")
+    end = observation.get("end")
+    accession = observation.get("accn")
+    filed = observation.get("filed")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value <= 0:
+        return None
+    if not all(isinstance(item, str) for item in (start, end, accession, filed)):
+        return None
+    start_text, end_text, accession_text, filed_text = cast(tuple[str, str, str, str], (start, end, accession, filed))
+    period_start = _parse_date_start(start_text)
+    period_end = _parse_date_end(end_text)
+    if period_start is None or period_end is None or not _is_completed_annual_period(period_start, period_end):
+        return None
+    available_at = acceptance_by_accession.get(accession_text) or _parse_sec_filed_date_end(filed_text)
+    if available_at is None:
+        return None
+    provider_fact_id = f"{accession_text}:{SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD}:shares:{start_text}:{end_text}"
+    return ProviderFact(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id=request.subject_id,
+        field_name=FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+        value=numeric_value,
+        units=FinancialUnit.SHARES,
+        provider_id=SEC_PROVIDER_ID,
+        provider_field=SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD,
+        retrieved_at=retrieved_at,
+        basis="fiscal_year",
+        currency=None,
+        observation_period_start=period_start,
+        observation_period_end=period_end,
+        available_at=available_at,
+        notes=(f"cik={cik}", f"accession={accession_text}", "definition=weighted-average diluted shares"),
+        fiscal_year=period_end.year,
+        period_kind=PeriodKind.COMPLETED_ANNUAL,
+        accounting_scope=AccountingScope.CONSOLIDATED,
+        provider_fact_id=provider_fact_id,
     )
 
 

@@ -10,6 +10,7 @@ from src.analysis.fcf_earnings_growth.calculators import classify_fcf_earnings_g
 from src.analysis.fcf_earnings_growth.models import (
     Classification,
     ClassificationDecision,
+    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     ForwardEvidence,
     ForwardEvidenceStatus,
@@ -95,6 +96,31 @@ class TestHistoricalGates:
     """PASS/FAIL on the selected historical CAGR span (display-only forward)."""
 
     POLICY = FCFEarningsGrowthPolicy(forward_policy=ForwardPolicy.DISPLAY_ONLY)
+
+    def test_explicit_per_share_basis_controls_classification(self) -> None:
+        decision = classify_fcf_earnings_growth(
+            policy=FCFEarningsGrowthPolicy(classification_basis=FCFClassificationBasis.FCF_PER_SHARE),
+            fcf_cagr=MetricResult.ok(8.0),
+            fcf_per_share_cagr=MetricResult.ok(-1.0),
+            eps_cagr=MetricResult.ok(4.0),
+            forward_evidence=_unavailable_forward(),
+        )
+        assert decision.classification is Classification.FAIL
+        assert decision.reason_code is ReasonCode.FCF_NOT_GROWING
+
+    def test_missing_selected_per_share_evidence_is_indeterminate(self) -> None:
+        unavailable = MetricResult.failure(
+            MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "FCF/share evidence is unavailable."
+        )
+        decision = classify_fcf_earnings_growth(
+            policy=FCFEarningsGrowthPolicy(classification_basis=FCFClassificationBasis.FCF_PER_SHARE),
+            fcf_cagr=MetricResult.ok(8.0),
+            fcf_per_share_cagr=unavailable,
+            eps_cagr=MetricResult.ok(4.0),
+            forward_evidence=_unavailable_forward(),
+        )
+        assert decision.classification is Classification.INDETERMINATE
+        assert decision.reason_code is ReasonCode.MISSING_FACT
 
     def test_pass_when_both_series_grow(self) -> None:
         decision = _classify(

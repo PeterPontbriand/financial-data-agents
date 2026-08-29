@@ -91,7 +91,7 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     assert "derivation: operating_cash_flow - normalized_capital_expenditures" in details
     assert "Diagnostics" in diagnostics
     assert "provider/success" in diagnostics
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["strategy_id"] == "fcf_earnings_growth"
     assert payload["market_capitalization"] is None
     assert payload["fcf_yield"]["value"] is None

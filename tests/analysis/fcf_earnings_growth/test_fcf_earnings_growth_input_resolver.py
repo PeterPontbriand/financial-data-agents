@@ -14,6 +14,7 @@ from src.analysis.fcf_earnings_growth.input_resolver import (
     resolve_annual_growth_series,
 )
 from src.analysis.fcf_earnings_growth.models import (
+    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     HistoricalHorizon,
     MetricStatus,
@@ -40,6 +41,7 @@ def _bindings(provider: FixtureAnnualFinancialFactsProvider) -> dict[FinancialFi
             FinancialField.OPERATING_CASH_FLOW,
             FinancialField.CAPITAL_EXPENDITURES,
             FinancialField.EPS,
+            FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
         ),
         binding,
     )
@@ -219,7 +221,7 @@ def test_complete_cache_avoids_provider_and_partial_cache_refreshes_field() -> N
     first_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
     first = _resolve(first_provider, cache=cache)
     assert first.status is CalculationStatus.OK
-    assert len(first_provider.requests) == 3
+    assert len(first_provider.requests) == 4
 
     hit_provider = FixtureAnnualFinancialFactsProvider(())
     hit = _resolve(hit_provider, cache=cache)
@@ -237,7 +239,7 @@ def test_partial_cached_series_causes_complete_field_refresh() -> None:
     refreshed = _resolve(full, cache=cache)
     assert refreshed.status is CalculationStatus.OK
     assert refreshed.selected_horizon_years == 5
-    assert len(full.requests) == 3
+    assert len(full.requests) == 4
 
 
 def test_stale_cache_refreshes_all_fields() -> None:
@@ -266,7 +268,7 @@ def test_stale_cache_refreshes_all_fields() -> None:
         clock=lambda: now[0],
     )
     assert result.status is CalculationStatus.OK
-    assert len(refresh.requests) == 3
+    assert len(refresh.requests) == 4
 
 
 def test_historical_boundary_excludes_later_restatement() -> None:
@@ -312,6 +314,38 @@ def test_non_calendar_fiscal_periods_are_contiguous() -> None:
 
 def test_cache_schema_version_is_period_series_version() -> None:
     assert CACHE_SCHEMA_VERSION == 2
+
+
+def test_derives_fcf_per_share_cagr_with_provenance() -> None:
+    facts = list(annual_series(range(2020, 2026), fcf_values=(100.0, 110.0, 120.0, 130.0, 140.0, 150.0)))
+    result = _resolve(FixtureAnnualFinancialFactsProvider(tuple(facts)))
+    assert result.status is CalculationStatus.OK
+    assert result.fcf_per_share_cagr.status is MetricStatus.OK
+    assert result.fcf_per_share_cagr.value == pytest.approx(result.fcf_cagr.value)
+    assert all(item.free_cash_flow_per_diluted_share is not None for item in result.observations)
+    assert all(
+        item.free_cash_flow_per_diluted_share is not None and item.free_cash_flow_per_diluted_share.lineage is not None
+        for item in result.observations
+    )
+
+
+def test_selected_fcf_per_share_requires_share_evidence() -> None:
+    facts = tuple(
+        fact
+        for fact in annual_series(range(2020, 2026))
+        if fact.field_name is not FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES
+    )
+    provider = FixtureAnnualFinancialFactsProvider(facts)
+    result = resolve_annual_growth_series(
+        policy=FCFEarningsGrowthPolicy(classification_basis=FCFClassificationBasis.FCF_PER_SHARE),
+        subject_id="ACME",
+        currency="USD",
+        as_of=None,
+        providers=_bindings(provider),
+        clock=lambda: NOW,
+    )
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.MISSING_FACT
 
 
 @pytest.mark.parametrize(("subject", "currency"), [("", "USD"), ("ACME", "")])

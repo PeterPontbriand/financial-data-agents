@@ -26,8 +26,8 @@ from src.data.financial.resolution_trace import ResolutionTrace
 
 STRATEGY_ID = "fcf_earnings_growth"
 METHOD_ID = "reported_fcf_eps_cagr"
-METHOD_VERSION = 1
-SCHEMA_VERSION = 1
+METHOD_VERSION = 2
+SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +50,13 @@ class ForwardPolicy(StrEnum):
     DISPLAY_ONLY = "display_only"
     CONFIRMATION = "confirmation"
     HARD_GATE = "hard_gate"
+
+
+class FCFClassificationBasis(StrEnum):
+    """Free-cash-flow measure controlling classification."""
+
+    TOTAL_FCF = "total_fcf"
+    FCF_PER_SHARE = "fcf_per_share"
 
 
 class Classification(StrEnum):
@@ -131,6 +138,7 @@ class FCFEarningsGrowthPolicy:
     """
 
     historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
+    classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
     forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
     include_fcf_yield: bool = True
 
@@ -303,12 +311,23 @@ class AnnualGrowthObservation:
     normalized_capital_expenditures: ResolvedInput
     free_cash_flow: ResolvedInput
     diluted_eps: ResolvedInput
+    weighted_average_diluted_shares: ResolvedInput | None = None
+    free_cash_flow_per_diluted_share: ResolvedInput | None = None
 
     def __post_init__(self) -> None:
         """Validate the fiscal-year span and derived free-cash-flow identity."""
         if self.fiscal_year < 1:
             msg = f"fiscal_year must be a positive year label (received {self.fiscal_year})."
             raise ValueError(msg)
+        if (self.weighted_average_diluted_shares is None) is not (self.free_cash_flow_per_diluted_share is None):
+            raise ValueError("Diluted shares and derived FCF/share must be present or absent together.")
+        if self.weighted_average_diluted_shares is not None:
+            if self.weighted_average_diluted_shares.value <= 0:
+                raise ValueError("weighted_average_diluted_shares must be strictly positive.")
+            expected_per_share = self.free_cash_flow.value / self.weighted_average_diluted_shares.value
+            assert self.free_cash_flow_per_diluted_share is not None
+            if not math.isclose(self.free_cash_flow_per_diluted_share.value, expected_per_share):
+                raise ValueError("free_cash_flow_per_diluted_share has an inconsistent derived value.")
         if self.period_start > self.period_end:
             msg = "period_start must not be after period_end."
             raise ValueError(msg)
@@ -430,6 +449,7 @@ class FCFEarningsGrowthResult:
     period_end: datetime | None = None
     annual_observations: tuple[AnnualGrowthObservation, ...] = ()
     fcf_cagr: MetricResult
+    fcf_per_share_cagr: MetricResult
     eps_cagr: MetricResult
     trend_classification: TrendClassification
     market_capitalization: ResolvedInput | None = None
@@ -470,7 +490,12 @@ class FCFEarningsGrowthResult:
 
         if self.classification in (Classification.PASS, Classification.FAIL) and (
             self.execution_status is not CalculationStatus.OK
-            or self.fcf_cagr.status is not MetricStatus.OK
+            or (
+                self.fcf_cagr.status
+                if self.policy.classification_basis is FCFClassificationBasis.TOTAL_FCF
+                else self.fcf_per_share_cagr.status
+            )
+            is not MetricStatus.OK
             or self.eps_cagr.status is not MetricStatus.OK
             or self.period_start is None
             or self.period_end is None

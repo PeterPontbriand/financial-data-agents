@@ -49,7 +49,8 @@ def test_valuation_field_members() -> None:
     assert FinancialField.PREFERRED_SHARES_OUTSTANDING.value == "preferred_shares_outstanding"
     assert FinancialField.OPERATING_CASH_FLOW.value == "operating_cash_flow"
     assert FinancialField.CAPITAL_EXPENDITURES.value == "capital_expenditures"
-    assert len(list(FinancialField)) == 9
+    assert FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES.value == "weighted_average_diluted_shares"
+    assert len(list(FinancialField)) == 10
 
 
 def test_valuation_unit_members() -> None:

@@ -100,7 +100,11 @@ def _expected_unit(field_name: FinancialField) -> FinancialUnit:
         FinancialField.CAPITAL_EXPENDITURES,
     ):
         return FinancialUnit.CURRENCY
-    if field_name in (FinancialField.COMMON_SHARES_OUTSTANDING, FinancialField.PREFERRED_SHARES_OUTSTANDING):
+    if field_name in (
+        FinancialField.COMMON_SHARES_OUTSTANDING,
+        FinancialField.PREFERRED_SHARES_OUTSTANDING,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+    ):
         return FinancialUnit.SHARES
     return FinancialUnit.CURRENCY_PER_SHARE
 
@@ -133,6 +137,7 @@ class FinancialField(StrEnum):
     PREFERRED_SHARES_OUTSTANDING = "preferred_shares_outstanding"
     OPERATING_CASH_FLOW = "operating_cash_flow"
     CAPITAL_EXPENDITURES = "capital_expenditures"
+    WEIGHTED_AVERAGE_DILUTED_SHARES = "weighted_average_diluted_shares"
 
 
 class FinancialUnit(StrEnum):
@@ -152,6 +157,7 @@ _COMPLETED_ANNUAL_SERIES_FIELDS = frozenset(
         FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     }
 )
 

@@ -8,6 +8,7 @@ import pytest
 
 from src.analysis.fcf_earnings_growth.calculators import (
     compute_cagr,
+    compute_fcf_per_diluted_share,
     compute_fcf_yield,
     compute_free_cash_flow,
     compute_growth_percent,
@@ -61,6 +62,21 @@ class TestComputeFreeCashFlow:
     def test_subtraction_overflow(self) -> None:
         result = compute_free_cash_flow(float("1.7976931348623157e308"), -1.0e308)
         _assert_failure(result, MetricStatus.NOT_APPLICABLE, ReasonCode.INVALID_REQUEST)
+
+
+class TestComputeFcfPerDilutedShare:
+    """FCF/share uses the compatible positive diluted-share denominator."""
+
+    def test_derives_per_share_value(self) -> None:
+        _assert_ok(compute_fcf_per_diluted_share(250.0, 100.0), 2.5)
+
+    @pytest.mark.parametrize("shares", [0.0, -1.0])
+    def test_rejects_nonpositive_denominator(self, shares: float) -> None:
+        _assert_failure(
+            compute_fcf_per_diluted_share(250.0, shares),
+            MetricStatus.UNAVAILABLE,
+            ReasonCode.NONPOSITIVE_ENDING,
+        )
 
 
 class TestComputeGrowthPercent:

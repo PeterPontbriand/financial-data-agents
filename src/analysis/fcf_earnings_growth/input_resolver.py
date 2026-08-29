@@ -6,9 +6,14 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from src.analysis.fcf_earnings_growth.calculators import compute_cagr, compute_free_cash_flow
+from src.analysis.fcf_earnings_growth.calculators import (
+    compute_cagr,
+    compute_fcf_per_diluted_share,
+    compute_free_cash_flow,
+)
 from src.analysis.fcf_earnings_growth.models import (
     AnnualGrowthObservation,
+    FCFClassificationBasis,
     FCFEarningsGrowthPolicy,
     HistoricalHorizon,
     MetricResult,
@@ -51,7 +56,9 @@ _ANNUAL_FIELDS = (
     FinancialField.OPERATING_CASH_FLOW,
     FinancialField.CAPITAL_EXPENDITURES,
     FinancialField.EPS,
+    FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
 )
+_REQUIRED_ANNUAL_FIELDS = _ANNUAL_FIELDS[:3]
 
 
 class ProductionAnnualGrowthSeriesResolver:
@@ -173,6 +180,7 @@ class AnnualGrowthSeriesAssembly:
     selected_observation_count: int
     used_horizon_fallback: bool
     fcf_cagr: MetricResult
+    fcf_per_share_cagr: MetricResult
     eps_cagr: MetricResult
     span_sign_change_fcf: bool
     span_sign_change_eps: bool
@@ -247,6 +255,7 @@ def _failure_assembly(  # noqa: PLR0913
         selected_observation_count=0,
         used_horizon_fallback=False,
         fcf_cagr=metric,
+        fcf_per_share_cagr=metric,
         eps_cagr=metric,
         span_sign_change_fcf=False,
         span_sign_change_eps=False,
@@ -274,10 +283,16 @@ def _fact_rejection(  # noqa: PLR0911
         return ReasonCode.AMBIGUOUS_FACT, "The annual fact lacks a stable provider_fact_id."
     if fact.available_at is None or fact.available_at > as_of:
         return ReasonCode.NOT_AVAILABLE_AS_OF, "The annual fact was not publicly available at the analysis boundary."
-    expected_units = FinancialUnit.CURRENCY_PER_SHARE if field is FinancialField.EPS else FinancialUnit.CURRENCY
+    expected_units = (
+        FinancialUnit.CURRENCY_PER_SHARE
+        if field is FinancialField.EPS
+        else FinancialUnit.SHARES
+        if field is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES
+        else FinancialUnit.CURRENCY
+    )
     if fact.units is not expected_units:
         return ReasonCode.INCOMPATIBLE_UNITS, "The annual fact has incompatible units."
-    if fact.currency != currency:
+    if field is not FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES and fact.currency != currency:
         return ReasonCode.INCOMPATIBLE_CURRENCY, "The annual fact has an incompatible or unknown currency."
     if field is FinancialField.CAPITAL_EXPENDITURES and fact.capital_expenditure_sign is None:
         return ReasonCode.AMBIGUOUS_FACT, "The capital-expenditure sign convention is missing."
@@ -566,12 +581,23 @@ def _assemble_common(
         field: {(item.observation_period_start, item.observation_period_end): item for item in inputs}
         for field, inputs in field_inputs.items()
     }
-    periods = set.intersection(*(set(values) for values in indexed.values()))
+    periods = set.intersection(*(set(indexed[field]) for field in _REQUIRED_ANNUAL_FIELDS))
     observations: list[AnnualGrowthObservation] = []
     for period in sorted(periods, key=lambda item: (item[1], item[0])):
         ocf = indexed[FinancialField.OPERATING_CASH_FLOW][period]
         capex = indexed[FinancialField.CAPITAL_EXPENDITURES][period]
         eps = indexed[FinancialField.EPS][period]
+        diluted_shares = indexed.get(FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES, {}).get(period)
+        if (
+            diluted_shares is not None
+            and diluted_shares.provider_id == SEC_PROVIDER_ID
+            and eps.provider_id == SEC_PROVIDER_ID
+            and diluted_shares.provider_fact_id is not None
+            and eps.provider_fact_id is not None
+            and diluted_shares.provider_fact_id.split(":", maxsplit=1)[0]
+            != eps.provider_fact_id.split(":", maxsplit=1)[0]
+        ):
+            diluted_shares = None
         period_start, period_end = period
         assert period_start is not None
         assert period_end is not None
@@ -609,6 +635,33 @@ def _assemble_common(
             period_kind=PeriodKind.COMPLETED_ANNUAL,
             accounting_scope=AccountingScope.CONSOLIDATED,
         )
+        fcf_per_share: ResolvedInput | None = None
+        if diluted_shares is not None:
+            per_share_metric = compute_fcf_per_diluted_share(fcf.value, diluted_shares.value)
+            if per_share_metric.status is MetricStatus.OK and per_share_metric.value is not None:
+                share_available = diluted_shares.available_at
+                share_retrieved = diluted_shares.retrieved_at
+                fcf_per_share = ResolvedInput(
+                    field_name="free_cash_flow_per_diluted_share",
+                    value=per_share_metric.value,
+                    source_kind=SourceKind.DERIVED,
+                    resolved_at=resolved_at,
+                    basis="fiscal_year",
+                    units=FinancialUnit.CURRENCY_PER_SHARE.value,
+                    currency=ocf.currency,
+                    observation_period_start=period[0],
+                    observation_period_end=period[1],
+                    available_at=max(available, share_available) if share_available is not None else available,
+                    as_of=requested_as_of,
+                    retrieved_at=max(retrieved, share_retrieved) if share_retrieved is not None else retrieved,
+                    lineage=ComponentLineage(
+                        transformation="free_cash_flow / weighted_average_diluted_shares",
+                        components=(fcf, diluted_shares),
+                    ),
+                    fiscal_year=ocf.fiscal_year,
+                    period_kind=PeriodKind.COMPLETED_ANNUAL,
+                    accounting_scope=AccountingScope.CONSOLIDATED,
+                )
         observations.append(
             AnnualGrowthObservation(
                 fiscal_year=ocf.fiscal_year,
@@ -618,6 +671,8 @@ def _assemble_common(
                 normalized_capital_expenditures=capex,
                 free_cash_flow=fcf,
                 diluted_eps=eps,
+                weighted_average_diluted_shares=diluted_shares if fcf_per_share is not None else None,
+                free_cash_flow_per_diluted_share=fcf_per_share,
             )
         )
     return tuple(observations), None, None
@@ -629,7 +684,7 @@ def _has_span_sign_change(values: Sequence[float]) -> bool:
     )
 
 
-def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
+def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, PLR0917
     *,
     policy: FCFEarningsGrowthPolicy,
     subject_id: str,
@@ -664,7 +719,17 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
         )
     normalized_subject = subject_id.strip().upper()
     normalized_currency = currency.strip().upper()
-    if not normalized_subject or not normalized_currency or any(field not in providers for field in _ANNUAL_FIELDS):
+    missing_required_provider = any(field not in providers for field in _REQUIRED_ANNUAL_FIELDS)
+    missing_selected_share_provider = (
+        policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE
+        and FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES not in providers
+    )
+    if (
+        not normalized_subject
+        or not normalized_currency
+        or missing_required_provider
+        or missing_selected_share_provider
+    ):
         return _failure_assembly(
             status=CalculationStatus.INVALID_INPUT,
             code=ReasonCode.INVALID_REQUEST,
@@ -680,6 +745,9 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
     trace = ResolutionTrace()
     resolved_fields: dict[FinancialField, tuple[ResolvedInput, ...]] = {}
     for field in _ANNUAL_FIELDS:
+        if field not in providers:
+            resolved_fields[field] = ()
+            continue
         resolution, field_trace = _resolve_field(
             field=field,
             binding=providers[field],
@@ -694,6 +762,12 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
         )
         trace = trace.extend(field_trace)
         if resolution.reason_code is not None:
+            if (
+                field is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES
+                and policy.classification_basis is FCFClassificationBasis.TOTAL_FCF
+            ):
+                resolved_fields[field] = ()
+                continue
             status = (
                 CalculationStatus.PROVIDER_ERROR if resolution.provider_error else CalculationStatus.INPUT_UNAVAILABLE
             )
@@ -716,6 +790,18 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
             policy=policy,
             common_count=0,
             longest_count=0,
+            trace=trace,
+        )
+    if policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE and any(
+        item.free_cash_flow_per_diluted_share is None for item in common
+    ):
+        return _failure_assembly(
+            status=CalculationStatus.INPUT_UNAVAILABLE,
+            code=ReasonCode.INCOMPATIBLE_SCOPE,
+            reason="Compatible same-accession diluted-share evidence is unavailable for every annual period.",
+            policy=policy,
+            common_count=len(common),
+            longest_count=_longest_contiguous_count(tuple(item.free_cash_flow for item in common)),
             trace=trace,
         )
     longest_count = _longest_contiguous_count(tuple(item.free_cash_flow for item in common))
@@ -751,6 +837,11 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
         )
     fcf_values = [item.free_cash_flow.value for item in selected]
     eps_values = [item.diluted_eps.value for item in selected]
+    fcf_per_share_values = [
+        item.free_cash_flow_per_diluted_share.value
+        for item in selected
+        if item.free_cash_flow_per_diluted_share is not None
+    ]
     fcf_sign = _has_span_sign_change(fcf_values)
     eps_sign = _has_span_sign_change(eps_values)
     fcf_cagr = (
@@ -763,6 +854,14 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
         if eps_sign
         else compute_cagr(eps_values[0], eps_values[-1], selected_years)
     )
+    if len(fcf_per_share_values) != len(selected):
+        fcf_per_share_cagr = _failure_metric(ReasonCode.MISSING_FACT, "FCF/share evidence is unavailable.")
+    elif _has_span_sign_change(fcf_per_share_values):
+        fcf_per_share_cagr = _failure_metric(
+            ReasonCode.SIGN_CHANGE, "FCF/share changes sign or reaches zero within the selected span."
+        )
+    else:
+        fcf_per_share_cagr = compute_cagr(fcf_per_share_values[0], fcf_per_share_values[-1], selected_years)
     fallback = policy.historical_horizon is HistoricalHorizon.LONGEST_AVAILABLE and selected_years < 5
     selection = SeriesSelection(
         requested=policy.historical_horizon,
@@ -782,6 +881,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
         selected_observation_count=len(selected),
         used_horizon_fallback=fallback,
         fcf_cagr=fcf_cagr,
+        fcf_per_share_cagr=fcf_per_share_cagr,
         eps_cagr=eps_cagr,
         span_sign_change_fcf=fcf_sign,
         span_sign_change_eps=eps_sign,

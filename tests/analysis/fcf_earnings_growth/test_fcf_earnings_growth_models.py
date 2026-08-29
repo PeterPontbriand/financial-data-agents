@@ -59,6 +59,9 @@ def _make_result(**overrides: object) -> FCFEarningsGrowthResult:
         "classification_reason_code": ReasonCode.EPS_NOT_GROWING,
         "classification_reason": "Diluted-earnings-per-share compound annual growth is zero or negative.",
         "fcf_cagr": MetricResult.ok(10.0),
+        "fcf_per_share_cagr": MetricResult.failure(
+            MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "FCF/share evidence is unavailable."
+        ),
         "eps_cagr": MetricResult.ok(-2.0),
         "trend_classification": TrendClassification.FCF_GROWING_EARNINGS_NOT,
         "fcf_yield": MetricResult.ok(5.0),
@@ -391,14 +394,14 @@ class TestFCFEarningsGrowthResult:
 
     def test_fixed_identifiers(self) -> None:
         result = _make_result()
-        assert result.schema_version == 1
+        assert result.schema_version == 2
         assert result.strategy_id == "fcf_earnings_growth"
         assert result.method_id == "reported_fcf_eps_cagr"
-        assert result.method_version == 1
-        assert models_module.SCHEMA_VERSION == 1
+        assert result.method_version == 2
+        assert models_module.SCHEMA_VERSION == 2
         assert models_module.STRATEGY_ID == "fcf_earnings_growth"
         assert models_module.METHOD_ID == "reported_fcf_eps_cagr"
-        assert models_module.METHOD_VERSION == 1
+        assert models_module.METHOD_VERSION == 2
 
     @pytest.mark.parametrize(
         ("field", "value"),

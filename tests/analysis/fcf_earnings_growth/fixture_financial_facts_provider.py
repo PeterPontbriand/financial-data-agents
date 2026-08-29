@@ -72,12 +72,18 @@ def annual_fact(  # noqa: PLR0913, PLR0917
         subject_id="ACME",
         field_name=field,
         value=value,
-        units=FinancialUnit.CURRENCY_PER_SHARE if field is FinancialField.EPS else FinancialUnit.CURRENCY,
+        units=(
+            FinancialUnit.CURRENCY_PER_SHARE
+            if field is FinancialField.EPS
+            else FinancialUnit.SHARES
+            if field is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES
+            else FinancialUnit.CURRENCY
+        ),
         provider_id=PROVIDER_ID,
         provider_field=f"fixture.{field.value}",
         retrieved_at=RETRIEVED_AT,
         basis="fiscal_year",
-        currency=currency,
+        currency=None if field is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES else currency,
         observation_period_start=start,
         observation_period_end=end,
         available_at=available_at or datetime(fiscal_year, 2, 1, tzinfo=UTC),
@@ -94,7 +100,7 @@ def annual_series(
     *,
     fcf_values: tuple[float, ...] | None = None,
 ) -> tuple[ProviderFact, ...]:
-    """Build compatible OCF, positive-expenditure CapEx, and EPS facts."""
+    """Build compatible annual FCF, diluted-share, and diluted-EPS facts."""
     facts: list[ProviderFact] = []
     selected_years = tuple(years)
     for index, year in enumerate(selected_years):
@@ -110,6 +116,7 @@ def annual_series(
                     capex_sign=CapitalExpenditureSign.POSITIVE_EXPENDITURE,
                 ),
                 annual_fact(FinancialField.EPS, year, 2.0 + index * 0.5),
+                annual_fact(FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES, year, 100.0),
             )
         )
     return tuple(facts)

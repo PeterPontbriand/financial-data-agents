@@ -45,6 +45,7 @@ def test_sec_composition_resolves_all_required_fields_with_provenance() -> None:
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
         FinancialField.EPS,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     ]
     for observation in result.observations:
         assert observation.operating_cash_flow.provider_id == SEC_PROVIDER_ID
