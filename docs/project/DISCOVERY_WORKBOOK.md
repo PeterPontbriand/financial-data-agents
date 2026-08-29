@@ -147,6 +147,16 @@ Use local LLMs for planning/tool selection/synthesis while deterministic Python 
 
 When these audiences conflict, usefulness to primary users wins.
 
+### Stakeholder input: forward-return composite concept
+
+Stakeholder discovery input includes a broad possible future screen with these unapproved candidate components: 25% “FCF Power” (FCF yield, forward FCF growth, FCF/share growth, and cash conversion); 20% “ROIC/Reinvestment” (ROIC minus WACC, incremental ROIC, and returns on new invested capital/reinvestment opportunity); 20% “Estimate Revisions” (changes in consensus EPS, FCF, revenue, EBITDA/margins, and management guidance); 20% “Growth-Adjusted Valuation” (EV/forward FCF or P/FCF relative to expected FCF growth and historical valuation); and 15% “Momentum” (6–12 month relative price strength, earnings revisions, and accelerating fundamentals). Candidate risk filters include excessive leverage, poor cash conversion, and unstable or highly cyclical earnings.
+
+This product-discovery evidence for a possible later composite screener is not a replacement specification for the current independently typed deterministic strategy. All proposed components, formulas, weights, and filters are as-yet unapproved. The cited AQR Quality Minus Junk and MSCI factor materials support only the broad observation that quality or factor analysis can combine multiple descriptors; they do not validate this particular screen, its formulas, or its weights.
+
+A related current-method policy question was whether historical FCF growth should use total company FCF, FCF per diluted share, or both. The approved decision is to show both, use total-company-FCF CAGR as the default `PASS`/`FAIL` control, and offer an explicit policy/CLI override that instead makes FCF/share CAGR controlling. This distinction is material because FCF/share incorporates dilution and repurchases; the approved extension therefore requires explicit weighted-average diluted-share, split/share-class compatibility, provenance, fixture, schema, and method-version decisions rather than an unversioned display calculation.
+
+Cash conversion is important to stakeholders but remains only a future candidate: “reject” and “penalize” describe different policies, and no ratio, period, threshold, or missing-data treatment was supplied. Before any future composite can become a specification, it must define formulas, normalization and outlier treatment, comparison universe, sector-relative versus absolute treatment, missing-data policy, thresholds, point-in-time data boundaries, evaluation/rebalancing frequency, and empirical or backtest validation.
+
 ---
 
 # 7. AI Philosophy
@@ -375,6 +385,8 @@ Planned when their owning work lands:
 - `docs/I18N_GUIDE.md`.
 
 A planned document must not be treated as an existing source of instructions.
+
+Product documentation records aggregate stakeholder needs, evidence, and resulting policy decisions. It does not attribute an input to an identifiable individual or narrate a distinctive exchange, response, interview fragment, or personal scenario unless explicit attribution is required and approved. Examples and personas remain generalized so stakeholders can recognize that their concerns are addressed without being identifiable from the text.
 
 ---
 

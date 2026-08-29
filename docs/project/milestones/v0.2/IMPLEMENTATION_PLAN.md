@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-27 — Split Slice D into evidence-gated D0–D5 work units after approval of C2.<br/>
-**Status:** Step 2.2 → Implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A, B, C1, C1R, C2, and D0 complete and approved / Slice D1 authorized next, including later pre-Golden shared-contract hardening; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
+**Revised:** 2026-08-29 — Recorded implemented D1–D5 and initial E state; added approved E1–E3 FCF/share extension before pre-Golden hardening.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A, B, C1, C1R, C2, and D0 complete and approved / D1–D5 and the initial E CLI/presentation are implemented, with their combined implementation review still to be recorded / E1–E3 FCF/share extension follows that review / Slice F shared-contract hardening follows E3; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -274,7 +274,7 @@ The fact that Graham and Momentum have different inputs and outputs is intention
                                      typed method result
 ```
 
-Do not make Graham "Momentum-shaped" merely for implementation consistency.
+Graham is not forced to be "Momentum-shaped" merely for some notional implementation consistency, and future implement strategies will have their own shapes that will be invocable through the **existing** analysis/tool/orchestration mechanisms as well.
 
 #### 4.3.2 Graham method definitions and output semantics
 
@@ -577,7 +577,7 @@ Step 2.3 does **not** include:
 ### 4.4 Step 2.4 – Free Cash Flow & Earnings Growth Analysis
 
 **Goal**<br/>
-Add a third materially different deterministic investor analysis before the Golden Suite, driven by prospective Real-User demand and designed to exercise the Step 2.3 financial-fact, resolver, provenance, fixture, CLI, and presentation boundaries.
+Add a third materially different deterministic investor analysis before the Golden Suite, addressing documented stakeholder requirements and exercising the Step 2.3 financial-fact, resolver, provenance, fixture, CLI, and presentation boundaries.
 
 The governing design is:
 
@@ -609,6 +609,8 @@ The product-policy checkpoint is resolved by the reviewed governing design. The 
 - no P/FCF threshold, DCF, peer ranking, composite score, or investment recommendation.
 
 The exact financial, typed-result, versioning, and presentation semantics are normative in the governing Step 2.4 design. Unsupported optional provider capabilities remain explicitly unavailable; they are not guessed or silently substituted.
+
+The focused product-policy follow-up is resolved: the stand-alone Free Cash Flow & Earnings Growth analysis shows both total-company-FCF CAGR and FCF-per-diluted-share CAGR. Total-company-FCF CAGR controls `PASS`/`FAIL` by default; an explicit typed policy and CLI switch may select FCF/share CAGR instead. Because FCF/share incorporates dilution and repurchases, this is a versioned strategy-contract extension requiring weighted-average diluted-share evidence, split/share-class compatibility, provenance, fixtures, and schema evolution. It is not a presentation-only toggle and does not introduce the later composite screener.
 
 #### 4.4.2 Canonical financial semantics
 
@@ -667,7 +669,7 @@ Annual diluted EPS should reuse the Step 2.3 capability wherever semantically co
 
 Slice C1 demonstrated a concrete new-strategy incompatibility in the shared vocabulary: operating cash flow and capital expenditures are general financial-statement facts, while the shared cache accepts provider- or derived-origin `ResolvedInput` objects and does not enforce a valuation-only domain. C1R therefore performs one deliberate naming migration before C2 adds another consumer. Provider-facing `Valuation*` fact contracts become `Financial*` fact contracts, and cache-facing `ValuationCache*` contracts become `ResolvedInputCache*` contracts. Numeric `value` fields retain that name because they denote a fact's numeric payload, not a company valuation.
 
-The migration changes vocabulary, imports, and documentation without changing provider, resolution, cache, or financial semantics. Do not retain competing permanent aliases unless review identifies a concrete external compatibility requirement. Pass focused Graham and FCF regressions and the complete repository quality gate, then stop for human review before C2.
+The migration changes vocabulary, imports, and documentation without changing provider, resolution, cache, or financial semantics. Competing permanent aliases are never retained unless review identifies a concrete external compatibility requirement. Pass focused Graham and FCF regressions and the complete repository quality gate, then stop for human review before C2.
 
 #### 4.4.5 Point-in-time and provenance rules
 
@@ -770,7 +772,7 @@ Reuse the Step 2.3 progressive-disclosure grammar:
 
 Implement and review Step 2.4 in bounded slices:
 
-1. **A — reconnaissance and product-policy lock:** inspect post-Step-2.3 reuse seams, provider evidence candidates, likely files, and resolve the product-policy checkpoint. Make no production changes. Stop for human review.
+1. **A — reconnaissance and initial product-policy lock:** inspect post-Step-2.3 reuse seams, provider evidence candidates, likely files, and resolve the initial product-policy checkpoint. Make no production changes. Stop for human review. The later FCF/share amendment is implemented in E1–E3 rather than rewriting the completed Slice A/B history.
 2. **B — pure FCF/growth math and typed result semantics:** implement deterministic arithmetic/results and focused tests only.
 3. **C1 — financial-fact contracts and period-aware cache:** minimally extend the shared fact/provenance contracts for annual operating cash flow, capital expenditures, and period-scoped cache entries. Stop for human review.
 4. **C1R — deliberate shared-boundary naming migration:** before another strategy couples to the Step 2.3 names, rename the provider-facing `Valuation*` fact vocabulary to `Financial*` and the cache-facing `ValuationCache*` vocabulary to `ResolvedInputCache*`. Reconcile production code, tests, type annotations, documentation, and imports in one bounded migration; preserve behavior and stop for human review after the complete gate passes.
@@ -781,9 +783,12 @@ Implement and review Step 2.4 in bounded slices:
 9. **D3 — annual diluted-EPS reconciliation:** implement and test only the approved annual diluted-EPS compatibility and selection rules from D0. Stop for human review.
 10. **D4 — production composition:** compose the approved provider capabilities through the C2 annual-series resolver, preserving typed unavailability and provenance. Stop for human review.
 11. **D5 — integration closeout:** add bounded provider regressions, run the complete repository gate, and reconcile the provider mapping record with the implemented behavior. Unsupported evidence shapes remain explicitly unavailable.
-12. **E — investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green.
-13. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout.
-14. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
+12. **E — initial investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green. The initial total-FCF implementation is complete; its review state is recorded in the section status above.
+13. **E1 — FCF/share evidence and contract checkpoint:** inspect authoritative provider evidence for annual weighted-average diluted shares, split/share-class treatment, restatements, units, periods, availability, and compatibility with the FCF observation. Freeze the versioned policy/result contract and supported mappings; make no production changes and stop for human approval.
+14. **E2 — FCF/share calculation and data implementation:** add period-compatible diluted-share resolution, deterministic FCF/share derivation, both CAGRs, the typed classification-basis policy, method/schema-version evolution, and focused fixtures/tests. Default classification remains total-company FCF; selecting FCF/share makes missing or nonmeaningful FCF/share evidence `INDETERMINATE`. Stop for human review.
+15. **E3 — FCF/share CLI and presentation amendment:** add the explicit classification-basis CLI switch and render both FCF growth measures in concise/details/diagnostics/JSON output. Presenters consume the typed result and never reclassify it. Add representative live validation after deterministic gates are green.
+16. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout. F does not own the strategy-specific FCF/share extension in E1–E3.
+17. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
 
 #### 4.4.10 Pre-Golden shared-contract hardening
 
@@ -827,6 +832,7 @@ Step 2.4 does **not** include:
 - P/FCF or P/CF as required core metrics unless separately approved after the product-policy checkpoint;
 - a broad named-investor methodology;
 - arbitrary composite scoring/ranking;
+- ROIC, incremental ROIC, WACC, reinvestment-opportunity analysis, estimate-revision history, management-guidance analysis, historical valuation bands, growth-adjusted cash-flow valuation, leverage/earnings-stability scoring, or universe normalization;
 - investment recommendations;
 - Golden Suite/evaluator implementation;
 - durable SQLite persistence/migrations;
@@ -842,6 +848,8 @@ Step 2.4 does **not** include:
 - [ ] CapEx provider sign conventions are normalized transparently.
 - [ ] Annual CFO and CapEx are paired only across compatible fiscal periods.
 - [ ] Annual diluted-EPS growth uses an explicit documented basis.
+- [ ] Both total-company-FCF CAGR and FCF-per-diluted-share CAGR are returned and shown; weighted-average diluted shares are period-compatible and retain provenance.
+- [ ] Total-company-FCF CAGR controls classification by default, while the explicit FCF/share policy/CLI selection controls classification deterministically and produces `INDETERMINATE` when its required evidence is unavailable or nonmeaningful.
 - [ ] Three-, four-, and five-year CAGR use four, five, and six completed annual observations respectively; automatic selection and strict explicit-horizon behavior are tested.
 - [ ] `PASS`, `FAIL`, and `INDETERMINATE` classification follows the governing design and remains distinct from software execution status.
 - [ ] Optional FCF yield cannot alter classification, and optional forward evidence follows the selected policy without guessed provider data.
@@ -1347,6 +1355,7 @@ Phase D — Step 2.4 FCF & earnings growth
   ├─ reconnaissance + product-policy lock
   ├─ pure historical FCF/growth semantics
   ├─ financial-fact extension + fixtures + provider evidence
+  ├─ FCF/share evidence + versioned calculation/classification policy
   ├─ investor CLI/presentation
   ├─ pre-Golden Graham/shared-contract hardening
   └─ complete gate + human approval
@@ -1420,27 +1429,30 @@ All of the following must be true before declaring the milestone complete and op
 16. **Investor-facing presentation** — Default terminal output is concise; `--details`, `--diagnostics`, and `--json` provide progressive disclosure. Strategies share presentation grammar, not a forced internal result model.
 17. **Durable product record** — Step 3.4 stores Analysis Runs as the canonical investor-domain history; report formats are views of those runs.
 18. **Bounded v0.2 agentic behavior** — User-initiated refresh may fan out concurrently and Light Mode may synthesize completed typed results. Unattended scheduling, proactive monitoring, notifications, and autonomous multi-step research remain v1.0 work.
-19. **Step 2.4 roadmap placement** — Free Cash Flow & Earnings Growth is implemented before the Golden Suite to address concrete prospective Real-User demand and to exercise the Step 2.3 strategy/data/provenance architecture before evaluation infrastructure is frozen.
+19. **Step 2.4 roadmap placement** — Free Cash Flow & Earnings Growth is implemented before the Golden Suite to address documented stakeholder requirements and to exercise the Step 2.3 strategy/data/provenance architecture before evaluation infrastructure is frozen.
 20. **Step 2.4 baseline interpretation** — The reviewed governing design resolves the product-policy checkpoint: the first version is a historical actuals screen using project-defined FCF, diluted-EPS CAGR, longest-available 5 → 4 → 3-year selection, and explicit `PASS` / `FAIL` / `INDETERMINATE` semantics. FCF yield and FY1/FY2 consensus EPS are optional evidence-gated context under the documented policies; DCF, P/FCF thresholds, peer ranking, broad named-investor methodology, and composite recommendation scoring are not implied.
 21. **Pre-Golden hardening placement** — The Graham design-to-implementation reconciliation does not reopen completed Step 2.3. Its bounded result, presentation, quote, compatibility, routing, and regression corrections are a mandatory Step 2.4 closeout gate before Step 2.5 begins.
 22. **Shared financial-fact naming** — Slice C1 proved that the Step 2.3 `Valuation*` names no longer describe a valuation-only boundary. Complete the bounded C1R migration to provider-facing `Financial*` fact names and cache-facing `ResolvedInputCache*` names before C2 adds another strategy consumer. Preserve semantics and avoid permanent aliases without a demonstrated compatibility need.
+23. **Future composite discovery input** — The candidate five-component forward-return screen and risk filters are unapproved aggregate stakeholder input for later analytical expansion/aggregation. They do not change Step 2.4, its method semantics, or its position ahead of the Step 2.5 Golden Suite.
+24. **FCF classification basis** — Show both total-company-FCF and FCF-per-diluted-share growth. Total-company-FCF CAGR controls `PASS`/`FAIL` by default; an explicit typed policy/CLI switch selects FCF/share CAGR as the controlling measure. Implement this strategy-specific, versioned extension in E1–E3 before Slice F and before the Golden Suite.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
 2. **Provider/analyst consensus-growth policy** — Do not ingest a provider forecast until its field meaning, time horizon, provenance, update behavior, and licensing are verified.
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
-4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied.
+4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, cash conversion, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied. FCF/share growth is approved current scope under the versioned E1–E3 extension, not a deferred composite feature.
 5. **Ollama Modelfile consolidation** — The repository currently contains `Modelfile.agents` both at the repository root and under `docs/project/deploy/ollama/`. Determine the canonical location and reconcile or remove the duplicate in a separate reviewed documentation/deployment task; do not mix that cleanup into Step 2.4 strategy slices.
 
 ---
 
 ## 9. Next Immediate Actions
 
-Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`; Slices A, B, C1, C1R, C2, and D0 are complete and approved. D1 is authorized next.
+Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`. Slices A, B, C1, C1R, C2, and D0 are complete and approved. D1–D5 and the initial E CLI/presentation are implemented; their combined implementation review remains to be recorded. The approved FCF/share amendment follows as E1–E3 before Slice F.
 
-1. Implement and review D1–D5 independently, beginning with the authorized D1 operating-cash-flow adapter and using only the provider semantics approved in D0.
+1. Record the combined human review outcome for implemented D1–D5 and the initial E CLI/presentation; do not mark those slices approved until that review is explicit.
 2. Preserve classified unavailability so representative live validation can measure the useful-result ratio and identify whether a separately reviewed provider-mapping expansion is warranted.
-3. Complete and review the pre-Golden Graham/shared-contract hardening and Momentum modernization in Section 4.4.10.
-4. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.
-5. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
-6. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.
+3. Complete E1–E3 for the approved FCF/share extension, including its evidence checkpoint, versioned typed contract, deterministic tests, CLI policy, and presentation, before Slice F.
+4. Complete and review the pre-Golden Graham/shared-contract hardening and Momentum modernization in Section 4.4.10.
+5. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.
+6. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
+7. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.

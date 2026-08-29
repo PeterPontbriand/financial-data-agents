@@ -4,8 +4,8 @@
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Last updated:** 2026-08-24<br/>
-**Current status:** Step 2.2 implementation complete. Step 2.3 Slices A–F2 are implemented and approved; Slice G documentation synchronization, final cleanup, complete gate, and explicit completion review are in progress. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Last updated:** 2026-08-29<br/>
+**Current status:** Steps 2.2 and 2.3 are complete and approved. In Step 2.4, Slices A, B, C1, C1R, C2, and D0 are complete and approved; D1–D5 and the initial E CLI/presentation are implemented, with their combined review outcome still to be recorded. The approved E1–E3 FCF/share extension and Slice F pre-Golden hardening remain ahead of Step 2.5. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 

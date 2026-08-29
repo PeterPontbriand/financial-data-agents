@@ -1,6 +1,6 @@
 # Free Cash Flow & Earnings Growth Analysis Strategy
 
-This document defines a deterministic analysis strategy for Financial Data Agents. The strategy examines a public company's historical free cash flow and diluted earnings-per-share growth, optionally adds free-cash-flow yield and forward analyst-consensus context, and returns an explicit `PASS`, `FAIL`, or `INDETERMINATE` conclusion.
+This document defines a deterministic analysis strategy for Financial Data Agents. The strategy examines a public company's historical total free cash flow, free cash flow per diluted share, and diluted earnings-per-share growth, optionally adds free-cash-flow yield and forward analyst-consensus context, and returns an explicit `PASS`, `FAIL`, or `INDETERMINATE` conclusion.
 
 The strategy supports direct analysis from the command line and defines the typed analysis-tool contract used by runtime agents. Both entry points use the same deterministic calculations and return the same structured financial result. A language model never performs or alters the financial arithmetic.
 
@@ -8,17 +8,18 @@ The strategy supports direct analysis from the command line and defines the type
 
 | Decision | Contract |
 | :--- | :--- |
-| Historical measures | Completed annual free cash flow and diluted earnings per share |
+| Historical measures | Completed annual total company free cash flow, FCF per diluted share, and diluted earnings per share |
 | Free-cash-flow definition | Operating cash flow minus capital expenditures |
 | Default period | Longest contiguous span available: prefer 5 elapsed years, then 4, then 3 |
-| Default `PASS` | Both historical compound annual growth rates are meaningful and greater than zero |
-| Default `FAIL` | Required evidence is complete and at least one historical growth rate is zero or negative |
+| Classification basis | Total-company-FCF CAGR by default; explicit `fcf_per_share` policy/CLI override |
+| Default `PASS` | Controlling FCF CAGR and diluted-EPS CAGR are meaningful and greater than zero |
+| Default `FAIL` | Required evidence is complete and at least one controlling historical growth rate is zero or negative |
 | `INDETERMINATE` | Required evidence is insufficient, incompatible, or mathematically nonmeaningful |
 | Forward estimates | Supporting information by default; selectable confirmation or hard-gate policy |
 | Free-cash-flow yield | Supporting information only; no yield threshold |
 | Smoothing | None; reported annual history remains canonical |
 | Comparison basis | Company versus its own history, not versus peers |
-| Versions | `strategy_id = fcf_earnings_growth`, `method_id = reported_fcf_eps_cagr`, `method_version = 1`, `schema_version = 1` |
+| Versions | `strategy_id = fcf_earnings_growth`, `method_id = reported_fcf_eps_cagr`, amended target `method_version = 2`, `schema_version = 2` |
 
 ---
 
@@ -42,7 +43,7 @@ The comparison is against the company's own history. It does not determine wheth
 
 The analysis uses:
 
-- annual free cash flow derived from operating cash flow and capital expenditures;
+- annual total company free cash flow derived from operating cash flow and capital expenditures;
 - annual diluted earnings per share;
 - compound annual growth in each measure over the same historical period.
 
@@ -55,6 +56,8 @@ free_cash_flow = operating_cash_flow - normalized_capital_expenditures
 Operating cash flow means net cash provided by operating activities for the completed fiscal year. `normalized_capital_expenditures` is a positive expenditure amount produced by the data-resolution rules in Part II.
 
 Free cash flow is a non-GAAP analytical measure. Companies and data providers may define similarly named measures differently. The detailed result therefore identifies the source components and normalization used; a provider's precomputed “free cash flow” is not accepted merely because its label matches.
+
+The amended method shows both total company FCF and FCF per diluted share. Annual FCF/share is total company FCF divided by the compatible weighted-average diluted shares for the same completed fiscal year. It therefore reflects dilution and repurchases without changing the canonical total-company-FCF definition. Total-company-FCF CAGR controls classification by default; an explicit `fcf_per_share` policy selection makes FCF/share CAGR controlling. The selected basis is part of the typed policy/result and is never inferred by the presenter or language model.
 
 ### 2.2 Historical period
 
@@ -97,7 +100,7 @@ The strategy rejects absolute-value and “growth from loss” treatments becaus
 
 ### 2.4 Optional context
 
-Under the standard settings, free-cash-flow yield and analyst consensus are supporting information only. The headline `PASS`, `FAIL`, or `INDETERMINATE` result is determined by historical free-cash-flow and diluted-earnings-per-share growth.
+Under the standard settings, free-cash-flow yield and analyst consensus are supporting information only. The headline `PASS`, `FAIL`, or `INDETERMINATE` result is determined by the selected FCF classification basis and historical diluted-earnings-per-share growth. Both total-company-FCF and FCF/share CAGRs are shown regardless of which one controls classification.
 
 Free-cash-flow yield is:
 
@@ -117,7 +120,7 @@ The investor may select:
 | `confirmation` | State whether both forward intervals confirm continued positive earnings growth; do not alter the historical conclusion. |
 | `hard_gate` | Require both forward intervals to be available and positive for `PASS`. Missing required evidence produces `INDETERMINATE`. |
 
-Free-cash-flow yield cannot affect classification under `method_version = 1`. Any method that introduces a yield gate requires a new method version or a different method identifier.
+Free-cash-flow yield cannot affect classification under `method_version = 1` or `2`. Any method that introduces a yield gate requires a new method version or a different method identifier.
 
 ## 3. Classification
 
@@ -128,7 +131,7 @@ The headline conclusion and the software execution status are separate. A provid
 The selected policy returns `PASS` when:
 
 - a valid contiguous historical span is available;
-- free-cash-flow compound annual growth is greater than zero;
+- the selected controlling FCF compound annual growth is greater than zero;
 - diluted-earnings-per-share compound annual growth is greater than zero; and
 - under `hard_gate`, both forward implied-growth rates are available and greater than zero.
 
@@ -160,6 +163,7 @@ financial-agents fcf-growth TICKER [options]
 
 ```text
 --growth-years 3|4|5        # omit for automatic 5 -> 4 -> 3 selection
+--classification-basis total-fcf|fcf-per-share
 --forward-policy POLICY     # display-only, confirmation, or hard-gate
 --as-of DATE_OR_TIMESTAMP
 --data-provider PROVIDER_ID
@@ -182,14 +186,15 @@ The concise output uses this order:
 | 2 | `PASS`, `FAIL`, or `INDETERMINATE` and primary reason | Always |
 | 3 | Historical endpoints, elapsed years, observation count, and fallback notice | Always |
 | 4 | Latest completed-period free cash flow | Available |
-| 5 | Free-cash-flow compound annual growth or unavailable reason | Always |
-| 6 | Diluted-earnings-per-share compound annual growth or unavailable reason | Always |
-| 7 | Historical relationship description | Always |
-| 8 | Free-cash-flow yield | Available and requested by policy |
-| 9 | Forward evidence and selected forward policy | Any forward evidence exists or the policy requires it |
-| 10 | Source and freshness summary | Always |
-| 11 | Material warnings | Present |
-| 12 | Strategy limitation | Always |
+| 5 | Total-company-FCF compound annual growth or unavailable reason | Always |
+| 6 | FCF-per-diluted-share compound annual growth or unavailable reason | Always |
+| 7 | Diluted-earnings-per-share compound annual growth or unavailable reason | Always |
+| 8 | Selected classification basis and historical relationship description | Always |
+| 9 | Free-cash-flow yield | Available and requested by policy |
+| 10 | Forward evidence and selected forward policy | Any forward evidence exists or the policy requires it |
+| 11 | Source and freshness summary | Always |
+| 12 | Material warnings | Present |
+| 13 | Strategy limitation | Always |
 
 Classification reasons appear before optional metrics. Data-quality warnings appear before the limitation. Optional-data warnings do not obscure a complete historical conclusion.
 
@@ -201,7 +206,8 @@ KO — Free Cash Flow & Earnings Growth
 Screen: PASS
 Period: FY2020–FY2025 (5 elapsed years; 6 annual observations)
 Free cash flow (FY2025):        $X.XXB
-Free cash flow CAGR:            +Y.Y%
+Total free cash flow CAGR:      +Y.Y% (classification basis)
+FCF per diluted share CAGR:     +W.W%
 Diluted EPS CAGR:               +Z.Z%
 Trend: Both free cash flow and diluted EPS increased over the measured period.
 
@@ -251,8 +257,8 @@ Every result contains:
 ```text
 strategy_id = "fcf_earnings_growth"
 method_id = "reported_fcf_eps_cagr"
-method_version = 1
-schema_version = 1
+method_version = 2
+schema_version = 2
 ```
 
 - `strategy_id` identifies the user-selectable analysis family and remains stable.
@@ -269,6 +275,7 @@ Adding a new method does not redefine historical results produced by this method
 
 ```text
 HistoricalHorizon = longest_available | 3 | 4 | 5
+FCFClassificationBasis = total_fcf | fcf_per_share
 ForwardPolicy = display_only | confirmation | hard_gate
 Classification = pass | fail | indeterminate
 TrendClassification =
@@ -314,11 +321,12 @@ A more specific reason code may be added only with a `schema_version` increment.
 ```text
 FCFEarningsGrowthPolicy
     historical_horizon: HistoricalHorizon = longest_available
+    classification_basis: FCFClassificationBasis = total_fcf
     forward_policy: ForwardPolicy = display_only
     include_fcf_yield: bool = true
 ```
 
-The minimum automatic horizon is fixed at three elapsed years and is not configurable in `method_version = 1`.
+The minimum automatic horizon is fixed at three elapsed years and is not configurable in `method_version = 1` or `2`. `classification_basis` is introduced in `method_version = 2`; `total_fcf` is the default.
 
 ### 7.3 Metric and forward evidence
 
@@ -360,15 +368,17 @@ AnnualGrowthObservation
     operating_cash_flow: ResolvedInput
     normalized_capital_expenditures: ResolvedInput
     free_cash_flow: ResolvedInput
+    weighted_average_diluted_shares: ResolvedInput | None
+    free_cash_flow_per_diluted_share: ResolvedInput | None
     diluted_eps: ResolvedInput
 ```
 
 ```text
 FCFEarningsGrowthResult
-    schema_version: int = 1
+    schema_version: int = 2
     strategy_id: str = "fcf_earnings_growth"
     method_id: str = "reported_fcf_eps_cagr"
-    method_version: int = 1
+    method_version: int = 2
     ticker: str
     requested_as_of: datetime | None
     effective_as_of: datetime
@@ -384,6 +394,7 @@ FCFEarningsGrowthResult
     period_end: datetime | None
     annual_observations: tuple[AnnualGrowthObservation, ...]
     fcf_cagr: MetricResult
+    fcf_per_share_cagr: MetricResult
     eps_cagr: MetricResult
     trend_classification: TrendClassification
     market_capitalization: ResolvedInput | None
@@ -395,7 +406,8 @@ FCFEarningsGrowthResult
 
 Result invariants:
 
-- successful `PASS` or `FAIL` has `execution_status = ok`, both historical metrics `ok`, and non-null period fields;
+- successful `PASS` or `FAIL` has `execution_status = ok`, the selected controlling FCF metric and EPS metric `ok`, and non-null period fields;
+- both FCF CAGRs are always present as `MetricResult`; unavailable noncontrolling FCF/share evidence does not alter default total-FCF classification;
 - `PASS` has no classification reason; `FAIL` and `INDETERMINATE` have both classification-reason fields;
 - `selected_observation_count` equals the length of `annual_observations`;
 - a selected horizon of `N` has exactly `N + 1` observations;
@@ -415,7 +427,7 @@ Execution status is assigned independently:
 
 When `include_fcf_yield = false`, `fcf_yield` has `status = not_applicable` and `reason_code = not_requested`.
 
-When several conditions apply, `classification_reason_code` identifies the first applicable category in this order: invalid request, required-provider error, incompatible or missing historical fact, insufficient or non-contiguous history, nonmeaningful historical growth, unavailable required consensus, then failed growth gate. More specific details remain in the affected `MetricResult`, diagnostics, and warnings. Failed gates use `fcf_not_growing`, `eps_not_growing`, `fcf_and_eps_not_growing`, or `forward_growth_not_confirmed` as applicable.
+When several conditions apply, `classification_reason_code` identifies the first applicable category in this order: invalid request, required-provider error, incompatible or missing evidence required by the selected classification basis, insufficient or non-contiguous history, nonmeaningful controlling historical growth, unavailable required consensus, then failed growth gate. More specific details remain in the affected `MetricResult`, diagnostics, and warnings. Failed gates use `fcf_not_growing`, `eps_not_growing`, `fcf_and_eps_not_growing`, or `forward_growth_not_confirmed` as applicable; the result's policy identifies whether `fcf_not_growing` refers to total FCF or FCF/share.
 
 `CalculationStatus`, `ResolvedInput`, and `ResolutionTrace` reuse the established shared contracts. Slice C1 confirmed that the Step 2.3 `Valuation*` vocabulary is narrower than the shared boundary it now describes: operating cash flow and capital expenditures are general financial facts, and the cache stores resolved provider or derived inputs rather than valuation results. Before C2, the bounded C1R migration therefore renames provider-facing fact contracts to `Financial*` and cache-facing contracts to `ResolvedInputCache*`, without changing their behavior or invariants.
 
@@ -446,14 +458,14 @@ An incomplete current fiscal year and all trailing-twelve-month facts are exclud
 
 ### 8.2 Compatibility predicate
 
-Operating cash flow, capital expenditures, and diluted earnings per share form one `AnnualGrowthObservation` only when all of the following match:
+Operating cash flow, capital expenditures, weighted-average diluted shares when available, and diluted earnings per share form one `AnnualGrowthObservation` only when all of the following match:
 
 - normalized security identity;
 - fiscal-year label;
 - exact period start and period end;
 - annual duration basis;
 - ISO 4217 currency for monetary facts;
-- compatible unit families: currency for cash-flow components and currency-per-share for diluted earnings per share;
+- compatible unit families: currency for cash-flow components, shares for weighted-average diluted shares, and currency-per-share for FCF/share and diluted earnings per share;
 - consolidated reporting scope and share class;
 - diluted earnings-per-share basis and split treatment.
 
@@ -505,7 +517,7 @@ Before calculating compound annual growth, reject a selected series whose beginn
 
 ## 9. Provider mapping record
 
-No production provider mapping for operating cash flow, capital expenditures, market capitalization, or FY1/FY2 consensus is approved merely by this design.
+No production provider mapping for operating cash flow, capital expenditures, weighted-average diluted shares, market capitalization, or FY1/FY2 consensus is approved merely by this design.
 
 Before a provider capability is enabled, its approved mapping must be added to this document or to a companion document titled **Free Cash Flow & Earnings Growth Provider Mapping Record**. That record is part of the strategy contract and contains:
 
@@ -537,6 +549,8 @@ Provider research and production implementation are deliberately separated:
 5. **D4 — composition:** connect the approved capabilities to the annual-series resolver while preserving typed unavailability and complete provenance.
 6. **D5 — closeout:** add bounded integration regressions, run the complete quality gate, and verify that this record describes production behavior exactly.
 
+The later approved FCF/share amendment follows the same evidence rule. Slice E1 adds and approves weighted-average diluted-share mappings before E2 enables them; D0–D5 are not retroactively rewritten to imply that they reviewed evidence outside their original scope.
+
 Implementation agents receive approved mappings as inputs; they do not decide provider accounting semantics while writing adapters. Each production-capability slice stops for review, and any shape not supported by the approved evidence remains explicitly unavailable.
 
 ## 10. Deterministic calculation boundary
@@ -545,6 +559,7 @@ Financial arithmetic resides in pure Python functions. Candidate functions are:
 
 ```text
 compute_free_cash_flow(operating_cash_flow, normalized_capital_expenditures)
+compute_fcf_per_diluted_share(free_cash_flow, weighted_average_diluted_shares)
 compute_growth_percent(current, prior)
 compute_cagr(beginning, ending, elapsed_years)
 compute_fcf_yield(free_cash_flow, market_capitalization)
@@ -557,7 +572,7 @@ Pure functions reject non-finite inputs, perform no provider/cache/filesystem/cl
 
 Deterministic fixtures provide at least six compatible completed fiscal years and never fall back to live data. Automated verification covers:
 
-1. exact free-cash-flow, growth, and yield arithmetic;
+1. exact total free-cash-flow, FCF-per-diluted-share, growth, and yield arithmetic;
 2. each capital-expenditure sign convention, zero, missing data, contradictory signs, concept precedence, and forbidden summing;
 3. compatibility across identity, period, basis, units, currency, scope, and split treatment;
 4. exclusion of interim, incomplete, year-to-date, quarterly, and trailing-twelve-month facts;
@@ -565,10 +580,10 @@ Deterministic fixtures provide at least six compatible completed fiscal years an
 6. three-, four-, and five-year compound annual growth and the six-observation/five-interval example;
 7. automatic fallback, strict explicit periods, gaps, and insufficient history;
 8. positive, zero, negative, and sign-changing endpoints;
-9. every classification, trend description, execution status, reason code, and invariant;
+9. both classification bases, every classification, trend description, execution status, reason code, and invariant;
 10. complete, partial, unavailable, and not-requested forward evidence under every forward policy;
 11. optional market-capitalization failure and the prohibition on yield affecting classification;
-12. complete free-cash-flow component lineage and historical point-in-time behavior;
+12. complete free-cash-flow and weighted-average-diluted-share lineage and historical point-in-time behavior;
 13. exact concise-output order, warning precedence, and presentation-mode combinations;
 14. identical typed results across command-line, JSON, chart, and runtime-agent presentation paths;
 15. schema and method version behavior;
