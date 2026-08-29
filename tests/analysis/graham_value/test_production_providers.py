@@ -63,6 +63,8 @@ def _sec_request(*, as_of: datetime | None = None) -> FinancialFactRequest:
 
 def _sec_payload() -> dict[str, Any]:
     return {
+        "cik": 320193,
+        "entityName": "Apple Inc.",
         "facts": {
             "us-gaap": {
                 "EarningsPerShareDiluted": {
@@ -101,6 +103,19 @@ def _sec_payload() -> dict[str, Any]:
                                 "form": "10-K/A",
                                 "filed": "2025-01-15",
                             },
+                            # The same amendment repeats FY2023 unchanged,
+                            # proving that it is on the amendment's common
+                            # accounting/share basis with the changed FY2024.
+                            {
+                                "start": "2022-09-25",
+                                "end": "2023-09-30",
+                                "val": 6.13,
+                                "accn": "0001-24a",
+                                "fy": 2024,
+                                "fp": "FY",
+                                "form": "10-K/A",
+                                "filed": "2025-01-15",
+                            },
                             {
                                 "start": "2024-09-29",
                                 "end": "2025-09-27",
@@ -127,7 +142,7 @@ def _sec_payload() -> dict[str, Any]:
                     }
                 }
             }
-        }
+        },
     }
 
 
@@ -278,7 +293,7 @@ def test_sec_adapter_returns_one_annual_eps_fact_per_period_with_acceptance_prov
     assert all(fact.basis == "fiscal_year" for fact in facts)
     assert all(fact.currency == "USD" for fact in facts)
     assert facts[1].available_at == datetime(2025, 1, 15, 18, 0, tzinfo=UTC)
-    assert "available_at uses EDGAR acceptanceDateTime" in facts[1].notes
+    assert "availability_source=SEC submissions acceptanceDateTime, normalized to UTC" in facts[1].notes
 
 
 def test_sec_adapter_historical_as_of_uses_restatement_known_at_boundary() -> None:

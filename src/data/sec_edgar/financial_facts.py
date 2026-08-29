@@ -54,6 +54,7 @@ _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
 # separately reviewed compatibility boundary is reconciled.
 _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
     {
+        FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
     }
@@ -64,16 +65,17 @@ _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
 # security is represented unambiguously, so the fact remains unavailable.
 _SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY = frozenset(
     {
+        FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
     }
 )
 
 # These SEC capabilities return completed fiscal-year duration series and use
-# the shared annual-candidate eligibility boundary. EPS currently follows its
-# legacy selection path and will be reconciled in the separately gated D3 work.
-_SEC_COMPLETED_ANNUAL_CASH_FLOW_FIELDS = frozenset(
+# the shared annual-candidate eligibility boundary.
+_SEC_COMPLETED_ANNUAL_FIELDS = frozenset(
     {
+        FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
     }
@@ -95,6 +97,17 @@ class _BalanceSheetParseContext:
 @dataclass(frozen=True)
 class _AnnualCashFlowParseContext:
     """Context shared while converting one SEC annual cash-flow observation."""
+
+    request: FinancialFactRequest
+    cik: str
+    currency: str
+    acceptance_by_accession: Mapping[str, datetime]
+    retrieved_at: datetime
+
+
+@dataclass(frozen=True)
+class _AnnualEpsParseContext:
+    """Context shared while converting one SEC annual diluted-EPS observation."""
 
     request: FinancialFactRequest
     cik: str
@@ -201,10 +214,11 @@ class SecEdgarFinancialFactsAdapter:
                 candidates = _annual_eps_candidates(
                     company_facts,
                     request=request,
+                    cik=cik,
                     acceptance_by_accession=acceptance_by_accession,
                     retrieved_at=provider_now,
                 )
-                return _select_one_fact_per_period(candidates, request=request, now=provider_now)
+                return _reconcile_annual_eps(candidates, request=request, now=provider_now)
 
             if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
                 return _common_shares_facts(
@@ -239,9 +253,7 @@ class SecEdgarFinancialFactsAdapter:
     def _supports(self, request: FinancialFactRequest) -> bool:
         if request.provider_id != SEC_PROVIDER_ID or request.subject_kind is not FinancialSubjectKind.SECURITY:
             return False
-        if request.field_name is FinancialField.EPS:
-            return request.basis == "fiscal_year" and request.observation_count >= 1
-        if request.field_name in _SEC_COMPLETED_ANNUAL_CASH_FLOW_FIELDS:
+        if request.field_name in _SEC_COMPLETED_ANNUAL_FIELDS:
             return request.basis == "fiscal_year" and request.observation_count >= 1
         return (
             request.field_name in _BALANCE_SHEET_FIELDS
@@ -356,6 +368,7 @@ def _annual_eps_candidates(
     payload: object,
     *,
     request: FinancialFactRequest,
+    cik: str,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
 ) -> tuple[ProviderFact, ...]:
@@ -363,6 +376,8 @@ def _annual_eps_candidates(
     if not isinstance(payload, Mapping):
         msg = "SEC Company Facts payload is not an object."
         raise ValueError(msg)
+    if not _company_facts_matches_cik(payload, cik):
+        return ()
 
     facts = payload.get("facts")
     if not isinstance(facts, Mapping):
@@ -384,15 +399,19 @@ def _annual_eps_candidates(
             continue
         if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
             continue
+        context = _AnnualEpsParseContext(
+            request=request,
+            cik=cik,
+            currency=currency,
+            acceptance_by_accession=acceptance_by_accession,
+            retrieved_at=retrieved_at,
+        )
         for observation in observations:
             if not isinstance(observation, Mapping):
                 continue
             fact = _parse_eps_observation(
                 observation,
-                request=request,
-                currency=currency,
-                acceptance_by_accession=acceptance_by_accession,
-                retrieved_at=retrieved_at,
+                context=context,
             )
             if fact is not None:
                 result.append(fact)
@@ -1236,11 +1255,9 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
 def _parse_eps_observation(  # noqa: PLR0911
     observation: Mapping[object, object],
     *,
-    request: FinancialFactRequest,
-    currency: str,
-    acceptance_by_accession: Mapping[str, datetime],
-    retrieved_at: datetime,
+    context: _AnnualEpsParseContext,
 ) -> ProviderFact | None:
+    """Parse one exact-concept completed-annual diluted-EPS observation."""
     form = observation.get("form")
     fp = observation.get("fp")
     if form not in _ACCEPTED_FORMS or fp != "FY":
@@ -1253,6 +1270,9 @@ def _parse_eps_observation(  # noqa: PLR0911
     filed = observation.get("filed")
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         return None
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value):
+        return None
     if not all(isinstance(item, str) for item in (start, end, accession, filed)):
         return None
 
@@ -1262,64 +1282,110 @@ def _parse_eps_observation(  # noqa: PLR0911
     filed_text = cast(str, filed)
     period_start = _parse_date_start(start_text)
     period_end = _parse_date_end(end_text)
-    if period_start is None or period_end is None:
+    if period_start is None or period_end is None or not _is_completed_annual_period(period_start, period_end):
         return None
 
-    available_at = acceptance_by_accession.get(accession_text)
+    available_at = context.acceptance_by_accession.get(accession_text)
     availability_note: str
     if available_at is None:
-        available_at = _parse_date_end(filed_text)
+        available_at = _parse_sec_filed_date_end(filed_text)
         if available_at is None:
             return None
-        availability_note = "available_at conservatively uses end of SEC filed date; EDGAR acceptance time unavailable"
+        availability_note = (
+            "availability_source=SEC filed date end in America/New_York, converted to UTC; "
+            "acceptanceDateTime unavailable"
+        )
     else:
-        availability_note = "available_at uses EDGAR acceptanceDateTime"
+        availability_note = "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
 
-    fy = observation.get("fy")
+    provider_fy = observation.get("fy")
+    provider_fact_id = f"{accession_text}:{SEC_EPS_FIELD}:{context.currency}:{start_text}:{end_text}"
     notes = (
+        f"cik={context.cik}",
         f"accession={accession_text}",
         f"form={form}",
-        f"fiscal_year={fy}" if isinstance(fy, (int, str)) else "fiscal_year=unknown",
+        f"provider_fiscal_year={provider_fy}"
+        if isinstance(provider_fy, (int, str))
+        else "provider_fiscal_year=unknown",
+        "fiscal_year_source=calendar year containing exact SEC period end",
+        "definition=diluted earnings per common share; signed raw value preserved",
         availability_note,
     )
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
-        subject_id=request.subject_id,
+        subject_id=context.request.subject_id,
         field_name=FinancialField.EPS,
-        value=float(value),
+        value=numeric_value,
         units=FinancialUnit.CURRENCY_PER_SHARE,
         provider_id=SEC_PROVIDER_ID,
         provider_field=SEC_EPS_FIELD,
-        retrieved_at=retrieved_at,
+        retrieved_at=context.retrieved_at,
         basis="fiscal_year",
-        currency=currency,
+        currency=context.currency,
         observation_period_start=period_start,
         observation_period_end=period_end,
         available_at=available_at,
         notes=notes,
+        fiscal_year=period_end.year,
+        period_kind=PeriodKind.COMPLETED_ANNUAL,
+        accounting_scope=AccountingScope.CONSOLIDATED,
+        provider_fact_id=provider_fact_id,
     )
 
 
-def _select_one_fact_per_period(
+def _reconcile_annual_eps(
     facts: tuple[ProviderFact, ...],
     *,
     request: FinancialFactRequest,
     now: datetime,
 ) -> tuple[ProviderFact, ...]:
-    """Select the latest restatement knowable at the request boundary per period."""
-    boundary = request.as_of or now
-    by_period: dict[datetime, ProviderFact] = {}
-    for fact in facts:
-        period_end = fact.observation_period_end
-        available_at = fact.available_at
-        if period_end is None or available_at is None:
-            continue
-        if period_end > boundary or available_at > boundary:
-            continue
-        prior = by_period.get(period_end)
-        if prior is None or cast(datetime, prior.available_at) < available_at:
-            by_period[period_end] = fact
-    return tuple(by_period[end] for end in sorted(by_period))
+    """Return the newest requested EPS periods only when they share one basis.
+
+    A changed value for an exact period is evidence of a remeasurement event,
+    such as a split-adjusted comparative amount. The latest event in the
+    requested span establishes the earliest acceptable filing boundary for
+    every period. This deliberately returns no series when an older endpoint
+    was not re-presented on that basis.
+    """
+    eligible = _eligible_annual_candidates(facts, request=request, now=now)
+    by_period: dict[tuple[datetime, datetime], list[ProviderFact]] = {}
+    for fact in eligible:
+        assert fact.observation_period_start is not None
+        assert fact.observation_period_end is not None
+        by_period.setdefault((fact.observation_period_start, fact.observation_period_end), []).append(fact)
+
+    selected_periods = sorted(by_period, key=lambda period: (period[1], period[0]))[-request.observation_count :]
+    if not selected_periods:
+        return ()
+
+    common_basis_boundary: datetime | None = None
+    for period in selected_periods:
+        ordered = sorted(
+            by_period[period],
+            key=lambda fact: (cast(datetime, fact.available_at), fact.provider_fact_id or ""),
+        )
+        prior_value = ordered[0].value
+        for fact in ordered[1:]:
+            if fact.value != prior_value:
+                event_time = cast(datetime, fact.available_at)
+                common_basis_boundary = (
+                    event_time if common_basis_boundary is None else max(common_basis_boundary, event_time)
+                )
+            prior_value = fact.value
+
+    selected: list[ProviderFact] = []
+    for period in selected_periods:
+        candidates = by_period[period]
+        if common_basis_boundary is not None:
+            candidates = [fact for fact in candidates if cast(datetime, fact.available_at) >= common_basis_boundary]
+        if not candidates:
+            return ()
+        latest_time = max(cast(datetime, fact.available_at) for fact in candidates)
+        latest = [fact for fact in candidates if fact.available_at == latest_time]
+        if len({fact.value for fact in latest}) != 1:
+            return ()
+        selected.append(min(latest, key=lambda fact: fact.provider_fact_id or ""))
+    return tuple(selected)
 
 
 def _select_latest_balance_sheet_fact(
