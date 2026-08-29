@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Any
 
 from src.analysis.fcf_earnings_growth.models import (
+    FCFClassificationBasis,
     FCFEarningsGrowthResult,
     ForwardEvidenceStatus,
     MetricResult,
@@ -38,6 +39,11 @@ _TREND_LABELS = {
     TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH: (
         "Growth is insufficient or mathematically nonmeaningful for this screen."
     ),
+}
+
+_CLASSIFICATION_BASIS_LABELS = {
+    FCFClassificationBasis.TOTAL_FCF: "Total company free cash flow",
+    FCFClassificationBasis.FCF_PER_SHARE: "Free cash flow per diluted share",
 }
 
 
@@ -74,8 +80,9 @@ def _source_summary(result: FCFEarningsGrowthResult) -> str:
                 observation.operating_cash_flow,
                 observation.normalized_capital_expenditures,
                 observation.diluted_eps,
+                observation.weighted_average_diluted_shares,
             )
-            if item.provider_id is not None
+            if item is not None and item.provider_id is not None
         }
     )
     provider_text = ", ".join(providers) if providers else "unavailable"
@@ -87,8 +94,9 @@ def _source_summary(result: FCFEarningsGrowthResult) -> str:
                 observation.operating_cash_flow,
                 observation.normalized_capital_expenditures,
                 observation.diluted_eps,
+                observation.weighted_average_diluted_shares,
             )
-            if item.available_at is not None
+            if item is not None and item.available_at is not None
         ),
         default=None,
     )
@@ -100,6 +108,7 @@ def _concise(result: FCFEarningsGrowthResult) -> list[str]:
         f"{result.ticker} — Free Cash Flow & Earnings Growth",
         "",
         f"Screen: {result.classification.value.upper()}",
+        f"Classification basis: {_CLASSIFICATION_BASIS_LABELS[result.policy.classification_basis]}",
     ]
     if result.classification_reason:
         lines.append(f"Reason: {result.classification_reason}")
@@ -108,9 +117,16 @@ def _concise(result: FCFEarningsGrowthResult) -> list[str]:
         latest = result.annual_observations[-1]
         latest_fcf = format_money(latest.free_cash_flow.value, latest.free_cash_flow.currency)
         lines.append(f"Free cash flow (FY{latest.fiscal_year}): {latest_fcf}")
+        if latest.free_cash_flow_per_diluted_share is not None:
+            latest_per_share = format_money(
+                latest.free_cash_flow_per_diluted_share.value,
+                latest.free_cash_flow_per_diluted_share.currency,
+            )
+            lines.append(f"FCF per diluted share (FY{latest.fiscal_year}): {latest_per_share}")
     lines.extend(
         (
             f"Free cash flow CAGR: {_metric(result.fcf_cagr)}",
+            f"FCF per diluted share CAGR: {_metric(result.fcf_per_share_cagr)}",
             f"Diluted EPS CAGR: {_metric(result.eps_cagr)}",
             f"Trend: {_TREND_LABELS[result.trend_classification]}",
         )
@@ -150,10 +166,20 @@ def _details(result: FCFEarningsGrowthResult) -> list[str]:
         lines.extend(_input_details("Operating cash flow", observation.operating_cash_flow))
         lines.extend(_input_details("Normalized capital expenditures", observation.normalized_capital_expenditures))
         lines.extend(_input_details("Diluted EPS", observation.diluted_eps))
+        if observation.weighted_average_diluted_shares is not None:
+            lines.extend(_input_details("Weighted-average diluted shares", observation.weighted_average_diluted_shares))
         derived_fcf = format_money(observation.free_cash_flow.value, observation.free_cash_flow.currency)
         lines.append(f"  Derived free cash flow: {derived_fcf}")
         if observation.free_cash_flow.lineage is not None:
             lines.append(f"    derivation: {observation.free_cash_flow.lineage.transformation}")
+        if observation.free_cash_flow_per_diluted_share is not None:
+            derived_per_share = format_money(
+                observation.free_cash_flow_per_diluted_share.value,
+                observation.free_cash_flow_per_diluted_share.currency,
+            )
+            lines.append(f"  Derived FCF per diluted share: {derived_per_share}")
+            if observation.free_cash_flow_per_diluted_share.lineage is not None:
+                lines.append(f"    derivation: {observation.free_cash_flow_per_diluted_share.lineage.transformation}")
     return lines
 
 

@@ -1,6 +1,6 @@
 # Free Cash Flow & Earnings Growth Provider Mapping Record
 
-**Status:** D0 and E1 approved; D1-D5 implemented with combined review outcome not yet recorded; E2 implemented and ready for human review<br/>
+**Status:** D0, E1, and E2 approved; D1-D5 implemented with combined review outcome not yet recorded; E3 implemented and ready for human review<br/>
 **Scope:** SEC EDGAR required annual actuals and E1 weighted-average diluted-share evidence<br/>
 **Prepared:** 2026-08-27; E1 amended 2026-08-29<br/>
 **Governing design:** `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`  
@@ -505,7 +505,35 @@ E2 implements the approved contract without broadening the evidence mapping:
 The complete repository gate passed on 2026-08-29: Ruff check and format,
 strict mypy, and 913 pytest tests at 85% total line coverage.
 
-**E2 human review:** Pending<br/>
-**E2 approval date:** Pending
+**E2 human review:** Approved<br/>
+**E2 approval date:** 2026-08-29
 
-E3 is not authorized until E2 receives explicit human approval.
+E3 is authorized next.
+
+### 11.6 E3 CLI, presentation, and live-validation reconciliation
+
+E3 adds the explicit `--classification-basis total-fcf|fcf-per-share` CLI
+policy. Concise and diagnostic output identify the selected basis and show both
+total-company-FCF CAGR and FCF-per-diluted-share CAGR. Detailed output adds the
+weighted-average diluted-share evidence and FCF/share derivation lineage. JSON
+continues to serialize the complete typed version 2 result. The presenter reads
+the typed policy, metrics, and observations and performs no classification or
+financial calculation.
+
+Deterministic CLI and presentation regressions cover both accepted basis values,
+invalid input, both CAGR measures, selected-basis labeling, detailed lineage,
+and JSON policy/result fields. The complete repository gate passed on
+2026-08-29 with Ruff, strict mypy, 915 pytest tests, and 85% total line
+coverage.
+
+Representative live SEC validation completed for Microsoft (`MSFT`) on
+2026-08-29 in both default and `fcf-per-share` modes. Both returned `PASS` over
+FY2021-FY2026 using six annual observations. Total-company-FCF CAGR was 3.60%,
+FCF/share CAGR was 4.03%, diluted-EPS CAGR was 17.40%, and the latest derived
+FY2026 FCF/share was USD 8.99. The result preserved SEC provenance and the
+expected warnings for unsupported market capitalization/consensus context.
+
+**E3 human review:** Pending<br/>
+**E3 approval date:** Pending
+
+Slice F is not authorized until E3 receives explicit human approval.

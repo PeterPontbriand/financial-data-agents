@@ -11,6 +11,7 @@ from typing import Annotated
 import typer
 
 from src.analysis.fcf_earnings_growth import (
+    FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
@@ -284,6 +285,11 @@ def fcf_growth(  # noqa: PLR0913
         "--forward-policy",
         help="Forward evidence policy: display-only, confirmation, or hard-gate",
     ),
+    classification_basis: str = typer.Option(
+        "total-fcf",
+        "--classification-basis",
+        help="Classification basis: total-fcf or fcf-per-share",
+    ),
     as_of: str | None = typer.Option(
         None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
     ),
@@ -306,6 +312,7 @@ def fcf_growth(  # noqa: PLR0913
         raise typer.BadParameter("--currency must be a three-letter ISO 4217 code.")
     policy = FCFEarningsGrowthPolicy(
         historical_horizon=horizon,
+        classification_basis=_fcf_classification_basis(classification_basis),
         forward_policy=_forward_policy(forward_policy),
     )
     boundary = analysis_as_of or datetime.now(UTC)
@@ -753,6 +760,15 @@ def _forward_policy(value: str) -> ForwardPolicy:
         return ForwardPolicy(normalized)
     except ValueError as exc:
         raise typer.BadParameter("--forward-policy must be display-only, confirmation, or hard-gate.") from exc
+
+
+def _fcf_classification_basis(value: str) -> FCFClassificationBasis:
+    """Map the investor-facing CLI value to the typed FCF basis policy."""
+    normalized = value.strip().lower().replace("-", "_")
+    try:
+        return FCFClassificationBasis(normalized)
+    except ValueError as exc:
+        raise typer.BadParameter("--classification-basis must be total-fcf or fcf-per-share.") from exc
 
 
 def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:

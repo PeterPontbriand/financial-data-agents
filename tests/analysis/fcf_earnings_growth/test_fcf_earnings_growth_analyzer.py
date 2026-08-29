@@ -24,7 +24,14 @@ from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver 
 
 
 def _analyzer() -> FCFEarningsGrowthAnalyzer:
-    facts = tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
+    facts = tuple(
+        replace(
+            fact,
+            provider_id=SEC_PROVIDER_ID,
+            provider_fact_id=f"fy-{fact.fiscal_year}:{fact.field_name.value}",
+        )
+        for fact in annual_series(range(2020, 2026))
+    )
     provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
     resolver = ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW)
     return FCFEarningsGrowthAnalyzer(resolver)
@@ -85,14 +92,18 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     positions = [concise.index(line) for line in expected_lines]
     assert positions == sorted(positions)
     assert "Free cash flow CAGR:" in concise
+    assert "FCF per diluted share CAGR:" in concise
+    assert "Classification basis: Total company free cash flow" in concise
     assert "Diluted EPS CAGR:" in concise
     assert "Limitation:" in concise
     assert "Details" in details
     assert "derivation: operating_cash_flow - normalized_capital_expenditures" in details
+    assert "derivation: free_cash_flow / weighted_average_diluted_shares" in details
     assert "Diagnostics" in diagnostics
     assert "provider/success" in diagnostics
     assert payload["schema_version"] == 2
     assert payload["strategy_id"] == "fcf_earnings_growth"
     assert payload["market_capitalization"] is None
     assert payload["fcf_yield"]["value"] is None
+    assert payload["fcf_per_share_cagr"]["status"] == "ok"
     assert "NaN" not in document
