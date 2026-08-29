@@ -25,6 +25,7 @@ Public exports for calculation and input-resolution layers:
 - ``classify_fcf_earnings_growth`` — pure classification function.
 """
 
+from src.analysis.fcf_earnings_growth.analyzer import FCFEarningsGrowthAnalyzer
 from src.analysis.fcf_earnings_growth.calculators import (
     classify_fcf_earnings_growth,
     compute_cagr,
@@ -63,6 +64,7 @@ __all__ = [
     "Classification",
     "ClassificationDecision",
     "FCFEarningsGrowthPolicy",
+    "FCFEarningsGrowthAnalyzer",
     "FCFEarningsGrowthResult",
     "FinancialFieldProvider",
     "ForwardEvidence",
