@@ -144,6 +144,18 @@ class FinancialUnit(StrEnum):
     SHARES = "shares"
 
 
+# These provider-neutral fields support requests for multiple completed annual
+# observations. Provider-specific eligibility and identity rules remain in the
+# individual adapters rather than becoming properties of ``FinancialField``.
+_COMPLETED_ANNUAL_SERIES_FIELDS = frozenset(
+    {
+        FinancialField.EPS,
+        FinancialField.OPERATING_CASH_FLOW,
+        FinancialField.CAPITAL_EXPENDITURES,
+    }
+)
+
+
 # ---------------------------------------------------------------------------
 # Exception
 # ---------------------------------------------------------------------------
@@ -212,13 +224,8 @@ class FinancialFactRequest:
 
         _validate_field_subject(self.field_name, self.subject_kind)
 
-        multi_observation_fields = (
-            FinancialField.EPS,
-            FinancialField.OPERATING_CASH_FLOW,
-            FinancialField.CAPITAL_EXPENDITURES,
-        )
         if self.observation_count > 1 and (
-            self.field_name not in multi_observation_fields or self.basis != "fiscal_year"
+            self.field_name not in _COMPLETED_ANNUAL_SERIES_FIELDS or self.basis != "fiscal_year"
         ):
             msg = (
                 "observation_count > 1 requires basis='fiscal_year' and field eps, "

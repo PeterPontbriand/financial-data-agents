@@ -17,12 +17,13 @@ from src.data.financial.facts import (
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import AccountingScope, FinancialSubjectKind, PeriodKind
+from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind, PeriodKind
 from src.data.http_json import JsonFetcher, fetch_json
 
 SEC_PROVIDER_ID = "sec_edgar"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
 SEC_OPERATING_CASH_FLOW_FIELD = "us-gaap:NetCashProvidedByUsedInOperatingActivities"
+SEC_CAPITAL_EXPENDITURES_FIELD = "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
 SEC_COMMON_SHARES_FIELD = "us-gaap:CommonStockSharesOutstanding"
 SEC_PREFERRED_SHARES_FIELD = "us-gaap:PreferredStockSharesOutstanding"
@@ -46,6 +47,37 @@ _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
     FinancialField.COMMON_SHARES_OUTSTANDING: ("CommonStockSharesOutstanding", FinancialUnit.SHARES),
     FinancialField.PREFERRED_SHARES_OUTSTANDING: ("PreferredStockSharesOutstanding", FinancialUnit.SHARES),
 }
+
+# The approved D0 SEC mapping treats these entity-wide annual cash-flow facts
+# as unavailable when ticker-to-CIK identity cannot be established. Legacy SEC
+# valuation fields retain their existing provider-error behavior until their
+# separately reviewed compatibility boundary is reconciled.
+_SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
+    {
+        FinancialField.OPERATING_CASH_FLOW,
+        FinancialField.CAPITAL_EXPENDITURES,
+    }
+)
+
+# SEC Company Facts is entity-wide. For these approved D1/D2 mappings, a CIK
+# associated with multiple listed tickers cannot prove that the requested
+# security is represented unambiguously, so the fact remains unavailable.
+_SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY = frozenset(
+    {
+        FinancialField.OPERATING_CASH_FLOW,
+        FinancialField.CAPITAL_EXPENDITURES,
+    }
+)
+
+# These SEC capabilities return completed fiscal-year duration series and use
+# the shared annual-candidate eligibility boundary. EPS currently follows its
+# legacy selection path and will be reconciled in the separately gated D3 work.
+_SEC_COMPLETED_ANNUAL_CASH_FLOW_FIELDS = frozenset(
+    {
+        FinancialField.OPERATING_CASH_FLOW,
+        FinancialField.CAPITAL_EXPENDITURES,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -129,10 +161,13 @@ class SecEdgarFinancialFactsAdapter:
             try:
                 cik = self._resolve_cik(request.subject_id)
             except FinancialProviderError:
-                if request.field_name is FinancialField.OPERATING_CASH_FLOW:
+                if request.field_name in _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY:
                     return ()
                 raise
-            if request.field_name is FinancialField.OPERATING_CASH_FLOW and not self._has_single_ticker_identity(cik):
+            if (
+                request.field_name in _SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY
+                and not self._has_single_ticker_identity(cik)
+            ):
                 return ()
             company_facts = self._fetch_json(
                 _COMPANY_FACTS_URL.format(cik=cik),
@@ -146,6 +181,15 @@ class SecEdgarFinancialFactsAdapter:
             provider_now = self._clock()
             if request.field_name is FinancialField.OPERATING_CASH_FLOW:
                 candidates = _annual_operating_cash_flow_candidates(
+                    company_facts,
+                    request=request,
+                    cik=cik,
+                    acceptance_by_accession=acceptance_by_accession,
+                    retrieved_at=provider_now,
+                )
+                return _eligible_annual_candidates(candidates, request=request, now=provider_now)
+            if request.field_name is FinancialField.CAPITAL_EXPENDITURES:
+                candidates = _annual_capital_expenditure_candidates(
                     company_facts,
                     request=request,
                     cik=cik,
@@ -197,7 +241,7 @@ class SecEdgarFinancialFactsAdapter:
             return False
         if request.field_name is FinancialField.EPS:
             return request.basis == "fiscal_year" and request.observation_count >= 1
-        if request.field_name is FinancialField.OPERATING_CASH_FLOW:
+        if request.field_name in _SEC_COMPLETED_ANNUAL_CASH_FLOW_FIELDS:
             return request.basis == "fiscal_year" and request.observation_count >= 1
         return (
             request.field_name in _BALANCE_SHEET_FIELDS
@@ -409,6 +453,57 @@ def _annual_operating_cash_flow_candidates(
     return tuple(result)
 
 
+def _annual_capital_expenditure_candidates(
+    payload: object,
+    *,
+    request: FinancialFactRequest,
+    cik: str,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+) -> tuple[ProviderFact, ...]:
+    """Parse exact-concept completed-annual PP&E acquisition payments."""
+    if not isinstance(payload, Mapping):
+        msg = "SEC Company Facts payload is not an object."
+        raise ValueError(msg)
+    if not _company_facts_matches_cik(payload, cik):
+        return ()
+
+    facts = payload.get("facts")
+    if not isinstance(facts, Mapping):
+        return ()
+    us_gaap = facts.get("us-gaap")
+    if not isinstance(us_gaap, Mapping):
+        return ()
+    concept = us_gaap.get("PaymentsToAcquirePropertyPlantAndEquipment")
+    if not isinstance(concept, Mapping):
+        return ()
+    units = concept.get("units")
+    if not isinstance(units, Mapping):
+        return ()
+
+    result: list[ProviderFact] = []
+    for unit_name, observations in units.items():
+        currency = _currency_from_sec_monetary_unit(unit_name)
+        if currency is None:
+            continue
+        if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+            continue
+        context = _AnnualCashFlowParseContext(
+            request=request,
+            cik=cik,
+            currency=currency,
+            acceptance_by_accession=acceptance_by_accession,
+            retrieved_at=retrieved_at,
+        )
+        for observation in observations:
+            if not isinstance(observation, Mapping):
+                continue
+            fact = _parse_capital_expenditure_observation(observation, context=context)
+            if fact is not None:
+                result.append(fact)
+    return tuple(result)
+
+
 def _company_facts_matches_cik(payload: Mapping[object, object], expected_cik: str) -> bool:
     """Return whether Company Facts declares the exact resolved CIK and an entity."""
     payload_cik = payload.get("cik")
@@ -494,6 +589,85 @@ def _parse_operating_cash_flow_observation(  # noqa: PLR0911
         fiscal_year=fiscal_year,
         period_kind=PeriodKind.COMPLETED_ANNUAL,
         accounting_scope=AccountingScope.CONSOLIDATED,
+        provider_fact_id=provider_fact_id,
+    )
+
+
+def _parse_capital_expenditure_observation(  # noqa: PLR0911
+    observation: Mapping[object, object],
+    *,
+    context: _AnnualCashFlowParseContext,
+) -> ProviderFact | None:
+    """Parse one non-negative exact-concept annual PP&E payment observation."""
+    form = observation.get("form")
+    if form not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+        return None
+
+    value = observation.get("val")
+    start = observation.get("start")
+    end = observation.get("end")
+    accession = observation.get("accn")
+    filed = observation.get("filed")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value < 0:
+        return None
+    if not all(isinstance(item, str) for item in (start, end, accession, filed)):
+        return None
+
+    start_text = cast(str, start)
+    end_text = cast(str, end)
+    accession_text = cast(str, accession)
+    filed_text = cast(str, filed)
+    period_start = _parse_date_start(start_text)
+    period_end = _parse_date_end(end_text)
+    if period_start is None or period_end is None or not _is_completed_annual_period(period_start, period_end):
+        return None
+
+    available_at = context.acceptance_by_accession.get(accession_text)
+    if available_at is None:
+        available_at = _parse_sec_filed_date_end(filed_text)
+        if available_at is None:
+            return None
+        availability_note = (
+            "availability_source=SEC filed date end in America/New_York, converted to UTC; "
+            "acceptanceDateTime unavailable"
+        )
+    else:
+        availability_note = "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+
+    provider_fy = observation.get("fy")
+    provider_fact_id = f"{accession_text}:{SEC_CAPITAL_EXPENDITURES_FIELD}:{context.currency}:{start_text}:{end_text}"
+    return ProviderFact(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id=context.request.subject_id,
+        field_name=FinancialField.CAPITAL_EXPENDITURES,
+        value=numeric_value,
+        units=FinancialUnit.CURRENCY,
+        provider_id=SEC_PROVIDER_ID,
+        provider_field=SEC_CAPITAL_EXPENDITURES_FIELD,
+        retrieved_at=context.retrieved_at,
+        basis="fiscal_year",
+        currency=context.currency,
+        observation_period_start=period_start,
+        observation_period_end=period_end,
+        available_at=available_at,
+        notes=(
+            f"cik={context.cik}",
+            f"accession={accession_text}",
+            f"form={form}",
+            f"provider_fiscal_year={provider_fy}"
+            if isinstance(provider_fy, (int, str))
+            else "provider_fiscal_year=unknown",
+            "fiscal_year_source=calendar year containing exact SEC period end",
+            "definition=cash paid to acquire property, plant, and equipment; non-negative raw value preserved",
+            availability_note,
+        ),
+        fiscal_year=period_end.year,
+        period_kind=PeriodKind.COMPLETED_ANNUAL,
+        accounting_scope=AccountingScope.CONSOLIDATED,
+        capital_expenditure_sign=CapitalExpenditureSign.POSITIVE_EXPENDITURE,
         provider_fact_id=provider_fact_id,
     )
 
