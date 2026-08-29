@@ -1,10 +1,11 @@
 # Free Cash Flow & Earnings Growth Provider Mapping Record
 
-**Status:** D0 evidence checkpoint complete and approved; D1 authorized next  
+**Status:** D0-D5 implementation complete; D5 ready for human review<br/>
 **Scope:** SEC EDGAR required annual actuals only  
 **Prepared:** 2026-08-27  
 **Governing design:** `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`  
-**Production changes:** None
+**Production changes:** D1-D4 implement the approved SEC mappings and production
+composition; D5 adds integration regressions and completes this reconciliation.
 
 ## 1. Decision summary
 
@@ -20,7 +21,7 @@ adds and verifies each capability.
 | Market capitalization | Unsupported | None approved |
 | FY1/FY2 consensus EPS | Unsupported | None approved |
 
-The supported candidate requires all three annual facts to pass the common
+The supported production path requires all three annual facts to pass the common
 identity, period, unit, currency, scope, availability, duplicate, and
 restatement rules below. An unlisted concept or evidence shape returns typed
 unavailability; it is never guessed, summed, converted, or silently replaced.
@@ -287,18 +288,26 @@ payload lacks the exact CapEx concept and its CIK maps to multiple listed
 securities. Negative operating cash flow itself is valid data and is not the
 reason for unavailability.
 
-## 8. D1-D5 implementation constraints and tests
+## 8. D1-D5 implementation reconciliation and tests
 
-After human approval only:
+The approved slices were implemented as follows:
 
-- **D1** may add the exact operating-cash-flow concept and common annual parser.
-- **D2** may add only the exact PP&E concept and `positive_expenditure`
-  validation; it must test zero, negative rejection, and unsupported alternates.
-- **D3** may reconcile exact annual diluted EPS using the common-basis rule and
-  must include an Apple-like split re-presentation fixture.
-- **D4** may compose only periods satisfying every compatibility predicate.
-- **D5** must reconcile implementation behavior back to this record and retain
-  all unsupported shapes as typed unavailability.
+- **D1** adds only the exact operating-cash-flow concept and the shared completed-
+  annual parser and eligibility boundary.
+- **D2** adds only the exact PP&E concept and `positive_expenditure` validation,
+  including zero acceptance, negative rejection, and unsupported alternates.
+- **D3** reconciles only exact annual diluted EPS using the approved common-basis
+  rule, including Apple-like split re-presentation coverage.
+- **D4** composes the three capabilities through the production provider and C2
+  resolver, aligning exact periods while preserving typed failures and provenance.
+- **D5** exercises the real SEC adapter through that production composition with
+  deterministic mocked endpoint payloads and confirms an unsupported productive-
+  assets CapEx shape remains typed unavailability.
+
+No implementation mapping was broadened during D1-D5. Market capitalization,
+FY1/FY2 consensus EPS, alternate cash-flow concepts, alternate CapEx concepts,
+unsupported filing/identity/unit shapes, and incompatible EPS bases remain
+unavailable under the rules in Section 7.
 
 Minimum deterministic regressions include:
 
@@ -319,7 +328,8 @@ Minimum deterministic regressions include:
 
 **Human approval:** Approved  
 **Approval date:** 2026-08-27  
-**Resulting production tests:** Not applicable until D1-D5
+**Resulting production tests:** Implemented in the focused SEC adapter, annual-
+series resolver, production-composition, and D5 integration regression suites.
 
 The approval explicitly includes the narrow PP&E definition, the one-ticker-CIK
 identity boundary, the availability fallback, and the EPS common-basis rule. D1

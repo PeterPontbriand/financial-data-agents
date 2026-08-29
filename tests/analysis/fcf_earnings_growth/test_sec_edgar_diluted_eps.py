@@ -121,11 +121,10 @@ def test_uses_one_common_split_basis_for_an_apple_like_span() -> None:
     facts = _adapter(_payload(observations)).fetch_facts(_request())
 
     assert [fact.value for fact in facts] == pytest.approx([2.98, 2.97, 3.28])
-    assert [fact.provider_fact_id.split(":", maxsplit=1)[0] for fact in facts] == [
-        "2020-represented-2018",
-        "2020-represented-2019",
-        "2020-current",
-    ]
+    expected_accessions = ("2020-represented-2018", "2020-represented-2019", "2020-current")
+    for fact, expected_accession in zip(facts, expected_accessions, strict=True):
+        assert fact.provider_fact_id is not None
+        assert fact.provider_fact_id.split(":", maxsplit=1)[0] == expected_accession
 
 
 def test_rejects_span_when_oldest_period_was_not_represented_after_split() -> None:

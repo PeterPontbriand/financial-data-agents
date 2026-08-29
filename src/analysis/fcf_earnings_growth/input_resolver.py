@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from src.analysis.fcf_earnings_growth.calculators import compute_cagr, compute_free_cash_flow
 from src.analysis.fcf_earnings_growth.models import (
@@ -442,9 +442,20 @@ def _longest_contiguous_count(inputs: Sequence[ResolvedInput]) -> int:
         return 0
     longest = current = 1
     for previous, following in zip(inputs, inputs[1:], strict=False):
-        current = current + 1 if previous.observation_period_end == following.observation_period_start else 1
+        current = (
+            current + 1
+            if _periods_are_contiguous(previous.observation_period_end, following.observation_period_start)
+            else 1
+        )
         longest = max(longest, current)
     return longest
+
+
+def _periods_are_contiguous(previous_end: datetime | None, following_start: datetime | None) -> bool:
+    """Accept boundary-style intervals and SEC inclusive consecutive dates."""
+    if previous_end is None or following_start is None:
+        return False
+    return previous_end == following_start or previous_end.date() + timedelta(days=1) == following_start.date()
 
 
 def _resolve_field(  # noqa: PLR0913
@@ -714,7 +725,10 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0913, PLR0917
         if len(common) < elapsed + 1:
             continue
         candidate = common[-(elapsed + 1) :]
-        if all(left.period_end == right.period_start for left, right in zip(candidate, candidate[1:], strict=False)):
+        if all(
+            _periods_are_contiguous(left.period_end, right.period_start)
+            for left, right in zip(candidate, candidate[1:], strict=False)
+        ):
             selected = candidate
             selected_years = elapsed
             break
