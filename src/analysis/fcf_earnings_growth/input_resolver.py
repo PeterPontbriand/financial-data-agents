@@ -44,6 +44,7 @@ from src.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 
 CACHE_SCHEMA_VERSION = 2
 _ANNUAL_FIELDS = (
@@ -51,6 +52,71 @@ _ANNUAL_FIELDS = (
     FinancialField.CAPITAL_EXPENDITURES,
     FinancialField.EPS,
 )
+
+
+class ProductionAnnualGrowthSeriesResolver:
+    """Resolve annual FCF and EPS history from an approved production provider.
+
+    SEC EDGAR is currently the only provider with evidence-approved mappings
+    for all three required annual fields. Keeping that composition here makes
+    the supported production path explicit while leaving the C2 resolver
+    provider-neutral and independently testable.
+    """
+
+    def __init__(
+        self,
+        provider: FinancialFactsProvider,
+        *,
+        cache: ResolvedInputSeriesCacheProtocol | None = None,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        """Initialize the resolver with a composed financial-facts provider."""
+        self._provider = provider
+        self._cache = cache
+        self._clock = clock
+
+    def resolve(  # noqa: PLR0913
+        self,
+        *,
+        policy: FCFEarningsGrowthPolicy,
+        subject_id: str,
+        currency: str,
+        as_of: datetime | None,
+        provider_id: str = SEC_PROVIDER_ID,
+        use_cache: bool = True,
+    ) -> AnnualGrowthSeriesAssembly:
+        """Resolve the strategy inputs, preserving typed unsupported-provider outcomes."""
+        normalized_provider_id = provider_id.strip().lower()
+        if normalized_provider_id != SEC_PROVIDER_ID:
+            reason = (
+                f"Provider {provider_id!r} does not have approved annual operating-cash-flow, "
+                "capital-expenditure, and diluted-EPS mappings."
+            )
+            trace = ResolutionTrace().append(
+                _event("annual_series", ResolutionStage.PROVIDER, ResolutionOutcome.REJECTED, reason)
+            )
+            return _failure_assembly(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                code=ReasonCode.MISSING_FACT,
+                reason=reason,
+                policy=policy,
+                common_count=0,
+                longest_count=0,
+                trace=trace,
+            )
+
+        binding = FinancialFieldProvider(normalized_provider_id, self._provider)
+        providers = dict.fromkeys(_ANNUAL_FIELDS, binding)
+        return resolve_annual_growth_series(
+            policy=policy,
+            subject_id=subject_id,
+            currency=currency,
+            as_of=as_of,
+            providers=providers,
+            cache=self._cache,
+            use_cache=use_cache,
+            clock=self._clock,
+        )
 
 
 @dataclass(frozen=True)

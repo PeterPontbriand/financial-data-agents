@@ -1,6 +1,6 @@
 """Analysis modules for the free-cash-flow & earnings-growth strategy.
 
-Public exports for the pure calculation layer:
+Public exports for calculation and input-resolution layers:
 
 - ``HistoricalHorizon`` — historical horizon discriminator.
 - ``ForwardPolicy`` — forward consensus policy discriminator.
@@ -16,6 +16,7 @@ Public exports for the pure calculation layer:
 - ``FCFEarningsGrowthResult`` — complete typed result.
 - ``AnnualGrowthSeriesAssembly`` / ``SeriesSelection`` — C2 resolution result.
 - ``FinancialFieldProvider`` — one semantic-field/provider binding.
+- ``ProductionAnnualGrowthSeriesResolver`` — approved production composition.
 - ``resolve_annual_growth_series`` — deterministic annual-series resolver.
 - ``compute_free_cash_flow`` — pure FCF calculator.
 - ``compute_growth_percent`` — pure one-period growth calculator.
@@ -34,6 +35,7 @@ from src.analysis.fcf_earnings_growth.calculators import (
 from src.analysis.fcf_earnings_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
     FinancialFieldProvider,
+    ProductionAnnualGrowthSeriesResolver,
     SeriesSelection,
     resolve_annual_growth_series,
 )
@@ -69,6 +71,7 @@ __all__ = [
     "HistoricalHorizon",
     "MetricResult",
     "MetricStatus",
+    "ProductionAnnualGrowthSeriesResolver",
     "ReasonCode",
     "SeriesSelection",
     "TrendClassification",
