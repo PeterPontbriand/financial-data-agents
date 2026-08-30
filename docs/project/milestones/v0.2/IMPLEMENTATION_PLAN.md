@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-29 — Recorded implemented D1–D5 and initial E state; added approved E1–E3 FCF/share extension before pre-Golden hardening.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A, B, C1, C1R, C2, and D0 complete and approved / D1–D5 and the initial E CLI/presentation are implemented, with their combined implementation review still to be recorded / E1–E3 FCF/share extension follows that review / Slice F shared-contract hardening follows E3; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
+**Revised:** 2026-08-29 — Recorded approval of committed E3 and Slice F work and designated the approved security-identity follow-up as Slice F-1.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → Slices A, B, C1, C1R, C2, D0–D5, initial E, E1–E3, and F complete and approved / F-1 shared security identity and display planning approved and next for implementation / Slice G final documentation and gate follows F-1; Step 2.5 → blocked until Step 2.4 and its hardening gate are approved
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -238,7 +238,7 @@ The initial strategy set entering Step 2.3 was:
    - `graham_number` — the default, a conservative price ceiling derived from Graham's combined P/E and P/B defensive-investor limits;
    - `graham_growth_value` — the forecast-dependent growth-stock formula, retained as a separate secondary method.
 
-Step 2.4 adds Free Cash Flow & Earnings Growth on these same strategy/data foundations. Its closeout includes the bounded Graham/shared-contract corrections in Section 4.4.10 without changing Step 2.3's historical completion status. The subsequent Step 2.5 Golden Suite will benchmark Momentum, both Graham methods, and the Step 2.4 cash-flow/growth strategy only after those corrections are approved. Later work may otherwise extend the provider-neutral contracts only where concrete new data requirements or review findings prove that extension necessary.
+Step 2.4 adds Free Cash Flow & Earnings Growth on these same strategy/data foundations. Its closeout includes the Graham/shared-contract corrections in Section 4.4.10 and bounded shared security-identity work in Section 4.4.11 without changing Step 2.3's historical completion status. The subsequent Step 2.5 Golden Suite will benchmark Momentum, both Graham methods, and the Step 2.4 cash-flow/growth strategy only after those corrections are approved. Later work may otherwise extend the provider-neutral contracts only where concrete new data requirements or review findings prove that extension necessary.
 
 #### 4.3.1 Strategy boundary
 
@@ -783,12 +783,13 @@ Implement and review Step 2.4 in bounded slices:
 9. **D3 — annual diluted-EPS reconciliation:** implement and test only the approved annual diluted-EPS compatibility and selection rules from D0. Stop for human review.
 10. **D4 — production composition:** compose the approved provider capabilities through the C2 annual-series resolver, preserving typed unavailability and provenance. Stop for human review.
 11. **D5 — integration closeout:** add bounded provider regressions, run the complete repository gate, and reconcile the provider mapping record with the implemented behavior. Unsupported evidence shapes remain explicitly unavailable.
-12. **E — initial investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green. The initial total-FCF implementation is complete; its review state is recorded in the section status above.
-13. **E1 — FCF/share evidence and contract checkpoint:** inspect authoritative provider evidence for annual weighted-average diluted shares, split/share-class treatment, restatements, units, periods, availability, and compatibility with the FCF observation. Freeze the versioned policy/result contract and supported mappings; make no production changes and stop for human approval.
-14. **E2 — FCF/share calculation and data implementation:** add period-compatible diluted-share resolution, deterministic FCF/share derivation, both CAGRs, the typed classification-basis policy, method/schema-version evolution, and focused fixtures/tests. Default classification remains total-company FCF; selecting FCF/share makes missing or nonmeaningful FCF/share evidence `INDETERMINATE`. Stop for human review.
-15. **E3 — FCF/share CLI and presentation amendment:** add the explicit classification-basis CLI switch and render both FCF growth measures in concise/details/diagnostics/JSON output. Presenters consume the typed result and never reclassify it. Add representative live validation after deterministic gates are green.
-16. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Stop for focused review before final closeout. F does not own the strategy-specific FCF/share extension in E1–E3.
-17. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
+12. **E — initial investor CLI and presentation:** add direct execution plus concise/details/diagnostics/JSON rendering and representative live validation after deterministic gates are green. The initial total-FCF implementation is complete and approved.
+13. **E1 — FCF/share evidence and contract checkpoint:** inspect authoritative provider evidence for annual weighted-average diluted shares, split/share-class treatment, restatements, units, periods, availability, and compatibility with the FCF observation. Freeze the versioned policy/result contract and supported mappings; make no production changes and stop for human approval. Complete and approved.
+14. **E2 — FCF/share calculation and data implementation:** add period-compatible diluted-share resolution, deterministic FCF/share derivation, both CAGRs, the typed classification-basis policy, method/schema-version evolution, and focused fixtures/tests. Default classification remains total-company FCF; selecting FCF/share makes missing or nonmeaningful FCF/share evidence `INDETERMINATE`. Complete and approved.
+15. **E3 — FCF/share CLI and presentation amendment:** add the explicit classification-basis CLI switch and render both FCF growth measures in concise/details/diagnostics/JSON output. Presenters consume the typed result and never reclassify it. Add representative live validation after deterministic gates are green. Complete and approved.
+16. **F — pre-Golden shared-contract hardening:** complete the bounded work in Section 4.4.10 across Graham and any shared seams used by the new strategy, and execute the Momentum strategy modernization: strict point-in-time filtering, `MetricResult` refactoring, `MarketDataProvider` provenance, `MomentumPolicy`, and diagnostic traces. Complete and approved. F does not own the strategy-specific FCF/share extension in E1–E3 or the later F-1 identity slice.
+17. **F-1 — shared security identity and investor display:** planning approved on 2026-08-29; as the next implementation slice, implement the bounded work in Section 4.4.11 so Momentum, both Graham methods, and FCF & Earnings Growth retain and display best-effort security identity without treating a ticker as permanent identity. Stop for focused human review after implementation.
+18. **G — documentation and full gate:** synchronize docs, run the complete repository gate, review the full Step 2.4 and hardening diff, and obtain explicit human completion approval before Step 2.5.
 
 #### 4.4.10 Pre-Golden shared-contract hardening
 
@@ -821,7 +822,24 @@ This work may minimally revise shared types or presenter seams used by Free Cash
 
 The hardening gate is complete only when the Graham design describes the resulting implementation exactly, relevant shared documentation agrees, focused regression tests and the full repository gate pass, and the correction diff receives explicit human approval. Step 2.5 must not begin before that approval.
 
-#### 4.4.11 Non-goals
+#### 4.4.11 Slice F-1 — Shared security identity and investor display
+
+Ticker symbols are venue-scoped, time-sensitive display identifiers and may be reused after delisting. They must not be treated as permanent issuer or instrument identity. Before Golden fixtures freeze the three strategy presentation contracts, implement one bounded cross-strategy identity slice with these requirements:
+
+1. **Narrow identity contract:** define a provider-neutral immutable security-identity value with normalized ticker, optional instrument name, optional listing venue, optional issuer identifier, optional instrument/listing identifier, provider identity, and timezone-aware resolution time. Use `instrument_name` or `security_name`, not `company_name`, because Momentum supports non-company instruments such as cryptocurrency pairs. Do not introduce a generic strategy-result hierarchy.
+2. **Best-effort provider capability:** obtain identity only from retained provider evidence or a narrow injected identity-provider capability. Preserve usable SEC ticker-title or Company Facts entity-name evidence and supported Yahoo/provider metadata where available. Do not infer a name from a ticker, make duplicate lookups within one run, or broaden numeric `ProviderFact` merely to carry display metadata.
+3. **Fail-open semantics:** identity absence or lookup failure must never invalidate, downgrade, or reclassify an otherwise valid analysis. Retain the ticker and render it alone when the name is unavailable. Identity resolution failure may appear in diagnostics but is not an investor-facing financial warning.
+4. **All-strategy presentation:** Momentum, Graham Number, Graham Growth Value, and FCF & Earnings Growth use the same heading grammar when a name is available: `Instrument Name (TICKER) — Analysis`; otherwise use `TICKER — Analysis`. Preserve official name capitalization and punctuation after whitespace normalization.
+5. **Machine-readable output:** expose the resolved identity consistently in each strategy's JSON presentation contract, using explicit nulls for unavailable optional fields. Review and deliberately record any schema-version increment rather than assuming that an added field is invisible to consumers.
+6. **Time semantics:** treat a presently resolved name as current descriptive metadata unless provider evidence establishes an historical effective interval. Never imply that a current lookup proves the name or listing identity at a historical analysis `as_of`.
+7. **Persistence handoff:** define the Step 3.4 `AnalysisRun` handoff now: persist the identity snapshot used by the completed run, including `resolved_at`, rather than re-resolving its ticker when historical output is viewed. Later persistence may enrich stable issuer/instrument identifiers but must not silently relabel an old run after ticker reuse.
+8. **Regression evidence:** add deterministic tests for available and unavailable names, non-company instruments, lookup failure, whitespace normalization, all presentation modes and all three strategies, JSON null/version behavior, no duplicate lookup per run, and preservation of otherwise successful analysis semantics. Deterministic tests make no live provider calls.
+
+F-1 is presentation and identity-provenance work, not financial calculation work. It must not change formulas, classifications, data eligibility, or existing ticker-verification behavior. Stop for focused human review after focused tests and the complete repository quality gate pass.
+
+**Planning approval:** Approved on 2026-08-29. This approval authorizes F-1 implementation within the contract above; it does not pre-approve the resulting code or waive the focused implementation review gate.
+
+#### 4.4.12 Non-goals
 
 Step 2.4 does **not** include:
 
@@ -840,7 +858,7 @@ Step 2.4 does **not** include:
 - a generic strategy/plugin registry;
 - unrelated refactoring.
 
-#### 4.4.12 Acceptance criteria
+#### 4.4.13 Acceptance criteria
 
 - [ ] The product-policy checkpoint resolved in the governing design has been explicitly approved before Slice B begins.
 - [ ] The strategy is named and typed independently from Momentum and Graham.
@@ -860,10 +878,12 @@ Step 2.4 does **not** include:
 - [ ] Deterministic fixtures cover success, missing data, period mismatch, negative/zero growth, restatement, and historical-boundary cases.
 - [ ] A representative supported production ticker can run the analysis without manual financial-statement arithmetic.
 - [ ] Concise/details/diagnostics/JSON output follows the established investor-facing grammar.
+- [ ] Momentum, both Graham methods, and FCF & Earnings Growth retain and display best-effort security identity under Section 4.4.11, fall back cleanly to ticker-only output, and do not allow identity lookup failure to alter analysis semantics.
+- [ ] Machine-readable outputs expose explicit nullable identity metadata with deliberate schema-version handling, and the Step 3.4 handoff requires persistence of the run-time identity snapshot rather than later ticker re-resolution.
 - [ ] Automated tests make no live network or LLM calls.
 - [ ] Full repository quality gates pass.
 - [ ] Documentation matches implemented semantics.
-- [ ] The pre-Golden shared-contract hardening in Section 4.4.10 is implemented, tested, documented, and explicitly approved.
+- [x] The pre-Golden shared-contract hardening in Section 4.4.10 is implemented, tested, documented, and explicitly approved.
 - [ ] Momentum strict point-in-time filtering enforces `bar_timestamp <= effective_as_of` inside `MomentumInputResolver` before calculation and is covered by deterministic look-ahead tests.
 - [ ] `sma_50`, `sma_200`, and `rsi_14` are returned as standard `MetricResult` structures, reporting `status = unavailable` and `reason_code = insufficient_history` on insufficient history.
 - [ ] Momentum data fetching runs through `MarketDataProvider` with price observations wrapped in `ResolvedInput` containers retaining provider identity, retrieval timestamps, and currency attributes.
@@ -1435,6 +1455,9 @@ All of the following must be true before declaring the milestone complete and op
 22. **Shared financial-fact naming** — Slice C1 proved that the Step 2.3 `Valuation*` names no longer describe a valuation-only boundary. Complete the bounded C1R migration to provider-facing `Financial*` fact names and cache-facing `ResolvedInputCache*` names before C2 adds another strategy consumer. Preserve semantics and avoid permanent aliases without a demonstrated compatibility need.
 23. **Future composite discovery input** — The candidate five-component forward-return screen and risk filters are unapproved aggregate stakeholder input for later analytical expansion/aggregation. They do not change Step 2.4, its method semantics, or its position ahead of the Step 2.5 Golden Suite.
 24. **FCF classification basis** — Show both total-company-FCF and FCF-per-diluted-share growth. Total-company-FCF CAGR controls `PASS`/`FAIL` by default; an explicit typed policy/CLI switch selects FCF/share CAGR as the controlling measure. Implement this strategy-specific, versioned extension in E1–E3 before Slice F and before the Golden Suite.
+25. **Security identity is time-aware metadata** — A ticker may be delisted and later reused for a materially different security. F-1 planning was approved on 2026-08-29; because E1–E3 and Slice F were already implemented and approved before this requirement was introduced, place F-1 after F and before final Slice G. Resolve identity once per run where possible, fail open to ticker-only output, and require Step 3.4 to persist the identity snapshot rather than relabel historical runs through a future ticker lookup.
+26. **D1–D5 and initial-E implementation approval** — The combined implementation review completed on 2026-08-29 and approved the implemented D1–D5 provider/composition work and initial E CLI/presentation. This closes their pending review gate without declaring Step 2.4 complete or itself approving F-1 implementation or G work.
+27. **Committed E3 and Slice F approval** — E3 and Slice F were committed only after human approval under the project's working agreement. Record both as complete and approved on 2026-08-29; their committed state closes the previously stale pending-review entries without approving F-1 implementation or final Slice G.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1447,12 +1470,10 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`. Slices A, B, C1, C1R, C2, and D0 are complete and approved. D1–D5 and the initial E CLI/presentation are implemented; their combined implementation review remains to be recorded. The approved FCF/share amendment follows as E1–E3 before Slice F.
+Step 2.3 is complete and approved. Step 2.4 is active on `feat/step-2.4-fcf-earnings-growth`. Slices A, B, C1, C1R, C2, D0–D5, initial E, E1–E3, and F are complete and approved. F-1 shared security identity and presentation planning is approved and F-1 is the next implementation slice before final Slice G.
 
-1. Record the combined human review outcome for implemented D1–D5 and the initial E CLI/presentation; do not mark those slices approved until that review is explicit.
+1. Implement and review F-1 shared security identity and investor display under the approved Section 4.4.11 plan for all three strategies, including the Step 3.4 identity-snapshot handoff.
 2. Preserve classified unavailability so representative live validation can measure the useful-result ratio and identify whether a separately reviewed provider-mapping expansion is warranted.
-3. Complete E1–E3 for the approved FCF/share extension, including its evidence checkpoint, versioned typed contract, deterministic tests, CLI policy, and presentation, before Slice F.
-4. Complete and review the pre-Golden Graham/shared-contract hardening and Momentum modernization in Section 4.4.10.
-5. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.
-6. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
-7. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.
+3. Complete the combined documentation/full gate and begin Step 2.5 Golden Suite only after Step 2.4 and the hardening work are explicitly approved.
+4. Implement Step 2.6 reliability limits, then Step 3.1–3.3 persistence/repositories/data quality and Step 3.4 research workspace.
+5. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.

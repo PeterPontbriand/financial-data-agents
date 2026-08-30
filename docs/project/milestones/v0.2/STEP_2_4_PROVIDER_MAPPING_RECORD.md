@@ -1,6 +1,6 @@
 # Free Cash Flow & Earnings Growth Provider Mapping Record
 
-**Status:** D0, E1, and E2 approved; D1-D5 implemented with combined review outcome not yet recorded; E3 implemented and ready for human review<br/>
+**Status:** D0–D5 and E1–E3 complete and approved<br/>
 **Scope:** SEC EDGAR required annual actuals and E1 weighted-average diluted-share evidence<br/>
 **Prepared:** 2026-08-27; E1 amended 2026-08-29<br/>
 **Governing design:** `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`  
@@ -310,6 +310,12 @@ FY1/FY2 consensus EPS, alternate cash-flow concepts, alternate CapEx concepts,
 unsupported filing/identity/unit shapes, and incompatible EPS bases remain
 unavailable under the rules in Section 7.
 
+**D1–D5 combined implementation review:** Approved<br/>
+**Approval date:** 2026-08-29<br/>
+
+This approval closes the D1–D5 implementation gate. It does not broaden the
+approved provider mappings or alter the classified-unavailability policy.
+
 Minimum deterministic regressions include:
 
 1. MSFT/KO-like successful annual facts;
@@ -533,7 +539,8 @@ FCF/share CAGR was 4.03%, diluted-EPS CAGR was 17.40%, and the latest derived
 FY2026 FCF/share was USD 8.99. The result preserved SEC provenance and the
 expected warnings for unsupported market capitalization/consensus context.
 
-**E3 human review:** Pending<br/>
-**E3 approval date:** Pending
+**E3 human review:** Approved<br/>
+**E3 approval date:** 2026-08-29
 
-Slice F is not authorized until E3 receives explicit human approval.
+E3 approval authorized Slice F, which was subsequently implemented, reviewed,
+approved, and committed under the project's working agreement.
