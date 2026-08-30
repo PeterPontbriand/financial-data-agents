@@ -1,12 +1,40 @@
-"""Deterministic in-memory data client for unit tests.
+"""Deterministic in-memory market-data client for evaluation and tests.
 
 Implements the full `BaseDataClient` contract with synthetic data so
-analyzer and pipeline tests never touch external market-data providers.
+Golden evaluation and analyzer tests never touch external market-data providers.
 """
+
+from datetime import date
 
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
+from src.data.market_data import HistoricalMarketData, MarketDataContext
+
+
+class FixtureMarketDataProvider:
+    """Deterministic provider for point-in-time Momentum evaluation."""
+
+    provider_id = "fixture_market"
+
+    def __init__(self, frame: pd.DataFrame) -> None:
+        """Retain the deterministic historical frame."""
+        self._frame = frame
+
+    def fetch_historical_data(self, ticker: str, start_date: str, end_date: str | None = None) -> HistoricalMarketData:
+        """Return the complete fixture series so the resolver must truncate it."""
+        del ticker, start_date, end_date
+        return HistoricalMarketData(
+            frame=self._frame,
+            context=MarketDataContext(
+                provider_id=self.provider_id,
+                observation_interval="1d",
+                data_as_of=date(2026, 1, 6),
+                currency="USD",
+                observation_count=len(self._frame),
+                price_adjustment="adjusted",
+            ),
+        )
 
 
 class FixtureDataClient(BaseDataClient):

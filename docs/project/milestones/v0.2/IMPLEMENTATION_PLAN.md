@@ -914,7 +914,10 @@ The initial benchmark targets:
 
 This is the empirical test of the architectural objective established in Steps 2.3–2.4: financial analysis must not be implicitly synonymous with one analytical pattern.
 
-#### 4.5.1 Implementation guardrails for Cline
+
+#### 4.5.1 Implementation guardrails
+
+These guardrails will be respected by all implementers, including by the VS Code "Cline" extension, backed by a Ollama inference server on the LAN, that will be used for Step 2.5 implementation as much as is possible.
 
 - Reuse the Steps 2.3–2.4 strategy and market/financial-data contracts; do not create parallel abstractions.
 - Reuse existing production orchestration/tool-dispatch wherever it already supports deterministic fixture injection.
@@ -1146,6 +1149,8 @@ Adapters    Adapters
 Golden case definitions should remain unchanged when the production persistence adapter arrives.
 
 #### 4.5.18 Implementation sequence
+
+The formal Cline-sized handoff boundaries, owned artifacts, intermediate review points, and current handoff are recorded in the [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md). That document decomposes this governing sequence without changing its order or acceptance criteria.
 
 1. Inspect and accept the stable Steps 2.3–2.4 strategy/data contracts; do not redesign them speculatively.
 2. Define the typed Golden Case model.
@@ -1476,7 +1481,7 @@ All of the following must be true before declaring the milestone complete and op
 2. **Provider/analyst consensus-growth policy** — Do not ingest a provider forecast until its field meaning, time horizon, provenance, update behavior, and licensing are verified.
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
 4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, cash conversion, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied. FCF/share growth is approved current scope under the versioned E1–E3 extension, not a deferred composite feature.
-5. **Ollama Modelfile consolidation** — The repository currently contains `Modelfile.agents` both at the repository root and under `docs/project/deploy/ollama/`. Determine the canonical location and reconcile or remove the duplicate in a separate reviewed documentation/deployment task; do not mix that cleanup into Step 2.4 strategy slices.
+5. **Ollama Modelfile consolidation (resolved 2026-08-30)** — `docs/project/deploy/ollama/` is the canonical location. The identical root `Modelfile.agents` duplicate was removed, the application artifact was retained there, and the Step 2.5 Cline implementation model received a separately named Modelfile and documented alias so development-agent configuration cannot be confused with application or Golden model-under-evaluation configuration.
 
 ---
 

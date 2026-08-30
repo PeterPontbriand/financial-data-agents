@@ -11,11 +11,11 @@ from typer.testing import CliRunner
 from src.cli import app
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.sec_edgar import SEC_PROVIDER_ID
-from tests._cli_helpers import normalize_cli_output
-from tests.analysis.fcf_earnings_growth.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
+from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
 

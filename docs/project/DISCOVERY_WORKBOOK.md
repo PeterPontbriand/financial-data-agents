@@ -380,12 +380,12 @@ Current documents:
 - `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md` — live slice-status tracker and completion gate;
 - `docs/project/ARCHITECTURE.md`
 - `docs/project/DISCOVERY_WORKBOOK.md`
+- `docs/EVALUATIONS.md` — Step 2.5 Golden Suite purpose, execution modes, scoring boundaries, fixtures, and maintenance rules;
 - `docs/user/FINANCE_MATH.md`
 - `docs/user/GLOSSARY.md`
 - `docs/user/HARDWARE.md`
 
 Planned when their owning work lands:
-- `docs/EVALUATIONS.md` — Step 2.5;
 - `docs/TOOL_DEVELOPMENT.md`;
 - `docs/I18N_GUIDE.md`.
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import replace
 from datetime import UTC, date, datetime, time
 from enum import StrEnum
@@ -18,11 +17,15 @@ from src.analysis.fcf_earnings_growth import (
     HistoricalHorizon,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.graham_value.calculators import compute_graham_growth_value, compute_graham_number
 from src.analysis.graham_value.input_resolver import (
     GrahamInputResolver,
     GrahamNumberInputAssembly,
     GrowthValueInputAssembly,
+)
+from src.analysis.graham_value.service import (
+    GrahamGrowthCalculationPolicy,
+    run_graham_growth_analysis,
+    run_graham_number_analysis,
 )
 from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.config import settings
@@ -33,7 +36,6 @@ from src.core.telemetry.run_context import get_current_run_context, set_current_
 from src.data.base_client import DataFetchError
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactsProvider
-from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.financial.providers import (
     MASSIVE_PROVIDER_ID,
     SEC_PROVIDER_ID,
@@ -60,7 +62,6 @@ from src.reporting.presentation import PresentationMode
 
 app = typer.Typer(help="Financial Data Agents Command Line Interface")
 
-_AAA_OVERRIDE_PROVIDER_ID = "user_override"
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 
 
@@ -442,17 +443,19 @@ def _run_graham_number(  # noqa: PLR0913
     mode: PresentationMode,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
-    assembly = resolver.assemble_graham_number(
-        security_subject_id=ticker,
+    analysis = run_graham_number_analysis(
+        resolver=resolver,
+        ticker=ticker,
         security_provider_id=security_provider_id,
+        quote_provider_id=quote_provider_id,
         eps_basis=eps_basis,
         eps_override=eps_override,
         bvps_override=bvps_override,
         quote_override=quote_override,
-        quote_provider_id=quote_provider_id,
         as_of=as_of,
         use_cache=use_cache,
     )
+    assembly = analysis.assembly
     identity_resolution = resolve_security_identity(
         resolver.provider,
         SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
@@ -467,36 +470,16 @@ def _run_graham_number(  # noqa: PLR0913
             identity_resolution=identity_resolution,
         )
 
-    if not _has_provider_backed_security_evidence(assembly.eps, assembly.bvps, assembly.current_price):
-        reason = _unverified_ticker_reason(ticker)
-        unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _number_failure_output(
-            ticker=ticker,
-            assembly=unverified,
-            as_of=as_of,
-            mode=mode,
-            identity_resolution=identity_resolution,
-        )
-
-    assert assembly.eps is not None
-    assert assembly.bvps is not None
-    result = compute_graham_number(assembly.eps.value, assembly.bvps.value)
-    valuation_currency = _common_currency(assembly.eps, assembly.bvps)
-    margin = _margin_of_safety(
-        result.maximum_indicated_price,
-        assembly.current_price,
-        valuation_currency=valuation_currency,
-    )
     presentation_assembly = _number_with_public_quote_reason(assembly)
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
-        result=result,
+        result=analysis.result,
         as_of=as_of,
-        margin_of_safety_percent=margin,
+        margin_of_safety_percent=analysis.margin_of_safety_percent,
         identity_resolution=identity_resolution,
     )
-    exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
+    exit_code = 1 if analysis.result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_number(presentation, mode), exit_code
 
 
@@ -516,20 +499,22 @@ def _run_graham_growth(  # noqa: PLR0913
     mode: PresentationMode,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
-    assembly = resolver.assemble_growth_value(
-        security_subject_id=ticker,
+    policy = _growth_assumptions()
+    analysis = run_graham_growth_analysis(
+        resolver=resolver,
+        ticker=ticker,
         security_provider_id=security_provider_id,
+        quote_provider_id=quote_provider_id,
         eps_basis=eps_basis,
         eps_override=eps_override,
         expected_growth=expected_growth,
-        aaa_subject_id="AAA",
-        aaa_provider_id=_AAA_OVERRIDE_PROVIDER_ID,
         aaa_yield_override=aaa_yield_override,
         quote_override=quote_override,
-        quote_provider_id=quote_provider_id,
         as_of=as_of,
         use_cache=use_cache,
+        policy=policy,
     )
+    assembly = analysis.assembly
     identity_resolution = resolve_security_identity(
         resolver.provider,
         SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
@@ -544,47 +529,19 @@ def _run_graham_growth(  # noqa: PLR0913
             identity_resolution=identity_resolution,
         )
 
-    if not _has_provider_backed_security_evidence(assembly.eps, assembly.current_price):
-        reason = _unverified_ticker_reason(ticker)
-        unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _growth_failure_output(
-            ticker=ticker,
-            assembly=unverified,
-            as_of=as_of,
-            mode=mode,
-            identity_resolution=identity_resolution,
-        )
-
-    assert assembly.eps is not None
-    assert assembly.expected_growth is not None
-    assert assembly.current_aaa_yield is not None
-    base_pe, growth_multiplier, baseline_aaa_yield = _growth_assumptions()
-    result = compute_graham_growth_value(
-        normalized_eps=assembly.eps.value,
-        expected_growth_rate=assembly.expected_growth.value,
-        current_aaa_yield=assembly.current_aaa_yield.value,
-        base_pe=base_pe,
-        growth_multiplier=growth_multiplier,
-        baseline_aaa_yield=baseline_aaa_yield,
-    )
-    margin = _margin_of_safety(
-        result.growth_value,
-        assembly.current_price,
-        valuation_currency=assembly.eps.currency,
-    )
     presentation_assembly = _growth_with_public_quote_reason(assembly)
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
-        result=result,
-        base_pe=base_pe,
-        growth_multiplier=growth_multiplier,
-        baseline_aaa_yield=baseline_aaa_yield,
+        result=analysis.result,
+        base_pe=policy.base_pe,
+        growth_multiplier=policy.growth_multiplier,
+        baseline_aaa_yield=policy.baseline_aaa_yield,
         as_of=as_of,
-        margin_of_safety_percent=margin,
+        margin_of_safety_percent=analysis.margin_of_safety_percent,
         identity_resolution=identity_resolution,
     )
-    exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
+    exit_code = 1 if analysis.result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_growth(presentation, mode), exit_code
 
 
@@ -620,14 +577,14 @@ def _growth_failure_output(
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
     safe_assembly = _growth_with_public_quote_reason(replace(assembly, reason=reason))
-    base_pe, growth_multiplier, baseline_aaa_yield = _growth_assumptions()
+    policy = _growth_assumptions()
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=safe_assembly,
         result=None,
-        base_pe=base_pe,
-        growth_multiplier=growth_multiplier,
-        baseline_aaa_yield=baseline_aaa_yield,
+        base_pe=policy.base_pe,
+        growth_multiplier=policy.growth_multiplier,
+        baseline_aaa_yield=policy.baseline_aaa_yield,
         as_of=as_of,
         identity_resolution=identity_resolution,
     )
@@ -674,51 +631,13 @@ def _friendly_graham_failure(ticker: str, status: CalculationStatus, reason: str
     return f"Unable to analyze {ticker}: the requested Graham inputs are invalid. Review the method and overrides."
 
 
-def _unverified_ticker_reason(ticker: str) -> str:
-    """Return the trust-boundary failure for an entirely override-driven security."""
-    return (
-        f"Unable to verify ticker {ticker}: no provider-backed security fact or quote was resolved. "
-        "Fully override-driven security analysis is not accepted in v0.2."
-    )
-
-
-def _has_provider_backed_security_evidence(*inputs: ResolvedInput | None) -> bool:
-    """Return whether at least one security fact carries non-override provenance."""
-    return any(value is not None and value.source_kind is not SourceKind.OVERRIDE for value in inputs)
-
-
-def _margin_of_safety(
-    reference_value: float | None,
-    current_price: ResolvedInput | None,
-    *,
-    valuation_currency: str | None = None,
-) -> float | None:
-    """Compute comparison only when value, quote, and known currencies are compatible."""
-    if reference_value is None or current_price is None or reference_value <= 0:
-        return None
-    if (
-        valuation_currency is not None
-        and current_price.currency is not None
-        and valuation_currency != current_price.currency
-    ):
-        return None
-    margin = ((reference_value - current_price.value) / reference_value) * 100.0
-    return margin if math.isfinite(margin) else None
-
-
-def _common_currency(*inputs: ResolvedInput | None) -> str | None:
-    """Return one shared known currency, or None when inputs disagree or omit it."""
-    currencies = {item.currency for item in inputs if item is not None and item.currency}
-    return next(iter(currencies)) if len(currencies) == 1 else None
-
-
-def _growth_assumptions() -> tuple[float, float, float]:
+def _growth_assumptions() -> GrahamGrowthCalculationPolicy:
     """Read the configured constants for the growth-value method."""
     values = settings.get_graham_value_analysis()[ConfigKeys.GRAHAM_VALUES]
-    return (
-        float(values[ConfigKeys.BASE_PE]),
-        float(values[ConfigKeys.GROWTH_MULTIPLIER]),
-        float(values[ConfigKeys.BASELINE_AAA_YIELD]),
+    return GrahamGrowthCalculationPolicy(
+        base_pe=float(values[ConfigKeys.BASE_PE]),
+        growth_multiplier=float(values[ConfigKeys.GROWTH_MULTIPLIER]),
+        baseline_aaa_yield=float(values[ConfigKeys.BASELINE_AAA_YIELD]),
     )
 
 

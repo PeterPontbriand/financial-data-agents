@@ -26,6 +26,10 @@ from src.data.security_identity import (
     SecurityIdentityResolution,
     resolve_security_identity,
 )
+from src.evaluation.fixtures.fcf_earnings_growth import (
+    FixtureAnnualFinancialFactsProvider,
+    annual_series,
+)
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
     GrahamGrowthPresentation,
@@ -35,10 +39,6 @@ from src.reporting.graham import (
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
-from tests.analysis.fcf_earnings_growth.fixture_financial_facts_provider import (
-    FixtureAnnualFinancialFactsProvider,
-    annual_series,
-)
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
 

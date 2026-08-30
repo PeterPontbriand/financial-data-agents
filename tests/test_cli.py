@@ -17,14 +17,14 @@ from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from src.data.market_data import MarketDataContext
-from tests._cli_helpers import normalize_cli_output
-from tests.analysis.graham_value.fixture_financial_facts_provider import (
+from src.evaluation.fixtures.graham import (
     NOW,
     PROVIDER_ID,
     SECURITY_ID,
     SUBJECT_MISSING,
     FixtureFinancialFactsProvider,
 )
+from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
 

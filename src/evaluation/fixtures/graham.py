@@ -1,4 +1,4 @@
-"""Deterministic fixture-backed FinancialFactsProvider for Step 2.3 Slice D.
+"""Deterministic Graham financial-facts provider for evaluation and tests.
 
 Provides a small, internally coherent synthetic dataset sufficient to exercise
 both Graham methods and the resolver/assembly contracts without network access.

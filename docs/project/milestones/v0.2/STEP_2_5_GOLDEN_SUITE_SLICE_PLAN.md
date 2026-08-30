@@ -1,0 +1,839 @@
+# Step 2.5 Golden Suite Slice Plan
+
+**Status:** Active; prerequisite extraction and production-handler registration are complete. Slice A is next.<br/>
+**Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
+**Evaluation contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)<br/>
+**Architecture:** [Financial Data Agents Architecture](../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
+
+## 1. Purpose
+
+This document turns Section 4.5.18 of the implementation plan into bounded implementation handoffs. It is subordinate to that plan and does not change Step 2.5 scope, ordering, acceptance criteria, or the mandatory review gate.
+
+The slices are intentionally small enough to give Cline one coherent contract at a time. Each implementation prompt should name exactly one slice, its owned artifacts, its required tests, and its stop condition. Later-slice requirements are context, not authorization to implement ahead.
+
+## 2. Decisions fixed before Slice A
+
+The following decisions are already reviewed and are not open design questions in later slices:
+
+- Deterministic fixture providers live under `src/evaluation/fixtures/`; production or evaluation code must not import fixtures from `tests/`.
+- The approved production tools are explicitly registered in `src/orchestrator/analysis_tools.py` as `analyze_momentum`, `analyze_graham_number`, `analyze_graham_growth_value`, and `analyze_fcf_earnings_growth`.
+- Step 2.5 must reuse `AsyncToolDispatcher` and those production handlers rather than introduce an evaluation-only dispatcher or strategy framework.
+- Production tool availability remains an explicit allowlist. Reflection-based analysis discovery and generic strategy/plugin registration are set aside until Step 4 at the earliest and only if concrete expansion pressure justifies them.
+- Deterministic/no-LLM execution reports strategy/tool selection as `not_measured`. Direct or scripted invocation must not manufacture a passing selection result.
+- Each strategy retains its native typed production result. Evaluation-specific result and report models may aggregate observations, but must not replace production results with a generic strategy result.
+- Expected numerical values must be established independently of the production functions under test.
+- The minimum heterogeneous suite must stop for human review when it works. Expansion beyond that reviewed minimum is human-directed, not automatic.
+- No slice may add live network or LLM calls to deterministic tests, production persistence, SQLite, or new analytical strategies.
+
+## 3. Cline handoff protocol
+
+Every Cline implementation prompt should enforce these boundaries:
+
+1. Read this slice plan, the linked governing sections, `docs/EVALUATIONS.md`, and only the production contracts named by the slice before editing.
+2. Establish the focused baseline relevant to the owned artifacts.
+3. Modify only the slice-owned artifacts and directly necessary package exports. If another production change appears necessary, stop and report the concrete incompatibility.
+4. Do not edit `pyproject.toml`, `uv.lock`, provider mappings, financial formulas, production strategy semantics, or unrelated documentation.
+5. Add focused deterministic tests in the same slice. Tests must not use live APIs, wall-clock time, mutable production caches, or real LLM endpoints.
+6. Run focused Ruff, formatting, strict mypy, and pytest checks appropriate to the slice.
+7. Report changed files, checks run, and unresolved questions, then stop. Do not start the next slice or create a commit unless the human explicitly requests it.
+
+The complete repository quality gate is required at the review checkpoints identified below and at final closeout. A focused slice may use narrower checks while it is still under review.
+
+## 4. Sequence crosswalk
+
+| Implementation-plan sequence | Formal slice |
+| :--- | :--- |
+| 1. Accept stable contracts | P0 — completed prerequisites |
+| 2. Typed Golden Case model | A — typed evaluation contract |
+| 3. Independent expectations and tolerances | B1–B2 — expectation dossier |
+| 4–5. Selection and numerical evaluation | C — component evaluators |
+| 6–7. Aggregation and reporting | D — aggregation and report contract |
+| 8. Deterministic/no-LLM harness | E1–E2 — composition and execution harness |
+| 9. Evaluator self-test | F — mutation/self-test |
+| 10. Minimum heterogeneous cases | G1–G4 — minimum catalog |
+| 11. Run minimum suite and stop | Gate M — mandatory human review |
+| 12. Expansion | H — review-directed only |
+| 13. Optional real-local-Ollama | I — empirical execution mode |
+| 14–15. CLI and documentation | J — operator interface and guide completion |
+| 16–17. Gates and measured records | K — closeout |
+
+## 5. Completed prerequisite — P0
+
+### Objective
+
+Remove repository-structure work from Cline's evaluation prompts and expose one production execution boundary for every approved strategy.
+
+### Completed artifacts
+
+- `src/evaluation/__init__.py`
+- `src/evaluation/fixtures/__init__.py`
+- `src/evaluation/fixtures/market_data.py`
+- `src/evaluation/fixtures/graham.py`
+- `src/evaluation/fixtures/fcf_earnings_growth.py`
+- `src/orchestrator/analysis_tools.py`
+- `src/analysis/graham_value/service.py`
+- `docs/EVALUATIONS.md`
+- focused production-handler and fixture tests
+
+The former local `src/golden/` and `tests/golden/` directories have been removed. P0 passed the complete repository quality gate and must not be reopened unless a later slice demonstrates a specific defect.
+
+## 6. Slice A — typed evaluation contract
+
+### Objective
+
+Define only the immutable, validated data contract needed to describe Golden cases and observed component outcomes.
+
+### Owned artifacts
+
+- create `src/evaluation/models.py`;
+- update `src/evaluation/__init__.py` only for deliberate public exports;
+- create `tests/evaluation/test_models.py`.
+
+### Required contract
+
+- Stable case and fixture identifiers, description, prompt/task text, and tags.
+- Expected tool and, where applicable, Graham method constraints.
+- Required, permitted, and forbidden behavior represented explicitly rather than as prose-only conventions.
+- Typed expected numerical observations with field paths and case-specific absolute and/or relative tolerances.
+- Execution mode and component outcome discriminators including `pass`, `fail`, `not_applicable`, and `not_measured` where semantically appropriate.
+- Explicit distinction between expected case data and observed execution evidence.
+- Frozen models, finite-number validation, timezone-aware timestamps where present, and fail-closed validation for contradictory states.
+
+### Exclusions
+
+Do not add a case catalog, fixture composition, evaluator logic, runner, report writer, CLI, telemetry integration, or production strategy changes.
+
+### Acceptance and stop condition
+
+Focused model tests prove valid construction, serialization, and rejection of contradictory/non-finite/ambiguous states. Stop for contract review before Slice B.
+
+## 7. Slice B — independently verified expectation dossier
+
+Slice B defines the benchmark truth before production evaluation code consumes it. Production calculators must not be invoked to generate the expected values.
+
+### Slice B1 — Momentum and Graham expectations
+
+#### Owned artifacts
+
+- create `docs/project/milestones/v0.2/STEP_2_5_EXPECTED_VALUES.md`;
+- add only narrowly required deterministic fixture data under `src/evaluation/fixtures/`;
+- add fixture-focused tests under `tests/evaluation/fixtures/`.
+
+#### Required work
+
+Document the proposed minimum Momentum and Graham cases, exact fixture inputs, transparent reference calculations, expected statuses/values, tolerances, and why each case is useful. Cover both Graham methods, default and TTM EPS bases, `not_applicable`, missing current price, and relevant `as_of` or precedence behavior.
+
+### Slice B2 — FCF/Earnings Growth expectations
+
+#### Owned artifacts
+
+- extend `STEP_2_5_EXPECTED_VALUES.md`;
+- add only narrowly required annual facts under `src/evaluation/fixtures/`;
+- extend fixture-focused tests under `tests/evaluation/fixtures/`.
+
+#### Required work
+
+Document the straightforward, insufficient or mathematically nonmeaningful, period-alignment, and historical-`as_of` scenarios. Show the independent FCF, EPS, elapsed-year, CAGR, classification, and tolerance reasoning.
+
+### Exclusions
+
+Do not create executable Golden cases, call production calculators to populate expectations, implement evaluators, or broaden production fixture/provider behavior.
+
+### Acceptance and stop condition
+
+Every proposed minimum case has reviewable input evidence and independently derived expected values. Stop for human expectation review before Slice C.
+
+## 8. Slice C — component evaluators
+
+### Objective
+
+Evaluate observed evidence without executing strategies or aggregating a suite.
+
+### Owned artifacts
+
+- create `src/evaluation/evaluator.py`;
+- create `tests/evaluation/test_evaluator.py`;
+- modify `src/evaluation/models.py` only when a reviewed Slice A contract proves insufficient.
+
+### Required behavior
+
+- Evaluate expected versus observed tool selection.
+- Evaluate Graham method selection independently from broad strategy selection.
+- Compare typed numerical observations using each expectation's tolerances.
+- Classify fixture/data failures separately from numerical and selection failures.
+- Return `not_measured` for selection in deterministic/no-LLM mode and exclude it from measured selection denominators.
+- Accept legitimate permitted alternatives and reject explicitly forbidden behavior.
+
+### Exclusions
+
+Do not load fixtures, dispatch tools, aggregate multiple cases, serialize suite reports, or add real-model execution.
+
+### Acceptance and stop condition
+
+Focused tests cover pass, fail, not-applicable, and not-measured behavior plus boundary tolerances and failure classification. Stop after focused verification.
+
+## 9. Slice D — case aggregation and machine-readable report contract
+
+### Objective
+
+Aggregate already-evaluated cases and serialize an auditable report without running them.
+
+### Owned artifacts
+
+- create `src/evaluation/reporting.py`;
+- create `tests/evaluation/test_reporting.py`;
+- modify evaluation models only as narrowly required by the report contract.
+
+### Required behavior
+
+- Case totals and aggregate pass rate use the denominator defined in the implementation plan.
+- Component denominators count only measured and applicable observations.
+- Strategy selection, Graham method selection, numerical correctness, fixture/data failure, and overall results remain distinct.
+- Reports contain suite/fixture versions, mode, execution timestamp, applicable model configuration, case results, failure reasons, and optional trajectory identity.
+- Machine-readable serialization rejects NaN and Infinity and is deterministic apart from explicitly supplied execution metadata.
+
+### Exclusions
+
+Do not execute cases, select fixtures, invoke telemetry, or implement a CLI.
+
+### Acceptance and stop condition
+
+Focused tests prove denominator semantics, mixed component states, JSON round trips, and non-finite rejection. Stop after focused verification.
+
+## 10. Slice E — deterministic execution harness
+
+### Slice E1 — fixture composition and production dispatch
+
+#### Objective
+
+Build fixture-backed dependencies for the four existing production handlers and execute one supplied case through `AsyncToolDispatcher` without an LLM.
+
+#### Owned artifacts
+
+- create `src/evaluation/composition.py`;
+- create `tests/evaluation/test_composition.py`.
+
+#### Required behavior
+
+Use only `src/evaluation/fixtures/`, `AnalysisToolDependencies`, `register_analysis_tools(...)`, and explicit injected clocks/provider selections. Missing fixture IDs or facts fail closed. No fixture composition may fall back to a live provider.
+
+### Slice E2 — deterministic runner and telemetry evidence
+
+#### Objective
+
+Connect case loading, E1 composition, production dispatch, component evaluation, aggregation/reporting, and Step 2.1 trajectory observation.
+
+#### Owned artifacts
+
+- create `src/evaluation/runner.py`;
+- create `tests/evaluation/test_runner.py`.
+
+#### Required behavior
+
+The deterministic runner executes supplied cases without an LLM, records tool and calculation evidence, reports strategy selection as `not_measured`, and produces the machine-readable in-memory report contract. Telemetry remains observational and fail-open.
+
+### Exclusions
+
+Do not add the minimum production case catalog yet, invoke Ollama, write a CLI, persist reports to SQLite, or manufacture LLM-selection evidence.
+
+### Acceptance and stop condition
+
+A small synthetic test case proves the end-to-end deterministic pipeline through the production dispatcher. Run the focused evaluation suite and stop for integration review.
+
+## 11. Slice F — evaluator mutation/self-test
+
+### Objective
+
+Prove the evaluator detects a deliberately incorrect observed result without adding that mutation to the benchmark denominator.
+
+### Owned artifacts
+
+- create or extend `tests/evaluation/test_evaluator_self_test.py`;
+- change evaluator code only if the test exposes a genuine defect.
+
+### Acceptance and stop condition
+
+The correct observation passes, a controlled numerical or selection mutation fails for the expected category, and the synthetic mutation is not counted as a normal Golden case. Stop after focused verification.
+
+## 12. Slice G — minimum heterogeneous catalog
+
+Executable case definitions belong in `src/evaluation/cases/`; keep one stable case ID per reviewed scenario. Each subslice may add only its named cases, directly required fixture records, and focused tests.
+
+### Slice G1 — Momentum cases
+
+- straightforward Momentum result;
+- insufficient-history or point-in-time boundary behavior.
+
+### Slice G2 — Graham Number cases
+
+- default three-year-average EPS;
+- explicit TTM EPS;
+- `not_applicable`;
+- missing current price where comparison is unavailable but valuation remains explicit.
+
+### Slice G3 — Graham growth and resolution cases
+
+- explicit growth-value assumptions and AAA yield;
+- Graham method-selection discrimination;
+- override/cache/provider precedence and historical `as_of` behavior.
+
+### Slice G4 — FCF/Earnings Growth and cross-strategy discrimination
+
+- straightforward historical growth;
+- insufficient or mathematically nonmeaningful growth;
+- period alignment and historical `as_of` rejection;
+- at least one existing case explicitly identified as discriminating the requested strategy from a plausible wrong strategy.
+
+### Shared acceptance
+
+- Case data matches the reviewed Slice B expectation dossier.
+- Stable IDs, fixture IDs, prompts, tool constraints, numerical expectations, and tolerances are explicit.
+- Deterministic execution never touches live providers or an LLM.
+- Each subslice passes focused tests and does not broaden another strategy's cases.
+
+## 13. Gate M — mandatory minimum-suite review
+
+After G1–G4:
+
+1. run the full deterministic minimum suite;
+2. run the complete repository quality gate;
+3. record the exact case list and deterministic results;
+4. stop and request human review.
+
+No case expansion, real-local-Ollama execution, CLI work, or Step 2.5 completion claim is authorized before this gate is approved.
+
+## 14. Slice H — review-directed case changes or expansion
+
+This slice exists only if Gate M review identifies missing signal or explicitly approves additional cases. The approximately 11–12 minimum cases already fall within the approved 10–18 initial range, so expansion is not presumed necessary.
+
+Every added case must state the distinct failure mode or signal it contributes. Do not add cases mechanically to reach a number, remove a useful failure, or alter expectations to improve measured performance.
+
+## 15. Slice I — optional real-local-Ollama mode
+
+### Objective
+
+Measure empirical strategy, method, tool, and argument selection through the real orchestration boundary while keeping deterministic execution independent.
+
+### Owned artifacts
+
+- create `src/evaluation/ollama_runner.py` or another single reviewed mode-specific module;
+- create deterministic tests with mocked local-model responses;
+- add empirical execution tests only as explicitly invoked, non-CI tests.
+
+### Required behavior
+
+Record model identifier, configuration, sampling settings where applicable, repetition policy, trajectories, and nondeterministic outcomes. Do not inspect private reasoning or make a real model call during normal pytest.
+
+## 16. Slice J — CLI and documentation completion
+
+### Objective
+
+Expose the reviewed runner through the normal `uv run` workflow and complete operator documentation.
+
+### Owned artifacts
+
+- a narrowly reviewed command integration under the existing CLI boundary;
+- CLI-focused tests;
+- `docs/EVALUATIONS.md`;
+- directly affected documentation links.
+
+### Required behavior
+
+Support the full suite, one named case, deterministic/no-LLM mode, optional real-local-Ollama mode, and an explicit report location. Required benchmark failure returns a non-zero status. Documentation must explain report fields, failure interpretation, fixture maintenance, and the separation of deterministic and empirical results.
+
+## 17. Slice K — Step 2.5 closeout
+
+### Required work
+
+- Run Ruff, formatting checks, `mypy --strict`, and the complete pytest suite through the repository quality-gate wrapper.
+- Run and record the deterministic suite result.
+- Record empirical local-model results separately when they are available; absence of an optional empirical run must remain explicit.
+- Reconcile all Step 2.5 acceptance criteria and documentation status.
+- Stop for final human approval before representing Step 2.5 as complete.
+
+## 18. Current handoff
+
+After the Section 19.4 runtime preflight passes, the next Cline task is **Slice A — typed evaluation contract**. Its prompt should not include expectation calculations, evaluator behavior beyond the model vocabulary needed to represent outcomes, fixture composition, case creation, runner work, or CLI work.
+
+## 19. Cline and Ollama execution profile
+
+### 19.1 Scope and separation from benchmark configuration
+
+This profile is for **Cline implementing Step 2.5**. It is not the configuration of the optional real-local-Ollama Golden evaluation in Slice I. Implementation-model behavior, prompts, and outcomes must never be mixed into Golden benchmark measurements.
+
+The recommendation was researched on 2026-08-30. Reassess it for a later milestone because local-model and Ollama support changes quickly. Do not silently change model, quantization, context, or sampling settings between Step 2.5 slices; record any change in Section 22.
+
+### 19.2 Recommended implementation model
+
+Use **`qwen3-coder:30b`** through Ollama for both Cline Plan and Act modes. The installed tag was verified on 2026-08-30 to resolve to the intended 30.5B-total/3.3B-active `Q4_K_M` model with completion and tool capabilities; no additional model pull is required for this host.
+
+Rationale:
+
+- Cline's local-model guidance identifies Qwen3-Coder 30B as its primary local recommendation and describes it as the most reliable model below 70B for Cline tool use and repository work.
+- The Qwen model card identifies the 30.5B-total/3.3B-active model as Cline-compatible, non-thinking, tool-call capable, and natively 256K-context.
+- Ollama's current artifact is 19 GB, advertises tool support, and received an Ollama-engine update for more reliable tool calling.
+- The repository's existing Ollama deployment artifact was designed to fully offload a larger dense `qwen2.5-coder:32b-instruct-q5_K_M` model across two GPUs. The 19 GB Qwen3-Coder quantization is therefore the strongest current Cline-recommended model with a defensible compatibility margin for a useful context cache. Exact live GPU capacity is not available from this workspace, so the preflight below remains mandatory.
+- The model is a better fit for this step than a general reasoning model because the work is typed Python, multi-file codebase navigation, tool use, tests, and strict instruction following.
+
+Do not select `qwen3-coder-next:q4_K_M` for the initial run. It is attractive for agentic coding, but its 52 GB weights precede context-cache allocation and exceed the capacity demonstrated by the repository's current deployment artifact. Do not select the 290 GB Qwen3-Coder 480B local artifact. `devstral-small-2:24b-instruct-2512-q4_K_M` is the fallback only if Qwen3-Coder cannot remain fully GPU-offloaded or proves unable to use Cline's tools reliably; do not alternate models casually between slices.
+
+Primary sources:
+
+- [Cline local-model guidance](https://docs.cline.bot/running-models-locally/overview)
+- [Qwen3-Coder 30B model card](https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct)
+- [Ollama Qwen3-Coder tags](https://ollama.com/library/qwen3-coder/tags)
+- [Ollama coding-model/tool-calling update](https://ollama.com/blog/coding-models)
+- [Ollama Qwen3-Coder-Next size and capabilities](https://ollama.com/library/qwen3-coder-next)
+- [Ollama Devstral Small 2 fallback](https://ollama.com/library/devstral-small-2)
+
+### 19.3 Recommended Ollama model alias
+
+The canonical artifact is [`docs/project/deploy/ollama/Modelfile.cline-step-2.5`](../../deploy/ollama/Modelfile.cline-step-2.5). Create the dedicated `financial-data-agents-step-2-5` alias from this content on the inference server:
+
+```text
+FROM qwen3-coder:30b
+
+PARAMETER num_ctx 65536
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05
+```
+
+The sampling values follow Qwen's model-card recommendations. Do not add a Modelfile `SYSTEM` instruction: Cline and repository rules already supply the task/system context, and an extra generic persona can compete with them. Start with Ollama's automatic GPU placement and verify it with `ollama ps`. If that reports CPU-only execution, treat the preflight as failed and inspect GPU discovery and runner-allocation logs before testing an explicit `num_gpu` override; an override cannot repair a CUDA runner that did not discover the GPUs.
+
+Use these Ollama server settings for a dedicated Step 2.5 implementation session:
+
+```text
+OLLAMA_CONTEXT_LENGTH=65536
+OLLAMA_FLASH_ATTENTION=1
+OLLAMA_KV_CACHE_TYPE=q8_0
+OLLAMA_NUM_PARALLEL=1
+OLLAMA_MAX_LOADED_MODELS=1
+```
+
+If the server is dedicated to local-only project work, also use `OLLAMA_NO_CLOUD=1`. Flash Attention reduces memory growth at longer context. The `q8_0` K/V cache uses about half the memory of the default `f16` cache with very small expected quality loss. Serial execution prevents parallel requests from multiplying context memory.
+
+The 65,536-token context is intentional: current Ollama guidance recommends at least 64K for coding agents, while Cline requires at least 32K. It provides more margin than the repository's obsolete 8,192-token deployment setting without assuming enough memory for the model's full 256K context. If preflight shows CPU offload or instability, reduce **both** Ollama and Cline to 49,152 and then 32,768 before changing models. Never configure Cline to advertise more context than Ollama actually allocated.
+
+Relevant runtime references:
+
+- [Ollama context-length guidance](https://docs.ollama.com/context-length)
+- [Ollama Flash Attention and K/V cache settings](https://docs.ollama.com/faq#how-can-i-enable-flash-attention)
+- [Ollama Cline integration](https://docs.ollama.com/integrations/cline)
+
+### 19.4 Mandatory Ollama preflight
+
+Before giving Cline Slice A:
+
+1. Record `ollama --version`; use a current stable Ollama release.
+2. Confirm `qwen3-coder:30b` still reports `Q4_K_M`, then create the dedicated alias from `docs/project/deploy/ollama/Modelfile.cline-step-2.5` without replacing the repository's application model aliases.
+3. Run one tool-capable smoke task through Cline using the compact prompt.
+4. During the request, run `ollama ps` and record model digest, processor split, and allocated context.
+5. Accept the configuration only if the context is 65,536 and the model remains `100% GPU`. If it does not, follow the context-reduction order above.
+6. Confirm that a small Cline task can read one file, run a harmless read-only command, and complete one tool round trip without malformed tool syntax.
+7. Record the result in Section 22. Do not begin Slice A on a failed preflight.
+
+### 19.5 Recommended Cline settings
+
+| Setting | Recommendation |
+| :--- | :--- |
+| API provider | Ollama |
+| Base URL | The existing local inference-server URL, without an OpenAI `/v1` suffix |
+| Model | `financial-data-agents-step-2-5` dedicated alias |
+| Context window | `65536`, exactly matching Ollama |
+| Auto Compact | Enabled; `Agentic` strategy. Qwen uses Cline's fallback context management rather than model-generated summarization. |
+| Compact system prompt | Not exposed in Cline `v4.1.16 (Next)` and not a preflight requirement; the former SDK setting was non-functional and removed. |
+| Plan/Act models | Same recommended model for both |
+| Workflow | Fresh Cline task per slice; Plan first, then Act after plan review |
+| Deep planning | Do not invoke `/deep-planning`; the reviewed slice plan already supplies bounded planning. No separate toggle is exposed in this Cline version. |
+| Checkpoints | Enabled |
+| Default terminal profile | Git Bash |
+| Auto-approve: read project files | Enabled |
+| Auto-approve: edit project files | Enabled only in Act mode for the active reviewed slice |
+| Auto-approve: safe commands | Enabled |
+| Auto-approve: fetch web content | Disabled |
+| Auto-approve: MCP servers | Disabled |
+| Web Search | Disabled |
+| Hooks | Disabled |
+| Background Edit | Disabled |
+| MCP display mode | `Plain Text`; no MCP server is required for the planned slices |
+| Error and usage reporting | Optional; disable it if the implementation session must be network-silent beyond the configured Ollama host |
+
+Cline's current SDK-based extension no longer exposes the former compact-system-prompt setting because it did not affect the generated prompt; current local-model documentation that still requests that toggle is stale for `v4.1.16 (Next)`. Fresh tasks are therefore the primary prompt-size control and prevent context accumulated in one slice from contaminating the next. Auto Compact remains a context-pressure safeguard, not a substitute for fresh tasks. Checkpoints use a shadow repository and do not replace human review or authorize commits. The repository's `.clinerules` already points Cline to `AGENTS.md`; do not add a second competing general rules file.
+
+Use Cline's [local-model settings](https://docs.cline.bot/running-models-locally/overview), [Plan/Act workflow](https://docs.cline.bot/core-workflows/plan-and-act), [checkpoints](https://docs.cline.bot/core-workflows/checkpoints), and [bounded auto-approve controls](https://docs.cline.bot/features/auto-approve) as the operational reference.
+
+### 19.6 Cline task lifecycle
+
+For every slice:
+
+1. Start a fresh Cline task in Plan mode with the corresponding prompt draft from Section 21.
+2. Require Cline to inspect the named artifacts and restate its intended files and tests before Act mode.
+3. Reject a plan that adds future-slice work, dependencies, a generic strategy framework, or production semantic changes.
+4. Switch that same task to Act mode only after the plan matches the slice.
+5. Let Cline complete focused verification, then stop it at the prompt's stop condition.
+6. Review the actual diff and rerun checks independently.
+7. Add a concise review entry to Section 22 and revise later prompt drafts when a recurring failure mode is discovered.
+8. Start the next approved slice in a fresh task. Do not ask one long-running Cline conversation to implement all of Step 2.5.
+
+## 20. Prompt-draft conventions
+
+The drafts below are paste-ready starting points, but the human should replace bracketed placeholders and update the current worktree/baseline statement before use. The prompts deliberately repeat scope and stop conditions because local models benefit from explicit boundaries.
+
+Unless a prompt says otherwise, each task must:
+
+- work on branch `feat/step-2.5-golden-suite` in the existing working tree;
+- obey `AGENTS.md`, the active implementation plan, this slice plan, and `docs/EVALUATIONS.md` in that precedence order after the human request;
+- preserve reviewed prerequisite work already present in the working tree;
+- use `apply_patch` or Cline's normal file-edit tool rather than shell write tricks;
+- add Google-style docstrings and strict types consistent with the repository;
+- make no dependency or lockfile changes, no live API/LLM calls in tests, no Git commits, and no work from later slices;
+- run focused non-mutating checks with `uv run --no-sync` and the repository-local managed paths described by `AGENTS.md`; and
+- stop after reporting changed files, verification, and any concrete blocker.
+
+## 21. Cline prompt drafts
+
+### 21.1 Slice A — typed evaluation contract
+
+```text
+Implement only Step 2.5 Slice A — typed evaluation contract — on branch feat/step-2.5-golden-suite.
+
+Before editing, read AGENTS.md, Section 4.5 of docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md, Sections 2–6 and 19–21 of docs/project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md, and docs/EVALUATIONS.md. Inspect src/orchestrator/analysis_tools.py only to understand the already-approved tool names and argument schemas. Do not modify production handlers or strategies.
+
+In Plan mode, restate the Slice A invariants, the exact files you will touch, and the focused tests you will run. Wait for approval before Act mode.
+
+In Act mode, create src/evaluation/models.py and tests/evaluation/test_models.py. Update src/evaluation/__init__.py only for deliberate public exports. Implement the immutable typed case/expectation/observation/component vocabulary required by Slice A, including explicit expected tool/method constraints, required/permitted/forbidden behavior, field-addressed numerical expectations with finite case-specific tolerances, execution modes, and component outcomes that can represent pass, fail, not_applicable, and not_measured. Keep expected definitions distinct from observed evidence. Require timezone-aware timestamps where present and reject contradictory or non-finite states.
+
+Use evaluation-specific models only; do not create a generic production strategy result. Do not add cases, fixtures, evaluators, aggregation, reporting, runners, telemetry integration, CLI code, or later-slice placeholders.
+
+Run focused Ruff, format-check, strict mypy, and pytest checks for the owned files. Stop and report the exact diff and checks; do not start Slice B and do not commit.
+```
+
+### 21.2 Slice B1 — Momentum and Graham expectation dossier
+
+```text
+Implement only Step 2.5 Slice B1 — independently verified Momentum and Graham expectations.
+
+Read AGENTS.md, the Step 2.5 implementation-plan sections on fixture design, initial composition, and independently verified values, Sections 2–7 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the approved Slice A models, and only the relevant existing Momentum/Graham fixture and finance-math contracts.
+
+In Plan mode, list the proposed minimum Momentum and Graham scenarios, the independent calculation method for each, the fixture additions actually required, and the exact files/tests you will touch. Do not propose evaluator or runner code. Wait for approval.
+
+In Act mode, create docs/project/milestones/v0.2/STEP_2_5_EXPECTED_VALUES.md with reviewable fixture inputs, formulas, intermediate arithmetic, expected statuses/values, tolerances, and signal rationale for the minimum Momentum and Graham cases. Cover straightforward and boundary Momentum; three-year-average and TTM Graham Number; Graham not_applicable; explicit Graham growth assumptions/yield; missing current price; method discrimination; and the relevant precedence/as_of scenario. Use transparent manual arithmetic or a separate simple reference calculation, never production functions under test.
+
+Add only narrowly required deterministic fixture records under src/evaluation/fixtures and fixture-focused tests under tests/evaluation/fixtures. Do not create executable Golden cases, evaluator logic, runner code, reports, CLI code, or production-strategy changes.
+
+Run focused checks and stop for human expectation review. Report every expected value and how it was independently derived. Do not commit.
+```
+
+### 21.3 Slice B2 — FCF/Earnings Growth expectation dossier
+
+```text
+Implement only Step 2.5 Slice B2 — independently verified FCF/Earnings Growth expectations.
+
+Read AGENTS.md, the applicable Step 2.5 fixture/expectation requirements, Sections 2–7 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the reviewed Slice A contract and Slice B1 dossier, docs/user/FINANCE_MATH.md, the Step 2.4 FCF design, and only the existing annual fixture contracts needed for this task.
+
+In Plan mode, identify the exact straightforward, insufficient-or-nonmeaningful, period-alignment, and historical-as_of scenarios; show how you will independently compute FCF, elapsed years, CAGR, status, and classification; list owned files and focused tests. Wait for approval.
+
+In Act mode, extend STEP_2_5_EXPECTED_VALUES.md with exact input facts, intermediate arithmetic, expected typed outcomes, tolerances, and the signal contributed by each minimum FCF case. Add only narrowly required annual fixture data and fixture tests. Do not call production calculators to generate expected values and do not alter Step 2.4 financial semantics.
+
+Do not create executable cases, evaluators, reports, runners, CLI code, or unrelated fixtures. Run focused checks, report the derivations, and stop for human expectation review. Do not commit.
+```
+
+### 21.4 Slice C — component evaluators
+
+```text
+Implement only Step 2.5 Slice C — component evaluators.
+
+Read AGENTS.md, Sections 4.5.6–4.5.7 of the implementation plan, Sections 2–8 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the reviewed Slice A models, and the reviewed expectation dossier. Do not inspect or modify production analyzers unless a named type import is needed.
+
+In Plan mode, describe pure evaluator inputs/outputs, component denominator semantics deferred to Slice D, error categories, tolerance behavior, and exact files/tests. Wait for approval.
+
+In Act mode, create src/evaluation/evaluator.py and tests/evaluation/test_evaluator.py. Implement pure evaluation of tool selection, independent Graham method selection, field-addressed numerical expectations with per-expectation tolerances, required/permitted/forbidden behavior, and distinct fixture/data versus numerical/selection failures. Deterministic/no-LLM selection must return not_measured and must never be converted to pass.
+
+Do not load fixtures, dispatch tools, aggregate cases, serialize suite reports, add case definitions, or call an LLM. Modify Slice A models only if a concrete tested incompatibility requires it, and report that change explicitly.
+
+Test pass/fail/not_applicable/not_measured, tolerance boundaries, permitted alternatives, forbidden behavior, and failure classification. Run focused checks and stop; do not begin Slice D or commit.
+```
+
+### 21.5 Slice D — aggregation and report contract
+
+```text
+Implement only Step 2.5 Slice D — case aggregation and machine-readable report contract.
+
+Read AGENTS.md, Sections 4.5.7 and 4.5.11–4.5.12 of the implementation plan, Sections 2–9 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, and the reviewed evaluation models/evaluator.
+
+In Plan mode, specify aggregate formulas, measured/applicable denominators, report fields, deterministic serialization rules, exact files, and focused tests. Wait for approval.
+
+In Act mode, create src/evaluation/reporting.py and tests/evaluation/test_reporting.py. Aggregate already-evaluated case results without executing them. Keep strategy selection, Graham method selection, numerical correctness, fixture/data failure, and overall pass/fail distinct. Count only measured/applicable components in component denominators. Implement the plan-defined case pass rate and deterministic JSON-compatible serialization with explicit supplied metadata and no NaN/Infinity.
+
+Do not load fixtures, dispatch tools, integrate telemetry, add case definitions, write files or CLI commands, or call an LLM. Make only narrow, tested model changes if unavoidable.
+
+Test mixed statuses, zero applicable denominator behavior, overall pass-rate semantics, JSON round trips, and non-finite rejection. Run focused checks and stop; do not begin Slice E or commit.
+```
+
+### 21.6 Slice E1 — fixture composition and production dispatch
+
+```text
+Implement only Step 2.5 Slice E1 — fixture composition and production dispatch.
+
+Read AGENTS.md, Section 4.5.8 and 4.5.14 of the implementation plan, Sections 2–10 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, src/orchestrator/analysis_tools.py, src/orchestrator/dispatcher.py, and src/evaluation/fixtures/*. Do not redesign those production boundaries.
+
+In Plan mode, map each approved fixture ID/type to the existing AnalysisToolDependencies and production handler, state how missing evidence fails closed, and list exact files/tests. Wait for approval.
+
+In Act mode, create src/evaluation/composition.py and tests/evaluation/test_composition.py. Build explicitly injected fixture-backed dependencies for all four existing production tools and execute one supplied typed case through AsyncToolDispatcher. Use explicit clocks and provider selections. Missing fixture IDs or evidence must fail without any live fallback.
+
+Do not add a second dispatcher, generic strategy registry, reflection-based discovery, minimum case catalog, evaluator orchestration, report runner, telemetry integration, Ollama call, persistence, or CLI code. Do not modify production handlers unless a concrete defect blocks this slice; if so, stop and report it instead.
+
+Run focused checks and stop with a composition map and test results. Do not begin E2 or commit.
+```
+
+### 21.7 Slice E2 — deterministic runner and telemetry evidence
+
+```text
+Implement only Step 2.5 Slice E2 — deterministic/no-LLM runner and telemetry evidence.
+
+Read AGENTS.md, Sections 4.5.8 and 4.5.10 of the implementation plan, Sections 2–10 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, and the reviewed models, evaluator, reporting, composition, dispatcher, and Step 2.1 telemetry boundaries.
+
+In Plan mode, describe the supplied-case execution sequence, observable evidence, telemetry fail-open behavior, deterministic clocking, and exact files/tests. Wait for approval.
+
+In Act mode, create src/evaluation/runner.py and tests/evaluation/test_runner.py. Connect supplied case input to fixture composition, existing production dispatch, component evaluation, aggregation/reporting, and observational trajectory identity/evidence. The deterministic runner must not invoke an LLM and must report strategy/tool selection as not_measured even though it directly dispatches the expected tool.
+
+Use a small synthetic test case only; do not add the minimum production catalog yet. Do not add Ollama, CLI, persistence, live providers, or telemetry-controlled behavior.
+
+Run focused evaluation tests and stop for integration review. Report evidence flow and checks; do not begin Slice F or commit.
+```
+
+### 21.8 Slice F — evaluator mutation/self-test
+
+```text
+Implement only Step 2.5 Slice F — evaluator mutation/self-test.
+
+Read AGENTS.md, Section 4.5.13 of the implementation plan, Sections 2–11 and 19–21 of the Step 2.5 slice plan, and the reviewed evaluator/runner tests.
+
+In Plan mode, identify one controlled mutation that proves a meaningful evaluator failure without entering the benchmark denominator, the exact test file, and expected failure category. Wait for approval.
+
+In Act mode, create or extend tests/evaluation/test_evaluator_self_test.py. Prove that the correct observation passes and a deliberately wrong numerical or selection observation is detected in the expected category. The synthetic mutation is test input only and must not become a normal Golden case or make pytest fail when detection succeeds.
+
+Change production/evaluator code only if this test exposes a genuine defect, and report any such correction. Do not add catalog cases or future-slice work. Run focused checks and stop; do not commit.
+```
+
+### 21.9 Slice G1 — Momentum minimum cases
+
+```text
+Implement only Step 2.5 Slice G1 — the two reviewed minimum Momentum Golden cases.
+
+Read AGENTS.md, Sections 4.5.3–4.5.5 of the implementation plan, Sections 2–12 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the reviewed expectation dossier, and the completed evaluation runtime. Use only the reviewed Momentum expectation/fixture records.
+
+In Plan mode, name the stable case IDs, prompts, fixture IDs, expected tool constraints, expected numerical fields/tolerances, and exact files/tests. Wait for approval.
+
+In Act mode, add only the straightforward Momentum case and the reviewed insufficient-history or point-in-time boundary case under src/evaluation/cases, with focused catalog and deterministic-runner tests. Match the reviewed expectation dossier exactly and identify the signal supplied by each case.
+
+Do not add Graham/FCF cases, invent new expected values, call an LLM/live provider, broaden fixtures, or change production Momentum semantics. Run the two cases deterministically plus focused quality checks. Stop with their report results; do not begin G2 or commit.
+```
+
+### 21.10 Slice G2 — Graham Number minimum cases
+
+```text
+Implement only Step 2.5 Slice G2 — the reviewed minimum Graham Number cases.
+
+Read AGENTS.md, the applicable Step 2.5 case/expectation requirements, Sections 2–12 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the reviewed expectation dossier, and the completed evaluation runtime. Use only reviewed Graham Number fixture evidence.
+
+In Plan mode, name stable IDs and exact expectations for default three-year-average EPS, explicit TTM EPS, not_applicable, and missing-current-price cases; list files/tests. Wait for approval.
+
+In Act mode, add only those four Graham Number cases under src/evaluation/cases with focused catalog and deterministic-runner tests. Preserve the distinction between a valid valuation without a price comparison and an analysis failure. Match reviewed values and tolerances exactly.
+
+Do not add growth-value, resolution, Momentum, or FCF cases; do not recalculate expectations with production functions; do not alter Graham semantics. Run focused checks and the four deterministic cases, then stop. Do not begin G3 or commit.
+```
+
+### 21.11 Slice G3 — Graham growth and resolution minimum cases
+
+```text
+Implement only Step 2.5 Slice G3 — reviewed Graham growth-value, method-discrimination, and input-resolution cases.
+
+Read AGENTS.md, Sections 4.5.3–4.5.7 of the implementation plan, Sections 2–12 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the reviewed expectation dossier, and existing production Graham handler/service contracts.
+
+In Plan mode, name stable IDs, explicit growth assumptions/yield, method-selection constraints, precedence/as_of evidence, expected outputs/tolerances, and exact files/tests. Wait for approval.
+
+In Act mode, add only the reviewed growth-value case, independent Graham method-selection discriminator, and precedence/as_of case under src/evaluation/cases. Add focused catalog/evaluation/runner tests. Match the dossier; keep broad strategy selection and Graham method selection independently observable.
+
+Do not add other strategies' cases, expand provider behavior, change Graham calculations, call an LLM/live provider, or generate expectations from production output. Run focused checks and these deterministic cases, then stop. Do not begin G4 or commit.
+```
+
+### 21.12 Slice G4 — FCF minimum cases and cross-strategy discrimination
+
+```text
+Implement only Step 2.5 Slice G4 — reviewed FCF/Earnings Growth minimum cases and explicit cross-strategy discrimination.
+
+Read AGENTS.md, Sections 4.5.3–4.5.7 of the implementation plan, Sections 2–12 and 19–21 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the reviewed expectation dossier, and the completed FCF production/evaluation contracts.
+
+In Plan mode, name stable IDs and expectations for straightforward growth, insufficient or mathematically nonmeaningful growth, and period-alignment/historical-as_of behavior. Identify which existing minimum case will explicitly discriminate the requested strategy from a plausible wrong strategy; do not add an unnecessary extra case if one already supplies that signal. List files/tests. Wait for approval.
+
+In Act mode, add only the reviewed FCF cases and the explicit discrimination metadata/constraints under src/evaluation/cases, with focused catalog/evaluator/runner tests. Match independent values and tolerances exactly.
+
+Do not add automatic expansion cases, alter FCF financial semantics, call an LLM/live provider, or tune expectations to produce passes. Run focused checks and all new deterministic cases, then stop. Do not proceed past Gate M or commit.
+```
+
+### 21.13 Gate M — minimum-suite verification and mandatory stop
+
+```text
+Perform only Step 2.5 Gate M verification. Do not implement later slices.
+
+Read AGENTS.md, Section 4.5.18 items 10–12, Sections 2, 12–13, and 19–22 of the Step 2.5 slice plan, and docs/EVALUATIONS.md. First enumerate the exact reviewed minimum case IDs and map them to every minimum requirement. If any requirement lacks a case, stop and report it rather than inventing a case.
+
+Run the full deterministic/no-LLM minimum suite and the complete repository quality-gate wrapper required by AGENTS.md. Confirm no live provider or LLM call occurred, deterministic strategy selection is not_measured, component denominators are honest, the evaluator self-test remains outside the denominator, and the report is reproducible.
+
+Do not change expectations, remove failures, expand cases, add Ollama mode, add CLI work, claim Step 2.5 complete, or commit. If a test or case fails, report the exact classified failure and relevant evidence without weakening the benchmark. Stop and provide the case/results table and complete gate output summary for human review.
+```
+
+### 21.14 Slice H — conditional review-directed correction or expansion
+
+```text
+Implement only the Gate M review action described below; this is conditional Step 2.5 Slice H work.
+
+Human-approved review action:
+[INSERT ONE SPECIFIC REVIEW FINDING OR APPROVED ADDITION, INCLUDING CASE ID/SIGNAL]
+
+Read AGENTS.md, Sections 12–14 and 19–22 of the Step 2.5 slice plan, the Gate M review entry, and only the contracts named by the approved action.
+
+In Plan mode, explain why the action adds distinct benchmark signal or corrects a demonstrated defect, list exact files/tests, and prove it does not tune results merely to improve the pass rate. Wait for approval.
+
+In Act mode, implement only that action. Preserve all reviewed case IDs and expectations unless the human explicitly approved a versioned correction. Add focused deterministic tests and document the reason for any new case.
+
+Do not perform generic expansion, opportunistic cleanup, real-Ollama work, CLI work, or other review findings. Run focused checks and the deterministic suite, then stop. Do not commit.
+```
+
+Do not use Slice H without replacing the placeholder with an explicit human-approved action. If Gate M approves the minimum unchanged, skip H.
+
+### 21.15 Slice I — optional real-local-Ollama evaluation mode
+
+```text
+Implement only Step 2.5 Slice I — optional real-local-Ollama empirical evaluation mode — after Gate M approval.
+
+Read AGENTS.md, Sections 4.5.6 and 4.5.8–4.5.10 of the implementation plan, Sections 2, 13–15, and 19–22 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the production orchestrator/telemetry boundaries, and the reviewed deterministic runner. Keep the Cline implementation model configuration separate from the model-under-evaluation configuration.
+
+In Plan mode, define the single mode-specific module, injected Ollama/client boundary, recorded model/sampling/repetition metadata, trajectory evidence, nondeterministic outcome treatment, and mocked tests. Wait for approval.
+
+In Act mode, add the smallest reviewed mode-specific runner (normally src/evaluation/ollama_runner.py) that sends case prompts through the real production orchestration/tool-dispatch path and measures observable strategy, Graham method, tool, and argument selection. Record model identifier, Ollama version/configuration, sampling settings, repetitions, per-run outcomes, and trajectory identity. Do not inspect or store private reasoning.
+
+All normal pytest tests must mock the local-model endpoint. Real Ollama execution must be explicit, optional, and separate from deterministic CI. Do not change deterministic expectations or convert nondeterministic failures into passes. Run focused mocked tests and stop; do not begin CLI work or commit.
+```
+
+### 21.16 Slice J — CLI and documentation completion
+
+```text
+Implement only Step 2.5 Slice J — reviewed CLI integration and evaluation-guide completion.
+
+Read AGENTS.md, Sections 4.5.15–4.5.16 of the implementation plan, Sections 2, 13–16, and 19–22 of the Step 2.5 slice plan, docs/EVALUATIONS.md, the existing Typer CLI conventions, and the reviewed deterministic and optional empirical runners.
+
+In Plan mode, specify commands/options for full suite, one case, deterministic mode, optional real-local-Ollama mode, report path, and exit statuses; list exact files/tests/docs. Wait for approval.
+
+In Act mode, add the narrow command integration under the existing CLI boundary. Required benchmark failures return non-zero; configuration/fixture failures remain distinguishable. Complete docs/EVALUATIONS.md with exact commands, report fields, failure interpretation, fixture/case maintenance, and deterministic-versus-empirical separation. Add deterministic CLI tests with mocked model endpoints where applicable.
+
+Do not redesign the CLI, add dependencies, make real model/network calls in pytest, change case expectations, or claim final completion. Run focused checks and stop; do not begin Slice K or commit.
+```
+
+### 21.17 Slice K — closeout verification
+
+```text
+Perform only Step 2.5 Slice K closeout preparation. Final approval remains human-owned.
+
+Read AGENTS.md, all Step 2.5 acceptance criteria, Sections 2, 13–17, and 19–22 of the Step 2.5 slice plan, docs/EVALUATIONS.md, and the Gate M review record. Enumerate every acceptance criterion and point to concrete code, test, documentation, or measured-result evidence.
+
+Run the complete repository quality-gate wrapper and the documented deterministic Golden Suite command. Record the exact case count, component metrics, aggregate result, report location, and proof that selection is not_measured in deterministic mode. If an empirical run has been explicitly authorized and performed, record it separately with its complete model/runtime configuration; otherwise state that it was not run.
+
+Do not weaken or repair failing expectations merely to close the step. Make only narrow documentation-status corrections that reflect already-verified facts; stop and report any code/test failure for a separate reviewed correction. Do not mark Step 2.5 complete, commit, push, open a PR, or merge. Stop for final human approval.
+```
+
+## 22. Cline execution and review record
+
+This is the living audit trail for Cline implementation attempts. Cline's completion summary is evidence to review, not the review verdict. The human or reviewing agent updates this section after inspecting the actual diff and independently rerunning appropriate checks.
+
+### 22.1 Runtime preflight record
+
+| Date | Cline version | Ollama version | Model alias and digest | Context | `ollama ps` processor | Tool smoke test | Decision/notes |
+| :--- | :--- | :--- | :--- | ---: | :--- | :--- | :--- |
+| 2026-08-30 | `v4.1.16 (Next)` | `0.33.2` | `financial-data-agents-step-2-5:latest` / `5d94265d163a` | 65,536 allocated | **100% GPU — pass** | **Pass** — file read and bounded Git command | Preflight passed after removing stale GPU-discovery overrides and fully restarting Ollama; Slice A may begin. |
+
+Verified Cline UI state on 2026-08-30:
+
+- Ollama provider at `http://192.168.1.19:11434`, with no `/v1` suffix and no API key.
+- `financial-data-agents-step-2-5:latest`, 65,536-token context, 600,000 ms request timeout, and the same model for Plan and Act.
+- Auto Compact enabled with the `Agentic` strategy; Web Search, Background Edit, Hooks, Fetch web content auto-approval, and MCP-server auto-approval disabled.
+- Checkpoints enabled; read-file, edit-file, and command auto-approval enabled. Edit approval applies only while executing an approved slice in Act mode.
+- VS Code Terminal execution with Git Bash, four-second shell-integration timeout, and aggressive terminal reuse.
+- MCP display mode `Plain Text`; English preferred language; error and usage reporting enabled.
+
+Reported inference-host inventory from `nvidia-smi` at 2026-08-30 13:59:02:
+
+| Component | Recorded value |
+| :--- | :--- |
+| NVIDIA driver / CUDA UMD | `610.88` / `13.3` |
+| GPU 0 | NVIDIA GeForce RTX 5060 Ti, 16,311 MiB VRAM; 5 MiB in use while idle |
+| GPU 1 | NVIDIA GeForce RTX 3080 Ti, 12,288 MiB VRAM; 484 MiB in use while driving the display |
+| Combined physical VRAM | 28,599 MiB across two GPUs |
+
+Idle hardware capacity does not prove that the model and 65,536-token K/V cache remain fully GPU-resident. Record the model digest, allocated context, and processor split from `ollama ps` while the Cline smoke task is actively generating.
+
+Initial processor-placement attempt on 2026-08-30: four `ollama ps` samples while the alias was loaded reported a 22 GB allocation at 65,536 context and `100% CPU`. This fails the mandatory placement criterion. Do not begin Slice A or reduce the benchmark requirements to accommodate CPU execution. Inspect the Ollama server log for CUDA discovery, selected runner library, available/required VRAM, requested/offloaded layers, and allocation errors before changing the Modelfile.
+
+Initial shell triage found that the created alias contains `PARAMETER num_ctx 65536` and no `num_gpu` parameter. `CUDA_VISIBLE_DEVICES=0,1` was set at both Process and User scope. No `OLLAMA_LLM_LIBRARY`, `OLLAMA_VULKAN`, `GGML_VK_VISIBLE_DEVICES`, or `OLLAMA_GPU_OVERHEAD` value appeared in the querying shell. This ruled out an alias-level CPU request but did not establish the environment inherited by the already-running server process.
+
+The subsequent server log resolved that distinction. At startup, the actual Ollama server process reported `CUDA_VISIBLE_DEVICES=0,1` and experimental `OLLAMA_VULKAN=true`, warned that visible devices had been overridden and should be unset if discovery failed, and then registered only `id=cpu library=cpu`. No CUDA inference device or GPU allocation was registered. The 48-layer model and 3,264 MiB q8_0 K/V cache were consequently fitted entirely to host memory. This is a GPU-discovery failure, not evidence that the combined VRAM is insufficient, and adding `num_gpu` cannot help until a CUDA device is registered.
+
+Corrective retry: fully stop the Ollama server, remove `CUDA_VISIBLE_DEVICES` and `OLLAMA_VULKAN` from the new server process, retain the reviewed context/Flash-Attention/q8_0/serial settings, and restart it. The startup log must register both NVIDIA adapters with a CUDA library before loading the alias. If unrestricted discovery succeeds and later restriction is necessary, use the GPU UUIDs reported by `nvidia-smi -L` rather than numeric device indices. Only reconsider `num_gpu` if CUDA discovery succeeds but the scheduler requests zero or partial GPU layers.
+
+Final preflight result on 2026-08-30: after fully stopping the stale server and restarting without the `CUDA_VISIBLE_DEVICES` and experimental `OLLAMA_VULKAN` overrides, `ollama run` returned the requested `OK` and `ollama ps` reported alias digest `5d94265d163a`, 22 GB, `100% GPU`, and 65,536 context. Cline then completed the bounded smoke prompt: it read `AGENTS.md`, correctly reported its first heading as `# Financial Data Agents – Development LLM Guardrails`, ran the read-only branch command, correctly reported `feat/step-2.5-golden-suite`, and stated that it made no file modifications. The Step 2.5 runtime preflight is therefore complete and Slice A is authorized.
+
+### 22.2 Slice review log
+
+| Slice | Attempt/config | Cline implementation summary | Independent review findings | Corrections/follow-up | Verification | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| P0 | Codex prerequisite work; no Cline attempt | Extracted deterministic fixtures, added evaluation scaffold/guide, and registered four dependency-injected production handlers. | Reviewed during prerequisite implementation; full repository gate passed with 940 tests and 86% coverage. | None recorded. | Ruff, format, strict mypy, 940 pytest tests | Complete |
+| A | Pending | — | — | — | — | Next |
+| B1 | Pending | — | — | — | — | Blocked by A review |
+| B2 | Pending | — | — | — | — | Blocked by B1 review |
+| C | Pending | — | — | — | — | Pending |
+| D | Pending | — | — | — | — | Pending |
+| E1 | Pending | — | — | — | — | Pending |
+| E2 | Pending | — | — | — | — | Pending |
+| F | Pending | — | — | — | — | Pending |
+| G1 | Pending | — | — | — | — | Pending |
+| G2 | Pending | — | — | — | — | Pending |
+| G3 | Pending | — | — | — | — | Pending |
+| G4 | Pending | — | — | — | — | Pending |
+| Gate M | Pending | — | — | — | — | Mandatory stop |
+| H | Conditional | — | — | — | — | Not authorized |
+| I | Optional after Gate M | — | — | — | — | Not authorized |
+| J | Pending | — | — | — | — | Pending |
+| K | Pending | — | — | — | — | Pending |
+
+### 22.3 Review-entry checklist
+
+For every completed attempt, record:
+
+1. Cline and Ollama versions, model digest, context, and any configuration deviation.
+2. The prompt revision used and whether Plan mode stayed within the named files.
+3. Actual files changed, including unexpected files.
+4. Behavioral and architectural findings from the diff, ordered by severity.
+5. Focused and full checks independently rerun, with exact counts/results.
+6. Whether the slice is accepted, needs a bounded correction, or should be restored/retried.
+7. Any prompt lesson that should be incorporated into later drafts.
+
+Do not erase failed attempts. Add a new dated entry or concise continuation so the record explains why a prompt or configuration changed.
+
+### 22.4 Detailed review-note template
+
+Add one subsection per attempt when the table cannot hold the useful review detail:
+
+```text
+#### YYYY-MM-DD — Slice X, attempt N
+
+- Prompt/configuration: prompt revision, Cline version, Ollama version, model digest, context, and deviations.
+- Cline summary: concise factual summary of what Cline claimed to implement and verify.
+- Reviewed diff: files changed and any unexpected scope.
+- Findings: severity-ordered correctness, architecture, typing, test, and documentation findings.
+- Independent verification: exact commands and results.
+- Decision: accepted, bounded correction required, or restore/retry.
+- Prompt lessons: changes to make to later prompt drafts.
+```

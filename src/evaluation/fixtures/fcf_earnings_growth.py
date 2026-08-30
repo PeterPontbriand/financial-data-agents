@@ -1,4 +1,4 @@
-"""Deterministic annual financial-fact fixture for C2 resolver tests."""
+"""Deterministic annual financial-fact fixtures for evaluation and tests."""
 
 from __future__ import annotations
 
