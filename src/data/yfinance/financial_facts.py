@@ -14,6 +14,7 @@ from src.data.financial.facts import (
     ProviderFact,
 )
 from src.data.financial.provenance import FinancialSubjectKind
+from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 from src.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
 
 YFINANCE_CURRENT_PRICE_FIELD = "fast_info.last_price"
@@ -71,6 +72,10 @@ class YFinanceFinancialFactsAdapter:
                 ),
             ),
         )
+
+    def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
+        """Delegate current descriptive metadata to the retained Yahoo client."""
+        return self._client.resolve_security_identity(request)
 
     @staticmethod
     def _supports(request: FinancialFactRequest) -> bool:

@@ -19,6 +19,7 @@ from src.data.financial.facts import (
 )
 from src.data.financial.provenance import AccountingScope, CapitalExpenditureSign, FinancialSubjectKind, PeriodKind
 from src.data.http_json import JsonFetcher, fetch_json
+from src.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 
 SEC_PROVIDER_ID = "sec_edgar"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
@@ -168,6 +169,17 @@ class SecEdgarFinancialFactsAdapter:
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
         self._cik_to_tickers: dict[str, frozenset[str]] | None = None
+        self._security_identities: dict[str, SecurityIdentity] | None = None
+
+    def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
+        """Return current SEC ticker-title and CIK evidence when available."""
+        if request.provider_id != SEC_PROVIDER_ID:
+            return None
+        self._load_ticker_metadata()
+        identities = self._security_identities
+        if identities is None:
+            return None
+        return identities.get(request.ticker)
 
     def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: PLR0911
         """Return supported SEC facts, or explicit unavailability."""
@@ -275,17 +287,24 @@ class SecEdgarFinancialFactsAdapter:
         )
 
     def _resolve_cik(self, ticker: str) -> str:
+        self._load_ticker_metadata()
         ticker_to_cik = self._ticker_to_cik
-        if ticker_to_cik is None:
-            payload = self._fetch_json(_COMPANY_TICKERS_URL, headers=self._headers)
-            ticker_to_cik = _ticker_cik_map(payload)
-            self._ticker_to_cik = ticker_to_cik
-            self._cik_to_tickers = _cik_tickers_map(payload)
+        assert ticker_to_cik is not None
         try:
             return ticker_to_cik[ticker]
         except KeyError as exc:
             msg = f"SEC EDGAR has no CIK mapping for ticker {ticker!r}."
             raise FinancialProviderError(msg) from exc
+
+    def _load_ticker_metadata(self) -> None:
+        """Load SEC ticker mappings and descriptive identities only once per adapter."""
+        if self._ticker_to_cik is not None:
+            return
+        payload = self._fetch_json(_COMPANY_TICKERS_URL, headers=self._headers)
+        resolved_at = self._clock()
+        self._ticker_to_cik = _ticker_cik_map(payload)
+        self._cik_to_tickers = _cik_tickers_map(payload)
+        self._security_identities = _ticker_identity_map(payload, resolved_at=resolved_at)
 
     def _has_single_ticker_identity(self, cik: str) -> bool:
         """Return whether the resolved CIK has exactly one listed SEC ticker."""
@@ -347,6 +366,34 @@ def _cik_tickers_map(payload: object) -> dict[str, frozenset[str]]:
             continue
         mutable.setdefault(cik_text.zfill(10), set()).add(ticker_text)
     return {cik: frozenset(tickers) for cik, tickers in mutable.items()}
+
+
+def _ticker_identity_map(payload: object, *, resolved_at: datetime) -> dict[str, SecurityIdentity]:
+    """Parse current SEC ticker-title/CIK evidence into identity snapshots."""
+    if not isinstance(payload, Mapping):
+        return {}
+
+    result: dict[str, SecurityIdentity] = {}
+    for item in payload.values():
+        if not isinstance(item, Mapping):
+            continue
+        ticker = item.get("ticker")
+        title = item.get("title")
+        cik = item.get("cik_str")
+        if not isinstance(ticker, str) or not isinstance(title, str) or not isinstance(cik, (int, str)):
+            continue
+        ticker_text = ticker.strip().upper()
+        cik_text = str(cik).strip()
+        if not ticker_text or not title.strip() or not cik_text.isdigit():
+            continue
+        result[ticker_text] = SecurityIdentity(
+            ticker=ticker_text,
+            instrument_name=title,
+            issuer_identifier=cik_text.zfill(10),
+            provider_id=SEC_PROVIDER_ID,
+            resolved_at=resolved_at,
+        )
+    return result
 
 
 def _acceptance_times(payload: object) -> dict[str, datetime]:

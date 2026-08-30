@@ -192,7 +192,8 @@ def test_number_json_preserves_typed_provenance() -> None:
 
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
 
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
+    assert payload["security_identity"]["instrument_name"] is None
     assert payload["method"] == "graham_number"
     assert payload["result"]["maximum_indicated_price"] == pytest.approx(33.8004677786747)
     assert payload["inputs"]["bvps"]["source_kind"] == "derived"

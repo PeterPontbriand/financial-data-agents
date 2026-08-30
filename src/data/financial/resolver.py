@@ -127,6 +127,15 @@ class InputResolver:
         self._clock: Callable[[], datetime] = clock if clock is not None else self._DEFAULT_CLOCK
         self._schema_version = cache_schema_version
 
+    @property
+    def provider(self) -> FinancialFactsProvider:
+        """Return the injected provider for optional sibling capabilities.
+
+        Callers may inspect narrow runtime-checkable capabilities such as
+        security identity without changing the financial-fact resolution path.
+        """
+        return self._provider
+
     def resolve(
         self,
         request: FinancialFactRequest,

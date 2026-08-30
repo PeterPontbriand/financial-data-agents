@@ -16,6 +16,12 @@ from src.analysis.fcf_earnings_growth.models import (
     TrendClassification,
 )
 from src.data.financial.provenance import ResolvedInput
+from src.data.security_identity import (
+    IdentityResolutionStatus,
+    SecurityIdentityResolution,
+    security_display_label,
+    security_identity_payload,
+)
 from src.reporting.presentation import (
     PresentationMode,
     format_date,
@@ -30,6 +36,10 @@ _LIMITATION = (
     "Historical financial strength does not establish market opportunity, scarcity, durability of moat, "
     "or an investment recommendation."
 )
+
+# The calculation result remains schema v2.  Adding the run-time identity
+# snapshot changes only this machine-readable presentation contract.
+_PRESENTATION_SCHEMA_VERSION = 3
 
 _TREND_LABELS = {
     TrendClassification.BOTH_GROWING: "Both free cash flow and diluted EPS increased over the measured period.",
@@ -103,9 +113,12 @@ def _source_summary(result: FCFEarningsGrowthResult) -> str:
     return f"Source: {provider_text}; latest evidence available {format_date(latest)}"
 
 
-def _concise(result: FCFEarningsGrowthResult) -> list[str]:
+def _concise(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None,
+) -> list[str]:
     lines = [
-        f"{result.ticker} — Free Cash Flow & Earnings Growth",
+        f"{security_display_label(result.ticker, identity_resolution)} — Free Cash Flow & Earnings Growth",
         "",
         f"Screen: {result.classification.value.upper()}",
         f"Classification basis: {_CLASSIFICATION_BASIS_LABELS[result.policy.classification_basis]}",
@@ -157,8 +170,12 @@ def _input_details(label: str, value: ResolvedInput) -> list[str]:
     ]
 
 
-def _details(result: FCFEarningsGrowthResult) -> list[str]:
-    lines = [*_concise(result), "", "Details"]
+def _details(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None,
+) -> list[str]:
+    lines = [*_concise(result, identity_resolution), "", "Details"]
+    lines.extend(_identity_detail_lines(identity_resolution))
     for observation in result.annual_observations:
         period_start = format_date(observation.period_start)
         period_end = format_date(observation.period_end)
@@ -183,8 +200,16 @@ def _details(result: FCFEarningsGrowthResult) -> list[str]:
     return lines
 
 
-def _diagnostics(result: FCFEarningsGrowthResult) -> list[str]:
-    lines = [*_concise(result), "", "Diagnostics", f"Execution status: {result.execution_status.value}"]
+def _diagnostics(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None,
+) -> list[str]:
+    lines = [
+        *_concise(result, identity_resolution),
+        "",
+        "Diagnostics",
+        f"Execution status: {result.execution_status.value}",
+    ]
     if not result.diagnostics.events:
         lines.append("No execution trace was retained.")
     else:
@@ -192,7 +217,24 @@ def _diagnostics(result: FCFEarningsGrowthResult) -> list[str]:
             f"- {event.field_name}: {event.stage.value}/{event.outcome.value} — {event.message}"
             for event in result.diagnostics.events
         )
+    if identity_resolution is not None:
+        lines.append(
+            f"- security_identity: provider/{identity_resolution.status.value} — {identity_resolution.message}"
+        )
     return lines
+
+
+def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> list[str]:
+    """Describe current identity metadata separately from historical facts."""
+    if resolution is None or resolution.identity is None:
+        return ["Security identity: unavailable"]
+    identity = resolution.identity
+    return [
+        f"Instrument name: {identity.instrument_name or 'unavailable'}",
+        f"Listing venue: {identity.listing_venue or 'unavailable'}",
+        f"Identity provider: {provider_display_name(identity.provider_id)}",
+        f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
+    ]
 
 
 def _json_value(value: Any) -> Any:
@@ -209,14 +251,34 @@ def _json_value(value: Any) -> Any:
     return value
 
 
-def render_fcf_earnings_growth(result: FCFEarningsGrowthResult, mode: PresentationMode) -> str:
+def render_fcf_earnings_growth(
+    result: FCFEarningsGrowthResult,
+    mode: PresentationMode,
+    identity_resolution: SecurityIdentityResolution | None = None,
+) -> str:
     """Render one canonical result without recalculation or reclassification."""
     if mode is PresentationMode.JSON:
         payload = _json_value(result)
         assert isinstance(payload, dict)
+        payload["schema_version"] = _PRESENTATION_SCHEMA_VERSION
+        payload["result_schema_version"] = result.schema_version
+        payload["security_identity"] = security_identity_payload(result.ticker, identity_resolution)
+        if identity_resolution is not None and identity_resolution.status is not IdentityResolutionStatus.RESOLVED:
+            diagnostics = payload.get("diagnostics")
+            if isinstance(diagnostics, dict):
+                events = diagnostics.get("events")
+                if isinstance(events, list):
+                    events.append(
+                        {
+                            "field_name": "security_identity",
+                            "stage": "provider",
+                            "outcome": identity_resolution.status.value,
+                            "message": identity_resolution.message,
+                        }
+                    )
         return json_document(payload)
     if mode is PresentationMode.DETAILS:
-        return "\n".join(_details(result))
+        return "\n".join(_details(result, identity_resolution))
     if mode is PresentationMode.DIAGNOSTICS:
-        return "\n".join(_diagnostics(result))
-    return "\n".join(_concise(result))
+        return "\n".join(_diagnostics(result, identity_resolution))
+    return "\n".join(_concise(result, identity_resolution))

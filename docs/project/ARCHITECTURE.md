@@ -95,7 +95,7 @@ The implemented direct command is `financial-agents graham TICKER [--method numb
 
 Graham is intentionally not required to return `TrendStatus` or consume a historical DataFrame merely to look like Momentum.
 
-### Free Cash Flow & Earnings Growth analysis (Step 2.4 implemented through Slice F)
+### Free Cash Flow & Earnings Growth analysis (Step 2.4 implemented through Slice F-1)
 `FCFEarningsGrowthAnalyzer` deterministically derives completed annual total-company FCF and FCF per diluted share, computes their CAGRs alongside diluted-EPS CAGR, and returns a versioned `FCFEarningsGrowthResult`. Its classification is `PASS`, `FAIL`, or `INDETERMINATE`, separate from software execution status.
 
 `ProductionAnnualGrowthSeriesResolver` selects compatible, contiguous annual evidence under the requested `as_of` boundary. The default horizon policy prefers 5 elapsed years, then 4, then 3; explicit horizons are strict. Total-company FCF controls classification by default, while an explicit policy can select FCF per diluted share. Optional FCF yield is informational only, and optional forward EPS evidence follows an explicit display-only, confirmation, or hard-gate policy.
@@ -117,6 +117,11 @@ Implemented production adapters are deliberately narrow:
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
 The Graham Number using its standard SEC financial facts uses SEC financial facts plus Yahoo current quote comparison. Its explicit Massive route is deliberately limited to Massive TTM EPS plus a BVPS override and may use a Massive quote. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote; explicitly selecting Massive uses its supported TTM EPS/current-price data. Unsupported provider/basis combinations are rejected before provider work.
+
+### Security identity (Step 2.4 Slice F-1 implemented)
+`SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. It returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.
+
+Identity resolution is best-effort and occurs at most once for one direct analysis after the strategy data path has had an opportunity to retain provider evidence. Missing metadata, unsupported capability, and lookup failure fall back to ticker-only display and cannot alter calculation status, financial classification, data eligibility, warnings, or ticker-verification behavior. A present name uses `Instrument Name (TICKER) — Analysis`; whitespace is normalized without changing official capitalization or punctuation. Current metadata does not prove the identity that applied at a historical analysis `as_of`.
 
 ### `GrahamInputResolver` / input resolution (Step 2.3 implemented)
 Resolves each required field independently using:
@@ -145,15 +150,17 @@ Introduced minimally in Step 2.3 to prove the historical-price and financial-fac
 
 Fixture support for a capability does not claim that the same capability exists in a production adapter. Step 2.4 reuses this foundation for Golden cases.
 
-### Investor-facing result presentation (Steps 2.3 and 2.4 implemented)
+### Investor-facing result presentation (Steps 2.3 and 2.4 implemented through Slice F-1)
 A narrow presentation seam maps Momentum, Graham, and Free Cash Flow & Earnings Growth typed outputs into a common investor-facing grammar without altering their domain models. The default view is concise and result-first; details expose financial provenance; diagnostics expose resolution mechanics; JSON exposes each strategy's stable versioned machine-readable contract. Material overrides and warnings remain visible.
+
+Each JSON presentation exposes one explicit nullable `security_identity` snapshot. Momentum and Graham presentation schemas increment from 1 to 2. The FCF/Earnings Growth presentation schema increments from 2 to 3 while retaining `result_schema_version = 2`, because identity is presentation metadata and does not change the typed calculation result.
 
 The Graham Number is labeled as a **maximum indicated price / screening ceiling**. The Growth view makes the expected-growth assumption explicit and warns when the AAA yield is user-supplied. Successful concise output omits redundant `Status: ok` and `As of: current`; historical requests surface the `as_of` boundary in the heading. All required-input/provider/ticker failures pass through the typed presentation boundary, and every calculation status has an exhaustive plain-English investor label.
 
 ### `AnalysisRun` (Step 3.4 target)
-A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, and calculation/version identifiers. It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
+A durable investor-domain record of one requested analysis. It owns an `analysis_run_id`, ticker, analysis/method, requested `as_of`, configuration snapshot, status, typed result payload, resolved-input provenance, warnings, timestamps, calculation/version identifiers, and the nullable security-identity snapshot used by that completed run (including `resolved_at`). It may link to execution/trajectory identity but must not overload telemetry `RunContext`.
 
-A report is a rendering of an Analysis Run, not a second canonical result object in v0.2.
+A report is a rendering of an Analysis Run, not a second canonical result object in v0.2. Viewing an old run must use its persisted identity snapshot rather than re-resolving the ticker and silently relabeling history after ticker reuse.
 
 ### Watchlist / refresh workspace (Step 3.4 target)
 Named watchlists hold tickers and supported requested analyses. A user-initiated refresh may execute independent ticker/analysis jobs concurrently and persist each outcome as it finishes. No daemon, scheduler, proactive monitoring, or notification service is implied.
@@ -242,7 +249,7 @@ External Provider
 Provider Adapter Boundary
       │
       ├── BaseDataClient ─────────────► historical series ─► Momentum
-      │
+      ├── SecurityIdentityProvider ───► current descriptive identity snapshot
       └── FinancialFactsProvider
               ├── quote
               ├── company fundamentals
@@ -271,6 +278,7 @@ Golden fixture data ──► fixture adapter ──► deterministic/evaluation
 trajectory events   ──► telemetry sink (JSONL / SQLite)
 production data     ──► SQLite/cache repositories
 analysis result     ──► Analysis Run repository (Step 3.4)
+identity snapshot   ──► same Analysis Run (never re-resolved for historical viewing)
 Analysis Run        ──► concise/details/diagnostic/JSON view
 evaluation result   ──► Golden evaluation artifact
 ```

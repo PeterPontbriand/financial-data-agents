@@ -42,6 +42,11 @@ from src.data.financial.providers import (
     ProductionFinancialFactsProvider,
     SecEdgarFinancialFactsAdapter,
 )
+from src.data.security_identity import (
+    SecurityIdentityRequest,
+    SecurityIdentityResolution,
+    resolve_security_identity,
+)
 from src.data.yfinance import YFinanceClient
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
@@ -122,10 +127,15 @@ def momentum(  # noqa: PLR0913
         analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=data_client)
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         run = analyzer.run_with_context(config=config, ticker=target_ticker)
+        identity_resolution = resolve_security_identity(
+            data_client,
+            SecurityIdentityRequest(ticker=run.metrics.ticker, provider_id=data_client.provider_id),
+        )
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
             market_data=run.market_data,
+            identity_resolution=identity_resolution,
         )
         typer.echo(render_momentum(presentation, mode))
     except DataFetchError as err:
@@ -338,6 +348,10 @@ def fcf_growth(  # noqa: PLR0913
             use_cache=not no_cache,
             effective_as_of=boundary,
         )
+        identity_resolution = resolve_security_identity(
+            provider,
+            SecurityIdentityRequest(ticker=target_ticker, provider_id=provider_id),
+        )
     except ValueError as err:
         typer.echo(f"Unable to start FCF & earnings-growth analysis: {err}", err=True)
         raise typer.Exit(code=1) from err
@@ -345,7 +359,7 @@ def fcf_growth(  # noqa: PLR0913
         typer.echo(f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.", err=True)
         raise typer.Exit(code=1) from err
 
-    output = render_fcf_earnings_growth(result, mode)
+    output = render_fcf_earnings_growth(result, mode, identity_resolution)
     exit_code = 0 if result.execution_status is CalculationStatus.OK else 1
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
@@ -439,14 +453,30 @@ def _run_graham_number(  # noqa: PLR0913
         as_of=as_of,
         use_cache=use_cache,
     )
+    identity_resolution = resolve_security_identity(
+        resolver.provider,
+        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
+    )
 
     if assembly.status is not CalculationStatus.OK:
-        return _number_failure_output(ticker=ticker, assembly=assembly, as_of=as_of, mode=mode)
+        return _number_failure_output(
+            ticker=ticker,
+            assembly=assembly,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     if not _has_provider_backed_security_evidence(assembly.eps, assembly.bvps, assembly.current_price):
         reason = _unverified_ticker_reason(ticker)
         unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _number_failure_output(ticker=ticker, assembly=unverified, as_of=as_of, mode=mode)
+        return _number_failure_output(
+            ticker=ticker,
+            assembly=unverified,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     assert assembly.eps is not None
     assert assembly.bvps is not None
@@ -464,6 +494,7 @@ def _run_graham_number(  # noqa: PLR0913
         result=result,
         as_of=as_of,
         margin_of_safety_percent=margin,
+        identity_resolution=identity_resolution,
     )
     exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_number(presentation, mode), exit_code
@@ -499,14 +530,30 @@ def _run_graham_growth(  # noqa: PLR0913
         as_of=as_of,
         use_cache=use_cache,
     )
+    identity_resolution = resolve_security_identity(
+        resolver.provider,
+        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
+    )
 
     if assembly.status is not CalculationStatus.OK:
-        return _growth_failure_output(ticker=ticker, assembly=assembly, as_of=as_of, mode=mode)
+        return _growth_failure_output(
+            ticker=ticker,
+            assembly=assembly,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     if not _has_provider_backed_security_evidence(assembly.eps, assembly.current_price):
         reason = _unverified_ticker_reason(ticker)
         unverified = replace(assembly, status=CalculationStatus.INPUT_UNAVAILABLE, reason=reason)
-        return _growth_failure_output(ticker=ticker, assembly=unverified, as_of=as_of, mode=mode)
+        return _growth_failure_output(
+            ticker=ticker,
+            assembly=unverified,
+            as_of=as_of,
+            mode=mode,
+            identity_resolution=identity_resolution,
+        )
 
     assert assembly.eps is not None
     assert assembly.expected_growth is not None
@@ -535,6 +582,7 @@ def _run_graham_growth(  # noqa: PLR0913
         baseline_aaa_yield=baseline_aaa_yield,
         as_of=as_of,
         margin_of_safety_percent=margin,
+        identity_resolution=identity_resolution,
     )
     exit_code = 1 if result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_growth(presentation, mode), exit_code
@@ -546,11 +594,18 @@ def _number_failure_output(
     assembly: GrahamNumberInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
+    identity_resolution: SecurityIdentityResolution,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
     safe_assembly = _number_with_public_quote_reason(replace(assembly, reason=reason))
-    presentation = GrahamNumberPresentation(ticker=ticker, assembly=safe_assembly, result=None, as_of=as_of)
+    presentation = GrahamNumberPresentation(
+        ticker=ticker,
+        assembly=safe_assembly,
+        result=None,
+        as_of=as_of,
+        identity_resolution=identity_resolution,
+    )
     return render_graham_number(presentation, mode), 1
 
 
@@ -560,6 +615,7 @@ def _growth_failure_output(
     assembly: GrowthValueInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
+    identity_resolution: SecurityIdentityResolution,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
@@ -573,6 +629,7 @@ def _growth_failure_output(
         growth_multiplier=growth_multiplier,
         baseline_aaa_yield=baseline_aaa_yield,
         as_of=as_of,
+        identity_resolution=identity_resolution,
     )
     return render_graham_growth(presentation, mode), 1
 

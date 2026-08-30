@@ -12,6 +12,7 @@ from src.data.financial.facts import (
 from src.data.massive.constants import MASSIVE_PROVIDER_ID
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from src.data.security_identity import SecurityIdentity, SecurityIdentityProvider, SecurityIdentityRequest
 from src.data.yfinance import YFINANCE_PROVIDER_ID, YFinanceFinancialFactsAdapter
 
 
@@ -42,3 +43,10 @@ class ProductionFinancialFactsProvider:
         if provider is None:
             return ()
         return provider.fetch_facts(request)
+
+    def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
+        """Route an optional identity request without widening numeric facts."""
+        provider = self._providers.get(request.provider_id)
+        if provider is None or not isinstance(provider, SecurityIdentityProvider):
+            return None
+        return provider.resolve_security_identity(request)
