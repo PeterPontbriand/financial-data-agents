@@ -4,8 +4,8 @@
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Last updated:** 2026-08-29<br/>
-**Current status:** Steps 2.2 and 2.3 are complete and approved. Step 2.4 Free Cash Flow & Earnings Growth is implemented through the E1–E3 FCF/share extension and Slice F pre-Golden shared-contract hardening; final Slice F review/approval remains outstanding before Step 2.5. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Last updated:** 2026-08-30<br/>
+**Current status:** Steps 2.2–2.4 are complete and approved. Slice G documentation synchronization, the complete repository gate, and explicit Step 2.4 closeout approval completed on 2026-08-30. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 
@@ -29,6 +29,7 @@ This document describes current boundaries and approved near-term target seams. 
 14. **Operational logs are not product UI:** User results are rendered by a presentation boundary; logs and trajectory telemetry remain diagnostics/execution evidence.
 15. **Analysis Run is a product-domain record:** Step 3.4 persists requested analysis/config/result/provenance history separately from telemetry `RunContext`; reports/views render that record.
 16. **Bounded v0.2 agentic behavior:** User-initiated refresh may execute independent analysis jobs concurrently. Daemons, unattended scheduling, proactive monitoring, and notifications remain later autonomy work.
+17. **Deterministic, versioned investor-report projection:** A stored Analysis Run is projected into an investor report without provider access, LLM synthesis, financial recalculation, or current-state enrichment. The projection contract has its own explicit version, independent of strategy method and result-schema versions.
 
 ---
 
@@ -162,6 +163,8 @@ A durable investor-domain record of one requested analysis. It owns an `analysis
 
 A report is a rendering of an Analysis Run, not a second canonical result object in v0.2. Viewing an old run must use its persisted identity snapshot rather than re-resolving the ticker and silently relabeling history after ticker reuse.
 
+The investor-report boundary is a deterministic, versioned projection. Given the same persisted Analysis Run, projection version, presentation mode, and explicit locale/format options, it must produce the same semantic report without provider calls, LLM calls, financial recalculation, mutable cache reads, or wall-clock-dependent enrichment. The report exposes its projection version separately from the run's calculation method version and typed result-schema version. A breaking change to report structure or field meaning requires a new projection version; historical projection versions remain reproducible or require an explicit, auditable migration rather than being silently reinterpreted.
+
 ### Watchlist / refresh workspace (Step 3.4 target)
 Named watchlists hold tickers and supported requested analyses. A user-initiated refresh may execute independent ticker/analysis jobs concurrently and persist each outcome as it finishes. No daemon, scheduler, proactive monitoring, or notification service is implied.
 
@@ -279,15 +282,16 @@ trajectory events   ──► telemetry sink (JSONL / SQLite)
 production data     ──► SQLite/cache repositories
 analysis result     ──► Analysis Run repository (Step 3.4)
 identity snapshot   ──► same Analysis Run (never re-resolved for historical viewing)
-Analysis Run        ──► concise/details/diagnostic/JSON view
+Analysis Run        ──► versioned deterministic report projection
+report projection   ──► concise/details/diagnostic/JSON view
 evaluation result   ──► Golden evaluation artifact
 ```
 
 These stores/artifacts must not be collapsed merely because they can all be serialized. In particular, telemetry describes execution, while an Analysis Run is the durable investor-facing outcome of one requested analysis.
 
-## 7. Golden-Suite architecture (Step 2.4)
+## 7. Golden-Suite architecture (Step 2.5)
 
-Step 2.4 consumes the stable Step 2.3 contracts.
+Step 2.5 consumes the stable Steps 2.3–2.4 contracts.
 
 ```text
 Golden Case
@@ -344,7 +348,7 @@ Private model reasoning is never reconstructed.
 
 - Recoverable failures may enter a bounded retry/repair flow.
 - Non-recoverable failures halt with structured diagnostics.
-- Step 2.5 owns hard execution/time/error caps.
+- Step 2.6 owns hard execution/time/error caps.
 - The configured limits are authoritative; runtime documents must not invent a separate fixed turn limit.
 - Telemetry sink failures fail open.
 
@@ -359,7 +363,7 @@ Private model reasoning is never reconstructed.
 - Keep calculators free of provider/cache/CLI I/O.
 - Enforce requested `as_of` as an information boundary; do not substitute later current facts.
 - Do not claim a production AAA-yield series until its identity, semantics, availability, and integration are explicitly approved.
-- Do not build Step 2.4 evaluator/reporting work during Step 2.3.
+- Do not build Step 2.5 evaluator/reporting work during Steps 2.3–2.4.
 - Do not build Step 3.1 production persistence/cache during Step 2.3/2.4.
 - Do not use operational logger lines as the primary investor-facing result renderer.
 - Do not force Momentum and Graham into one generic result object merely for presentation.

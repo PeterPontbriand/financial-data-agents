@@ -7,8 +7,8 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 ## Current work — single source of truth
 
 **Active milestone:** v0.2<br/>
-**Completed step:** Step 2.3 — dual-method Graham valuation and investor-facing direct analysis — complete and approved<br/>
-**Active step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis — implemented through Slice F pre-Golden shared-contract hardening; Slice F review/approval pending<br/>
+**Completed step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis, pre-Golden hardening, shared security identity, and Slice G closeout — complete and approved<br/>
+**Active step:** Step 2.5 — Golden-Test Suite & Strategy Evaluation<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>

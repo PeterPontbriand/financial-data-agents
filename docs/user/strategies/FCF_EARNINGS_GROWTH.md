@@ -140,6 +140,8 @@ uv run financial-agents fcf-growth MSFT --as-of 2025-12-31
 
 The presentation modes render the same result. They do not recalculate or reclassify it. `--details`, `--diagnostics`, and `--json` are mutually exclusive.
 
+When supported provider evidence supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone. JSON includes an explicit nullable security-identity snapshot. Identity metadata is descriptive and cannot change the screen classification or execution status.
+
 ## Data sources and provenance
 
 The current production command resolves annual financial facts from SEC EDGAR. Required evidence includes:

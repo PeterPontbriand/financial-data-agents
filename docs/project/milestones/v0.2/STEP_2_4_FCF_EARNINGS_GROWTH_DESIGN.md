@@ -224,7 +224,7 @@ All modes render the same `FCFEarningsGrowthResult`; presenters do not recalcula
 
 - `--details` adds the annual series, calculation endpoints, provider fields, availability dates, normalization, lineage, and optional-metric bases.
 - `--diagnostics` adds cache behavior, provider attempts, candidate selection and rejection, derivation steps, and execution errors.
-- `--json` emits the complete versioned result contract in Part II. An unavailable number is `null` with a reason code, never `NaN`.
+- `--json` emits investor-presentation `schema_version = 3`, retains `result_schema_version = 2`, and adds an explicit nullable `security_identity` snapshot. An unavailable number is `null` with a reason code, never `NaN`.
 - `--chart` plots only the annual series already present in the result.
 
 The runtime-agent tool returns the same typed result used by the command-line presenter. A runtime agent may summarize that result but cannot replace unavailable evidence, alter the policy, or change the classification.

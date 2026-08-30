@@ -19,9 +19,9 @@ The strategy supports direct execution from the command line and defines the typ
 | Signal classification | `BULLISH`, `BEARISH`, `NEUTRAL`, `UNKNOWN` |
 | Insufficient history classification | Returns `UNKNOWN` headline signal; missing metrics evaluate to `None` / JSON `null` (never `NaN`) |
 | Historical boundary | Strict `as_of` cut-off filtering (`bar_timestamp <= effective_as_of`) |
-| Data source seam | `BaseDataClient` historical daily price series |
+| Data source seam | `MarketDataProvider` historical daily price series, with the legacy `BaseDataClient` adapted at the boundary |
 | Contextual metadata | Market source, freshness, and currency managed in execution/presentation context |
-| Versions | `strategy_id = momentum`, `method_id = sma_crossover_rsi`, `method_version = 1`, `schema_version = 1` |
+| Versions | Strategy method semantics remain version 1; public investor-presentation JSON is `schema_version = 2` after the additive security-identity snapshot |
 
 ---
 
@@ -152,7 +152,7 @@ Order of rendering:
 
 - `--details` exposes raw input price series length, exact indicator values, percentage deviations, and calculation windows.
 - `--diagnostics` exposes cache utilization, data fetching attempts, date truncation parameters, and execution errors.
-- `--json` emits the complete versioned result contract in Part II. Unavailable values are JSON `null` (never `NaN`).
+- `--json` emits public presentation `schema_version = 2`, including an explicit nullable `security_identity` snapshot. Unavailable values are JSON `null` (never `NaN`).
 
 ## 5. Interpretation limits
 
@@ -176,6 +176,8 @@ method_id = "sma_crossover_rsi"
 method_version = 1
 schema_version = 1
 ```
+
+These identifiers describe the typed strategy result semantics. The investor-presentation JSON envelope is versioned independently and is currently version 2 because Slice F-1 added nullable security-identity metadata without changing the calculation method.
 
 - `strategy_id` identifies the momentum analysis family.
 - `method_id` identifies the specific indicator combination (`sma_crossover_rsi`).
@@ -262,7 +264,7 @@ For `compute_rsi(prices, 14)`:
 
 ## 9. Data architecture and provider seam
 
-The current momentum implementation uses `BaseDataClient` to retrieve daily bar series.
+The current Momentum implementation resolves daily bars through `MarketDataProvider`. A compatibility adapter wraps the legacy `BaseDataClient` implementation at that boundary rather than exposing it as the modern analysis contract.
 
 - The resolver requests historical daily prices up to `effective_as_of`.
 - Price series truncation occurs strictly at the point-in-time boundary: bars where `bar_timestamp > effective_as_of` are discarded prior to calculation.
@@ -282,30 +284,14 @@ Deterministic unit and integration tests enforce:
 
 ---
 
-# Identified Implementation & Design Weaknesses
+# Pre-Golden Modernization Record
 
-The following prioritized work items document technical debt and design gaps between the existing momentum code and the modernized architecture established in the Graham (`STEP_2_3`) and FCF (`STEP_2_4`) specifications. In accordance with project guidelines, these weaknesses are recorded here for planning rather than speculatively altered in the primary contract above.
+Step 2.4 Slice F completed and approved the bounded Momentum modernization before Golden fixtures freeze its public behavior:
 
-### Priority 1: Structural & Point-in-Time Correctness
+- the resolver enforces `bar_timestamp <= effective_as_of` before calculation;
+- `sma_50`, `sma_200`, and `rsi_14` expose standard `MetricResult` status/reason semantics for unavailable evidence;
+- market data resolves through `MarketDataProvider` with retained `ResolvedInput` provenance and market context;
+- typed `MomentumPolicy`/`MomentumConfig` values support the `--short-window`, `--long-window`, and `--rsi-period` CLI options; and
+- `ResolutionTrace` covers provider fetch, point-in-time filtering, and calculation stages.
 
-* **Work Item 1: Strict Historical `as_of` Filtering in Resolver**
-  * *Issue:* The existing momentum data fetcher requests a trailing bar count relative to system runtime clock rather than filtering strictly by `bar_timestamp <= effective_as_of`.
-  * *Remediation:* Enforce point-in-time boundary truncation inside `MomentumInputResolver` prior to invoking pure functions to prevent look-ahead leakage in historical backtests.
-
-* **Work Item 2: Migrate to Standard `MetricResult` Pattern**
-  * *Issue:* `MomentumMetrics` uses raw `float | None` fields, whereas repo standards require `MetricResult` (`status`, `value`, `reason_code`, `reason`).
-  * *Remediation:* Refactor `sma_50`, `sma_200`, and `rsi_14` to `MetricResult` structures. When history is insufficient (e.g., 100 bars for SMA200), populate `status = unavailable` and `reason_code = insufficient_history` instead of unannotated `None`.
-
-* **Work Item 3: Standardize Provider Interface & Provenance**
-  * *Issue:* Momentum connects to legacy `BaseDataClient`, while newer strategies utilize `FinancialFactsProvider` / `MarketDataProvider` with structured `ResolvedInput` provenance objects.
-  * *Remediation:* Refactor market data fetching to use `MarketDataProvider`, wrapping price points in `ResolvedInput` containers to retain provider identity, retrieval timestamps, and currency attributes in the result envelope.
-
-### Priority 2: Configurability & Enhancements
-
-* **Work Item 4: Introduce Configurable `MomentumPolicy`**
-  * *Issue:* Moving average periods (50/200) and RSI window (14) are hardcoded in the strategy logic.
-  * *Remediation:* Create a `MomentumPolicy` dataclass (supporting CLI options `--short-window`, `--long-window`, `--rsi-period`) mirroring the pattern used in `FCFEarningsGrowthPolicy`.
-
-* **Work Item 5: Expand Diagnostic Event Trace Coverage**
-  * *Issue:* Resolution traces in `MomentumResult` capture basic errors but lack explicit cache hit/miss and bar-count validation events.
-  * *Remediation:* Integrate standard `ResolutionTrace` diagnostic logging across data fetch, series filtering, and calculation steps.
+Slice F-1 subsequently added best-effort security identity across concise/details/diagnostics/JSON presentation. Identity failure remains display-only and never changes Momentum calculation semantics.

@@ -19,7 +19,7 @@ The Graham Number is the default. It produces a screening ceiling from earnings 
 | Explicit Massive configuration | Massive trailing-twelve-month diluted earnings per share and current quote; requires `MASSIVE_API_KEY`. The Graham Number can also use this route when book value per share is supplied explicitly. |
 | Resolution order | Provider-resolvable fields use explicit override → valid cache → configured provider → unavailable. Expected growth is override-only. |
 | Historical boundary | Requested `as_of` is a strict no-look-ahead boundary |
-| JSON version | `schema_version = 1`; breaking structural or semantic changes require explicit review |
+| JSON version | Public investor-presentation `schema_version = 2`; version 2 adds the explicit nullable security-identity snapshot without changing either Graham calculation method |
 
 ---
 
@@ -292,7 +292,9 @@ Negative normalized earnings and negative expected growth are not independently 
 
 ### 8.4 Public JSON result envelope
 
-The JSON document is the normative machine-readable public surface, implemented from one source of truth in `src/reporting/graham.py`. Both method documents contain `schema_version: 1`, `analysis: "graham"`, uppercase `ticker`, ISO-8601 `as_of` or null, machine-readable `status`, nullable `reason`, `quote`, ordered `warnings`, one method-specific `limitations` entry, and ordered `diagnostics`.
+The JSON document is the normative machine-readable public surface, implemented from one source of truth in `src/reporting/graham.py`. Both method documents contain `schema_version: 2`, `analysis: "graham"`, uppercase `ticker`, an explicit nullable `security_identity` snapshot, ISO-8601 `as_of` or null, machine-readable `status`, nullable `reason`, `quote`, ordered `warnings`, one method-specific `limitations` entry, and ordered `diagnostics`.
+
+`security_identity` always contains `ticker` plus nullable `instrument_name`, `listing_venue`, `issuer_identifier`, `instrument_identifier`, `provider_id`, and `resolved_at`. It is current descriptive metadata, not financial input and not proof of historical identity at `as_of`. Failure to resolve it does not alter the calculation result.
 
 | Method | `method` | `result` | `inputs` | Additional object |
 | :--- | :--- | :--- | :--- | :--- |
@@ -396,7 +398,9 @@ The growth-method routing matrix in Section 3.2 and this mapping table are teste
 
 ## 12. Presentation architecture
 
-The existing Momentum analysis strategy and the Benjamin Graham valuation analysis strategy share a concise, detailed, diagnostic, and JSON visual grammar without sharing a forced generic result object. Graham presenters only format and explain supplied typed assemblies and calculation results: they perform no financial arithmetic, resolution, provider or cache access, or assumption generation. Presentation-model validation requires each retained input's `as_of` to equal the presentation `as_of`; it does not impose an additional cross-input age or freshness rule. Presenters preserve source provenance across cache use and render only resolver events actually observed. Required-input and similar assembly failures bypass the presenter in concise and detailed command-line modes, as described in Section 6.
+Momentum, Graham, and Free Cash Flow & Earnings Growth share a concise, detailed, diagnostic, and JSON visual grammar without sharing a forced generic result object. Graham presenters only format and explain supplied typed assemblies and calculation results: they perform no financial arithmetic, input resolution, provider or cache access, or assumption generation. Presentation-model validation requires each retained input's `as_of` to equal the presentation `as_of`; it does not impose an additional cross-input age or freshness rule. Presenters preserve source provenance across cache use and render only resolver events actually observed. Required-input, provider, ticker-verification, and calculation failures use the same typed presentation boundary as success.
+
+Best-effort security identity is resolved outside the presenter and passed as nullable presentation metadata. A resolved name produces `Instrument Name (TICKER) — Analysis`; unavailable or failed identity resolution falls back to ticker-only output and cannot change financial semantics.
 
 JSON uses the Section 8.4 contract. Operational logs are separate from investor output; detailed terminal output uses fixed labels rather than tables.
 
@@ -406,7 +410,7 @@ The existing Momentum analysis strategy retains `None` and JSON `null` for unava
 
 The identifiers `graham_number` and `graham_growth_value` are stable. A materially different formula receives a new method identifier and result type; it does not redefine either method. An approved AAA-yield series changes routing and provenance, not the method or JSON version, if public shape and meaning are unchanged.
 
-Breaking public JSON changes increment `schema_version`; additive changes remain in version 1 only when existing meanings remain valid. New enum values require compatibility review and exhaustive dispatch handling. Cache-schema versions evolve independently. Recorded outputs retain their original method, assumptions, provenance, and versions.
+Breaking public JSON changes increment `schema_version`. Version 2 adds the nullable security-identity snapshot deliberately; it does not change either Graham formula or result type. New enum values require compatibility review and exhaustive dispatch handling. Cache-schema versions evolve independently. Recorded outputs retain their original method, assumptions, provenance, and versions.
 
 ## 14. Deterministic fixtures and current verification
 
@@ -420,7 +424,7 @@ The implemented deterministic suite uses fixtures rather than live provider or l
 - optional quote failure and cross-currency comparison suppression; and
 - concise hierarchy, detailed and diagnostic rendering, JSON schema version and null handling, and selected warning and limitation behavior.
 
-The current suite does not exhaustively lock every presentation string or warning order, does not directly test a currency-omitting quote override, and does not establish an independent share-class or split-compatibility predicate. Those are tracked as pre-Golden hardening in the milestone implementation plan rather than described here as completed behavior.
+The pre-Golden hardening suite locks result invariants, status labels, typed failure paths, quote behavior, supported routing, compatibility handling, presentation order, warnings, and limitations. Slice F-1 adds deterministic coverage for available/unavailable/non-company identity, provider failure, all strategy presentation modes, explicit JSON null/version behavior, and preservation of calculation semantics.
 
 At the completion checkpoint, the implementation passed the repository's formatting, linting, strict type-checking, test, coverage, and documentation gates.
 
