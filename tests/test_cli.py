@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Iterator
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -26,6 +27,13 @@ from tests.analysis.graham_value.fixture_financial_facts_provider import (
 )
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def disable_live_yfinance_identity_resolution() -> Iterator[None]:
+    """Keep CLI tests deterministic by stubbing optional Yahoo identity metadata."""
+    with patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None):
+        yield
 
 
 def test_normalize_cli_output_strips_ansi_and_box_characters() -> None:
