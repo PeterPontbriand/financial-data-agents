@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-31 — Recorded the Step 2.5 Gate M review, mandatory Slice H correction, and approved post-Step-2.5 FPI/IFRS planning package.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → paused at Gate M pending mandatory Slice H; Step 2.5A → planned and blocked by Step 2.5 completion
+**Revised:** 2026-08-31 — Implemented the approved Step 2.5 Slice H correction and recorded Gate M re-entry evidence; retained the approved post-Step-2.5 FPI/IFRS planning package.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → paused at Gate M for human re-review after Slice H; Step 2.5A → planned and blocked by Step 2.5 completion
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -902,7 +902,7 @@ Step 2.4 does **not** include:
 
 ### 4.5 Step 2.5 – Golden-Test Suite & Strategy Evaluation
 
-**Status:** Current step; paused at Gate M on 2026-08-31. The checkpoint implementation requires the bounded Slice H corrections recorded in the [Gate M Review](STEP_2_5_GATE_M_REVIEW.md) before Gate M can be reconsidered.<br/>
+**Status:** Current step; paused at Gate M on 2026-08-31. The bounded Slice H corrections are implemented and verified in the working tree; the [Gate M Review](STEP_2_5_GATE_M_REVIEW.md) now contains re-entry evidence for human review.<br/>
 **Goal**<br/>
 Establish a deterministic, fixture-backed benchmark that exercises the approved v0.2 set of materially different analytical strategies and separates strategy/tool-selection correctness from deterministic numerical correctness.
 
@@ -1216,23 +1216,24 @@ Step 2.5 does **not** include:
 
 #### 4.5.20 Acceptance criteria
 
-Checked items below are already evidenced at the Gate M checkpoint; they do not
-override the open Gate M blockers or constitute Step 2.5 completion.
+Checked items below are evidenced by the original Gate M checkpoint or the
+verified Slice H working tree. They do not constitute human Gate M approval or
+Step 2.5 completion.
 
-- [ ] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
+- [x] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
 - [x] P1 is approved before Golden models/cases are implemented; a provider-confirmed ETF is `not_applicable` to both Graham methods and company-level FCF Growth, remains applicable to Momentum, retains its identity when available, and is not described as an invalid ticker.
 - [x] No live market-data access is required for deterministic suite execution.
 - [x] Existing production orchestration/tool-dispatch is reused as far as practical.
 - [x] Expected numerical values are independently verified.
 - [x] Strategy/tool-selection correctness is evaluated separately from numerical correctness.
 - [x] Deterministic numerical evaluation does not depend on LLM prose.
-- [ ] A minimum heterogeneous case set works before expansion.
-- [ ] The default three-year-average EPS basis, explicit TTM variation, `not_applicable` behavior, and missing-current-price behavior are covered by Graham cases.
+- [x] A minimum heterogeneous case set works before expansion.
+- [x] The default three-year-average EPS basis, explicit TTM variation, `not_applicable` behavior, and missing-current-price behavior are covered by Graham cases.
 - [x] At least one case verifies Graham method-selection correctness independently of broad strategy selection.
-- [ ] Straightforward, insufficient/nonmeaningful-growth, and period/`as_of` FCF-growth cases are covered.
+- [x] Straightforward, insufficient/nonmeaningful-growth, and period/`as_of` FCF-growth cases are covered.
 - [x] At least one case materially discriminates correct strategy selection from a plausible wrong strategy.
-- [ ] Machine-readable reporting distinguishes component and overall failures.
-- [ ] The ≥90% target is defined and reported without weakening criteria.
+- [x] Machine-readable reporting distinguishes component and overall failures.
+- [x] The ≥90% target is defined and reported without weakening criteria.
 - [x] Strategy-selection accuracy is reported independently and is not artificially forced to ≥90%.
 - [x] An evaluator self-test detects an intentionally incorrect result.
 - [x] Deterministic/no-LLM mode is documented.
@@ -1240,8 +1241,8 @@ override the open Gate M blockers or constitute Step 2.5 completion.
 - [ ] CLI execution and non-zero failure status work.
 - [x] `docs/EVALUATIONS.md` is updated through the Gate M decision.
 - [ ] Step 3.1 can replace fixture-backed data sources with production persistence without changing Golden case definitions.
-- [ ] Ruff, formatting, `mypy --strict`, and pytest pass.
-- [ ] Actual measured benchmark results are recorded honestly.
+- [x] Ruff, formatting, `mypy --strict`, and pytest pass.
+- [x] Actual measured deterministic benchmark results are recorded honestly; empirical model selection remains unmeasured.
 
 **Definition of done:** Step 2.5 is complete when the repository contains a reproducible fixture-backed benchmark that exercises the approved heterogeneous v0.2 strategy set, distinguishes strategy/method-selection failures from deterministic numerical failures, produces an auditable machine-readable report, and remains decoupled from production persistence.
 

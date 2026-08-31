@@ -2,9 +2,10 @@
 
 from typing import Final
 
-from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID
+from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.models import (
     Case,
+    DomainOutcomeExpectation,
     Expectation,
     GrahamMethod,
     GrahamMethodConstraints,
@@ -69,4 +70,36 @@ GRG_01: Final = Case(
 )
 
 
-__all__ = ["GRG_01"]
+GRG_ETF_01: Final = Case(
+    case_id="GRG-ETF-01",
+    description=(
+        "Completes the provider-confirmed ETF applicability matrix for the company-level Graham growth-value "
+        "method without resolving company facts."
+    ),
+    task="Analyze FLSW with the Graham growth-value method using explicit growth and yield assumptions.",
+    fixture_ids=(KNOWN_ETF_PROFILE_FIXTURE_ID,),
+    expectation=Expectation(
+        tool_constraints=_GROWTH_TOOL_CONSTRAINTS,
+        graham_method_constraints=_GROWTH_METHOD_CONSTRAINTS,
+        domain_outcome_expectations=(
+            DomainOutcomeExpectation(field_path="assembly.status", expected_value="not_applicable"),
+            DomainOutcomeExpectation(field_path="margin_of_safety_percent", expected_value=None),
+            DomainOutcomeExpectation(field_path="result.growth_value", expected_value=None),
+            DomainOutcomeExpectation(
+                field_path="result.reason",
+                expected_value=(
+                    "Graham growth-value method is a company-level valuation method and does not apply directly "
+                    "to an ETF. No constituent-level or aggregate ETF valuation was performed."
+                ),
+            ),
+            DomainOutcomeExpectation(field_path="result.status", expected_value="not_applicable"),
+        ),
+    ),
+    tags=("etf", "graham_growth_value", "not_applicable"),
+)
+
+
+GRAHAM_GROWTH_CASES: Final[tuple[Case, ...]] = (GRG_01, GRG_ETF_01)
+
+
+__all__ = ["GRAHAM_GROWTH_CASES", "GRG_01", "GRG_ETF_01"]

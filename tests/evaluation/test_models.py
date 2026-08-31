@@ -12,6 +12,8 @@ from src.evaluation.models import (
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
+    DomainOutcomeExpectation,
+    DomainOutcomeObservation,
     ExecutionMode,
     Expectation,
     GrahamMethod,
@@ -59,9 +61,9 @@ def test_string_enum_values(enum_type: type[object], expected_values: list[str])
 
 def test_tool_constraints_are_canonical_and_accept_required_permitted_values() -> None:
     constraints = ToolConstraints(
-        permitted=[ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_FCF_EARNINGS_GROWTH],
-        required=[ToolName.ANALYZE_MOMENTUM],
-        forbidden=[ToolName.ANALYZE_GRAHAM_NUMBER, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE],
+        permitted=(ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_FCF_EARNINGS_GROWTH),
+        required=(ToolName.ANALYZE_MOMENTUM,),
+        forbidden=(ToolName.ANALYZE_GRAHAM_NUMBER, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE),
     )
 
     assert constraints.permitted == (
@@ -77,8 +79,8 @@ def test_tool_constraints_are_canonical_and_accept_required_permitted_values() -
 
 def test_graham_method_constraints_are_canonical() -> None:
     constraints = GrahamMethodConstraints(
-        permitted=[GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_GROWTH_VALUE],
-        required=[GrahamMethod.GRAHAM_NUMBER],
+        permitted=(GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_GROWTH_VALUE),
+        required=(GrahamMethod.GRAHAM_NUMBER,),
     )
 
     assert constraints.permitted == (
@@ -89,9 +91,9 @@ def test_graham_method_constraints_are_canonical() -> None:
 
 def test_behavior_constraints_normalize_and_canonicalize_identifiers() -> None:
     constraints = BehaviorConstraints(
-        permitted=[" use_fixture_data ", "retain_provenance"],
-        required=["retain_provenance"],
-        forbidden=["live_network_access"],
+        permitted=(" use_fixture_data ", "retain_provenance"),
+        required=("retain_provenance",),
+        forbidden=("live_network_access",),
     )
 
     assert constraints.permitted == ("retain_provenance", "use_fixture_data")
@@ -102,9 +104,9 @@ def test_behavior_constraints_normalize_and_canonicalize_identifiers() -> None:
 @pytest.mark.parametrize(
     ("model", "field_name", "value"),
     [
-        (ToolConstraints(permitted=[ToolName.ANALYZE_MOMENTUM]), "permitted", ()),
-        (GrahamMethodConstraints(permitted=[GrahamMethod.GRAHAM_NUMBER]), "permitted", ()),
-        (BehaviorConstraints(permitted=["retain_provenance"]), "permitted", ()),
+        (ToolConstraints(permitted=(ToolName.ANALYZE_MOMENTUM,)), "permitted", ()),
+        (GrahamMethodConstraints(permitted=(GrahamMethod.GRAHAM_NUMBER,)), "permitted", ()),
+        (BehaviorConstraints(permitted=("retain_provenance",)), "permitted", ()),
         (
             NumericalExpectation(field_path="result.value", expected_value=1.0, absolute_tolerance=0.0),
             "field_path",
@@ -121,16 +123,16 @@ def test_leaf_models_are_frozen(model: BaseModel, field_name: str, value: object
     "model",
     [
         ToolConstraints(
-            permitted=[ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_GRAHAM_NUMBER],
-            required=[ToolName.ANALYZE_MOMENTUM],
+            permitted=(ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_GRAHAM_NUMBER),
+            required=(ToolName.ANALYZE_MOMENTUM,),
         ),
         GrahamMethodConstraints(
-            permitted=[GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_GROWTH_VALUE],
-            forbidden=[],
+            permitted=(GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_GROWTH_VALUE),
+            forbidden=(),
         ),
         BehaviorConstraints(
-            permitted=["retain_provenance", "use_fixture_data"],
-            required=["retain_provenance"],
+            permitted=("retain_provenance", "use_fixture_data"),
+            required=("retain_provenance",),
         ),
         NumericalExpectation(
             field_path="result.maximum_indicated_price",
@@ -151,12 +153,12 @@ def test_leaf_models_have_deterministic_json_round_trips(model: BaseModel) -> No
     "factory",
     [
         lambda: ToolConstraints(
-            permitted=[ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_MOMENTUM],
+            permitted=(ToolName.ANALYZE_MOMENTUM, ToolName.ANALYZE_MOMENTUM),
         ),
         lambda: GrahamMethodConstraints(
-            forbidden=[GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER],
+            forbidden=(GrahamMethod.GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER),
         ),
-        lambda: BehaviorConstraints(required=["retain_provenance", " retain_provenance "]),
+        lambda: BehaviorConstraints(required=("retain_provenance", " retain_provenance ")),
     ],
 )
 def test_constraint_models_reject_duplicates(factory: Callable[[], BaseModel]) -> None:
@@ -167,9 +169,9 @@ def test_constraint_models_reject_duplicates(factory: Callable[[], BaseModel]) -
 @pytest.mark.parametrize(
     "factory",
     [
-        lambda: ToolConstraints(required=[ToolName.ANALYZE_MOMENTUM]),
-        lambda: GrahamMethodConstraints(required=[GrahamMethod.GRAHAM_NUMBER]),
-        lambda: BehaviorConstraints(required=["retain_provenance"]),
+        lambda: ToolConstraints(required=(ToolName.ANALYZE_MOMENTUM,)),
+        lambda: GrahamMethodConstraints(required=(GrahamMethod.GRAHAM_NUMBER,)),
+        lambda: BehaviorConstraints(required=("retain_provenance",)),
     ],
 )
 def test_constraint_models_reject_required_values_that_are_not_permitted(
@@ -183,17 +185,17 @@ def test_constraint_models_reject_required_values_that_are_not_permitted(
     "factory",
     [
         lambda: ToolConstraints(
-            permitted=[ToolName.ANALYZE_MOMENTUM],
-            forbidden=[ToolName.ANALYZE_MOMENTUM],
+            permitted=(ToolName.ANALYZE_MOMENTUM,),
+            forbidden=(ToolName.ANALYZE_MOMENTUM,),
         ),
         lambda: GrahamMethodConstraints(
-            permitted=[GrahamMethod.GRAHAM_NUMBER],
-            required=[GrahamMethod.GRAHAM_NUMBER],
-            forbidden=[GrahamMethod.GRAHAM_NUMBER],
+            permitted=(GrahamMethod.GRAHAM_NUMBER,),
+            required=(GrahamMethod.GRAHAM_NUMBER,),
+            forbidden=(GrahamMethod.GRAHAM_NUMBER,),
         ),
         lambda: BehaviorConstraints(
-            permitted=["retain_provenance"],
-            forbidden=["retain_provenance"],
+            permitted=("retain_provenance",),
+            forbidden=("retain_provenance",),
         ),
     ],
 )
@@ -205,7 +207,7 @@ def test_constraint_models_reject_forbidden_overlaps(factory: Callable[[], BaseM
 @pytest.mark.parametrize("value", ["", " ", "\t"])
 def test_behavior_constraints_reject_blank_identifiers(value: str) -> None:
     with pytest.raises(ValidationError, match="must not be blank"):
-        BehaviorConstraints(permitted=[value])
+        BehaviorConstraints(permitted=(value,))
 
 
 def test_numerical_expectation_accepts_zero_as_exact_match_tolerance() -> None:
@@ -218,6 +220,18 @@ def test_numerical_expectation_accepts_zero_as_exact_match_tolerance() -> None:
     assert expectation.field_path == "result.margin_of_safety"
     assert expectation.absolute_tolerance == 0.0
     assert expectation.relative_tolerance is None
+
+
+def test_domain_outcome_expectation_normalizes_path_and_accepts_explicit_null() -> None:
+    expectation = DomainOutcomeExpectation(field_path=" result.status ", expected_value=None)
+
+    assert expectation.field_path == "result.status"
+    assert expectation.expected_value is None
+
+
+def test_domain_outcome_expectation_rejects_nonscalar_value() -> None:
+    with pytest.raises(ValidationError):
+        DomainOutcomeExpectation.model_validate({"field_path": "result.status", "expected_value": 1.5})
 
 
 @pytest.mark.parametrize("field_path", ["", " ", "\n"])
@@ -256,12 +270,12 @@ def test_numerical_expectation_rejects_non_finite_expected_values(expected_value
 
 def test_expectation_composes_constraints_and_canonical_numerical_paths() -> None:
     expectation = Expectation(
-        tool_constraints=ToolConstraints(permitted=[ToolName.ANALYZE_MOMENTUM]),
-        behavior_constraints=BehaviorConstraints(permitted=["use_fixture_data"]),
-        numerical_expectations=[
+        tool_constraints=ToolConstraints(permitted=(ToolName.ANALYZE_MOMENTUM,)),
+        behavior_constraints=BehaviorConstraints(permitted=("use_fixture_data",)),
+        numerical_expectations=(
             NumericalExpectation(field_path="result.z_score", expected_value=2.0, absolute_tolerance=0.01),
             NumericalExpectation(field_path="result.alpha", expected_value=1.0, relative_tolerance=0.001),
-        ],
+        ),
     )
 
     assert tuple(item.field_path for item in expectation.numerical_expectations) == (
@@ -274,10 +288,31 @@ def test_expectation_composes_constraints_and_canonical_numerical_paths() -> Non
 def test_expectation_rejects_duplicate_numerical_paths() -> None:
     with pytest.raises(ValidationError, match="numerical expectation field paths must be unique"):
         Expectation(
-            numerical_expectations=[
+            numerical_expectations=(
                 NumericalExpectation(field_path="result.value", expected_value=1.0, absolute_tolerance=0.0),
                 NumericalExpectation(field_path=" result.value ", expected_value=2.0, absolute_tolerance=0.0),
-            ]
+            )
+        )
+
+
+def test_expectation_canonicalizes_and_rejects_duplicate_domain_outcome_paths() -> None:
+    expectation = Expectation(
+        domain_outcome_expectations=(
+            DomainOutcomeExpectation(field_path="result.status", expected_value="ok"),
+            DomainOutcomeExpectation(field_path="assembly.status", expected_value="ok"),
+        )
+    )
+    assert tuple(item.field_path for item in expectation.domain_outcome_expectations) == (
+        "assembly.status",
+        "result.status",
+    )
+
+    with pytest.raises(ValidationError, match="domain-outcome expectation field paths must be unique"):
+        Expectation(
+            domain_outcome_expectations=(
+                DomainOutcomeExpectation(field_path="result.status", expected_value="ok"),
+                DomainOutcomeExpectation(field_path=" result.status ", expected_value="input_unavailable"),
+            )
         )
 
 
@@ -286,9 +321,9 @@ def test_case_is_mode_neutral_and_canonicalizes_fixture_ids_and_tags() -> None:
         case_id=" momentum_success ",
         description=" A deterministic Momentum success case. ",
         task=" Analyze fixture-backed momentum. ",
-        fixture_ids=["prices_daily", " instrument_profile "],
+        fixture_ids=("prices_daily", " instrument_profile "),
         expectation=Expectation(),
-        tags=["success", "momentum"],
+        tags=("success", "momentum"),
     )
 
     assert case.case_id == "momentum_success"
@@ -328,7 +363,7 @@ def test_case_rejects_invalid_fixture_ids(fixture_ids: list[str], message: str) 
             case_id="case_id",
             description="description",
             task="task",
-            fixture_ids=fixture_ids,
+            fixture_ids=tuple(fixture_ids),
             expectation=Expectation(),
         )
 
@@ -346,9 +381,9 @@ def test_case_rejects_invalid_tags(tags: list[str], message: str) -> None:
             case_id="case_id",
             description="description",
             task="task",
-            fixture_ids=["fixture"],
+            fixture_ids=("fixture",),
             expectation=Expectation(),
-            tags=tags,
+            tags=tuple(tags),
         )
 
 
@@ -356,16 +391,16 @@ def test_observation_preserves_ordered_and_repeated_selection_evidence() -> None
     observation = Observation(
         execution_mode=ExecutionMode.REAL_LOCAL_OLLAMA,
         observed_at=datetime(2026, 8, 31, 12, 0, tzinfo=UTC),
-        tool_calls=[
+        tool_calls=(
             ToolCallObservation(tool_name=ToolName.ANALYZE_MOMENTUM),
             ToolCallObservation(tool_name=ToolName.ANALYZE_GRAHAM_NUMBER),
             ToolCallObservation(tool_name=ToolName.ANALYZE_MOMENTUM),
-        ],
-        graham_methods=[
+        ),
+        graham_methods=(
             GrahamMethodObservation(method=GrahamMethod.GRAHAM_NUMBER),
             GrahamMethodObservation(method=GrahamMethod.GRAHAM_GROWTH_VALUE),
             GrahamMethodObservation(method=GrahamMethod.GRAHAM_NUMBER),
-        ],
+        ),
     )
 
     assert tuple(call.tool_name for call in observation.tool_calls) == (
@@ -384,10 +419,10 @@ def test_observation_canonicalizes_unique_numerical_paths() -> None:
     observation = Observation(
         execution_mode=ExecutionMode.DETERMINISTIC_NO_LLM,
         observed_at=datetime(2026, 8, 31, 12, 0, tzinfo=UTC),
-        numerical_observations=[
+        numerical_observations=(
             NumericalObservation(field_path="result.z_score", value=2.0),
             NumericalObservation(field_path="result.alpha", value=1.0),
-        ],
+        ),
     )
 
     assert tuple(item.field_path for item in observation.numerical_observations) == (
@@ -401,10 +436,29 @@ def test_observation_rejects_duplicate_numerical_paths() -> None:
         Observation(
             execution_mode=ExecutionMode.DETERMINISTIC_NO_LLM,
             observed_at=datetime(2026, 8, 31, 12, 0, tzinfo=UTC),
-            numerical_observations=[
+            numerical_observations=(
                 NumericalObservation(field_path="result.value", value=1.0),
                 NumericalObservation(field_path=" result.value ", value=2.0),
-            ],
+            ),
+        )
+
+
+def test_observation_preserves_explicit_null_and_rejects_duplicate_domain_paths() -> None:
+    observation = Observation(
+        execution_mode=ExecutionMode.DETERMINISTIC_NO_LLM,
+        observed_at=datetime(2026, 8, 31, 12, 0, tzinfo=UTC),
+        domain_outcome_observations=(DomainOutcomeObservation(field_path="result.value", value=None),),
+    )
+    assert observation.domain_outcome_observations[0].value is None
+
+    with pytest.raises(ValidationError, match="domain-outcome observation field paths must be unique"):
+        Observation(
+            execution_mode=ExecutionMode.DETERMINISTIC_NO_LLM,
+            observed_at=datetime(2026, 8, 31, 12, 0, tzinfo=UTC),
+            domain_outcome_observations=(
+                DomainOutcomeObservation(field_path="result.status", value="ok"),
+                DomainOutcomeObservation(field_path=" result.status ", value="input_unavailable"),
+            ),
         )
 
 
@@ -526,7 +580,7 @@ def test_component_result_unmeasured_outcomes_require_nonblank_evidence(
                 case_id="case_id",
                 description="description",
                 task="task",
-                fixture_ids=["fixture"],
+                fixture_ids=("fixture",),
                 expectation=Expectation(),
             ),
             "case_id",
@@ -564,21 +618,21 @@ def test_composed_contract_has_deterministic_json_round_trip() -> None:
         case_id="graham_number_success",
         description="A deterministic Graham Number case.",
         task="Calculate the Graham Number.",
-        fixture_ids=["graham_facts", "instrument_profile"],
+        fixture_ids=("graham_facts", "instrument_profile"),
         expectation=Expectation(
             tool_constraints=ToolConstraints(
-                permitted=[ToolName.ANALYZE_GRAHAM_NUMBER],
-                required=[ToolName.ANALYZE_GRAHAM_NUMBER],
+                permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),
+                required=(ToolName.ANALYZE_GRAHAM_NUMBER,),
             ),
-            numerical_expectations=[
+            numerical_expectations=(
                 NumericalExpectation(
                     field_path="result.maximum_indicated_price",
                     expected_value=42.5,
                     absolute_tolerance=0.01,
-                )
-            ],
+                ),
+            ),
         ),
-        tags=["success", "graham"],
+        tags=("success", "graham"),
     )
     serialized = case.model_dump_json()
 
@@ -593,6 +647,8 @@ def test_public_evaluation_exports_are_deliberate() -> None:
         "ComponentKind",
         "ComponentOutcome",
         "ComponentResult",
+        "DomainOutcomeExpectation",
+        "DomainOutcomeObservation",
         "ExecutionMode",
         "Expectation",
         "GrahamMethod",

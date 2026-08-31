@@ -1,6 +1,6 @@
 # Evaluations & Golden Suite
 
-**Status:** Milestone v0.2 Step 2.5 implementation is paused at Gate M; the 2026-08-31 review requires a bounded Slice H correction before the gate can be reconsidered<br/>
+**Status:** Milestone v0.2 Step 2.5 is paused at Gate M for human re-review; the approved Slice H correction is implemented and verified in the working tree<br/>
 **Governing sequence and acceptance criteria:** [Milestone v0.2 Implementation Plan](project/milestones/v0.2/IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Formal implementation slices:** [Step 2.5 Golden Suite Slice Plan](project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)<br/>
 **Current gate decision:** [Step 2.5 Gate M Review](project/milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md)<br/>
@@ -25,13 +25,13 @@ The tracked `src/evaluation/` package now contains typed Golden cases and expect
 
 Production strategy handlers are registered outside the evaluation and test packages through `src/orchestrator/analysis_tools.py`. The explicit tool names are `analyze_momentum`, `analyze_graham_number`, `analyze_graham_growth_value`, and `analyze_fcf_earnings_growth`. Their Pydantic argument models are available through the read-only `ANALYSIS_TOOL_ARGUMENT_MODELS` mapping. `register_analysis_tools(...)` attaches dependency-injected handlers to the existing `AsyncToolDispatcher`; the same seam accepts production adapters or deterministic fixture-backed analyzers and resolvers. Each handler preserves its strategy's native typed result rather than introducing a generic strategy-result model.
 
-The checkpoint contains twelve case IDs across Momentum, both Graham methods, Graham resolution, and FCF/Earnings Growth. Focused evaluation tests and the complete pytest suite pass. Gate M is nevertheless not approved: the mandatory strict-mypy gate has 76 test-typing errors; expected `input_unavailable`, `not_applicable`, metric-status, reason, and classification outcomes are not consistently enforced by the aggregate runner; the required cross-strategy ETF scenario exists only for Graham Number in the Golden catalog; and no canonical request builder executes all cases as one versioned report.
+The corrected minimum contains fifteen stable case IDs across Momentum, both Graham methods, Graham resolution, and FCF/Earnings Growth. Slice H adds a narrowly typed expected-domain-outcome contract, integrates it with deterministic execution/reporting, corrects the five reviewed boundary cases, completes the four-route ETF scenario, and provides one internal canonical catalog/request builder and report entry point. The canonical deterministic report passes all 15 cases; the complete repository gate passes. Gate M remains human-owned and is not yet approved.
 
 P1 hardening is complete and approved. Its evidence, mappings, implementation decisions, and review record are in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name.
 
 P1 does not add persistence or another strategy. P2 — durable instrument profiles and a distinct ETF aggregate FCF-growth strategy — is planned only after Step 3.1. P2 may later extend the reviewed suite through the normal human-directed case-expansion process; it must not change existing case definitions, silently substitute for company-level FCF Growth, or turn production cache data into Golden fixtures.
 
-Slice H must correct the Gate M defects, add the three missing ETF routes, produce one canonical fifteen-case deterministic report, pass the complete repository gate, and stop again for human Gate M review. Optional local-model evaluation, CLI work, and completion remain blocked.
+Slice H has corrected the Gate M defects, added the three missing ETF routes, produced one canonical fifteen-case deterministic report, passed the complete repository gate, and stopped again for human Gate M review. Optional local-model evaluation, CLI work, and completion remain blocked.
 
 ## 3. Execution modes
 
@@ -93,10 +93,10 @@ Expected numerical values are benchmark contract data. They must be verified usi
 
 ## 6. Initial benchmark composition
 
-The checkpoint's twelve-case set includes Momentum success and boundary behavior; the default and TTM Graham Number variants; Graham Number `not_applicable`, growth-value, missing-price, and input-resolution behavior; and FCF/Earnings Growth success, nonmeaningful growth, period alignment, and historical `as_of` behavior.
+The corrected fifteen-case set includes Momentum success and boundary behavior; the default and TTM Graham Number variants; Graham Number `not_applicable`, growth-value, missing-price, and input-resolution behavior; FCF/Earnings Growth success, nonmeaningful growth, period alignment, and historical `as_of` behavior; and the three additional ETF routes below.
 
-The Gate M review established that one Graham-only ETF case does not prove the
-cross-strategy applicability contract. Slice H adds three cases against the same
+The Gate M review established that one Graham-only ETF case did not prove the
+cross-strategy applicability contract. Slice H added three cases against the same
 reviewed ETF profile boundary: Momentum remains applicable, while Graham growth
 value and company-level FCF Growth return their native `not_applicable` outcomes.
 Together with the existing Graham Number case, the scenario covers all four
@@ -105,7 +105,7 @@ strategy.
 
 At least one case must materially discriminate the requested strategy from a plausible wrong strategy. A discriminating case may also satisfy another required minimum category when that overlap is explicit and useful.
 
-The corrected minimum will contain fifteen cases, within the approved initial target of 10–18 high-signal cases. Further expansion remains review-driven, not automatic. Each added case must document the failure mode or signal it contributes.
+The corrected minimum contains fifteen cases, within the approved initial target of 10–18 high-signal cases. Further expansion remains review-driven, not automatic. Each added case must document the failure mode or signal it contributes.
 
 ## 7. Telemetry and reporting
 
@@ -121,7 +121,7 @@ The evaluator includes a regression test proving that an intentionally incorrect
 
 ## 9. CLI and CI contract
 
-The Step 2.5 public CLI is not implemented yet. Slice H first adds only an internal canonical deterministic catalog/request-builder entry point so Gate M can execute the complete suite. When the later reviewed CLI slice lands, the normal `uv run` workflow will support the full suite, one named case, deterministic/no-LLM mode, an explicit report location, and optional real-local-Ollama mode only if the empirical runner has separately been implemented. Required benchmark failures return a non-zero process status.
+The Step 2.5 public CLI is not implemented yet. Slice H added only an internal canonical deterministic catalog/request-builder entry point so Gate M can execute the complete suite. When the later reviewed CLI slice lands, the normal `uv run` workflow will support the full suite, one named case, deterministic/no-LLM mode, an explicit report location, and optional real-local-Ollama mode only if the empirical runner has separately been implemented. Required benchmark failures return a non-zero process status.
 
 Deterministic/no-LLM execution is the headless CI boundary. Real-model and network-dependent evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.
 

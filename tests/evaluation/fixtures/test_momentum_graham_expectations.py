@@ -2,6 +2,7 @@
 
 import math
 
+import pandas as pd
 import pytest
 
 from src.data.financial.facts import FinancialFactRequest, FinancialField
@@ -48,6 +49,7 @@ def test_momentum_success_fixture_has_exact_reviewed_inputs() -> None:
 
     assert tuple(float(value) for value in frame["Close"]) == MOMENTUM_SUCCESS_CLOSES
     assert len(frame) == 5
+    assert isinstance(frame.index, pd.DatetimeIndex)
     assert frame.index.tz is not None
     assert frame.index.is_monotonic_increasing
     assert MOMENTUM_SHORT_WINDOW == 2

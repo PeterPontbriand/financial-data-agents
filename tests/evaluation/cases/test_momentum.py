@@ -15,6 +15,7 @@ from src.core.telemetry.models import TrajectoryEvent
 from src.evaluation.cases.momentum import (
     MOMENTUM_BOUNDARY_CASE,
     MOMENTUM_CASES,
+    MOMENTUM_ETF_CASE,
     MOMENTUM_SUCCESS_CASE,
 )
 from src.evaluation.composition import dispatch_fixture_case
@@ -57,7 +58,7 @@ def _request(case: Case) -> DeterministicCaseRequest:
     return DeterministicCaseRequest(
         case=case,
         arguments=MomentumToolArguments(
-            ticker="MOM",
+            ticker="FLSW" if case.case_id == "MOM-ETF-01" else "MOM",
             short_window=MOMENTUM_SHORT_WINDOW,
             long_window=MOMENTUM_LONG_WINDOW,
             rsi_period=MOMENTUM_RSI_PERIOD,
@@ -75,11 +76,12 @@ def _numeric_expectations(case: Case) -> dict[str, float]:
     return {item.field_path: item.expected_value for item in case.expectation.numerical_expectations}
 
 
-def test_reviewed_momentum_catalog_contains_only_the_two_minimum_cases() -> None:
+def test_reviewed_momentum_catalog_contains_the_corrected_minimum_cases() -> None:
     """Catalog IDs, fixtures, prompts, tools, signals, and numeric truth are explicit."""
-    assert tuple(case.case_id for case in MOMENTUM_CASES) == ("MOM-01", "MOM-02")
+    assert tuple(case.case_id for case in MOMENTUM_CASES) == ("MOM-01", "MOM-02", "MOM-ETF-01")
     assert MOMENTUM_SUCCESS_CASE.fixture_ids == ("momentum_success",)
     assert MOMENTUM_BOUNDARY_CASE.fixture_ids == ("momentum_boundary",)
+    assert MOMENTUM_ETF_CASE.fixture_ids == ("known_etf_profile", "momentum_success")
     assert all(
         case.expectation.tool_constraints.permitted == (ToolName.ANALYZE_MOMENTUM,)
         and case.expectation.tool_constraints.required == (ToolName.ANALYZE_MOMENTUM,)
@@ -107,7 +109,7 @@ def test_reviewed_momentum_catalog_contains_only_the_two_minimum_cases() -> None
 
 @pytest.mark.asyncio
 async def test_reviewed_momentum_cases_run_deterministically_and_pass() -> None:
-    """Both reviewed cases pass through fixture composition and the deterministic runner."""
+    """All reviewed Momentum cases pass through fixture composition and the deterministic runner."""
     report = await run_deterministic_suite(
         tuple(_request(case) for case in MOMENTUM_CASES),
         suite_id="step-2.5-momentum-g1",
@@ -117,11 +119,11 @@ async def test_reviewed_momentum_cases_run_deterministically_and_pass() -> None:
         recorder=_recorder(),
     )
 
-    assert report.total_cases == 2
-    assert report.passed_cases == 2
+    assert report.total_cases == 3
+    assert report.passed_cases == 3
     assert report.failed_cases == 0
     assert report.overall_pass_rate == 1.0
-    assert tuple(result.case_id for result in report.case_results) == ("MOM-01", "MOM-02")
+    assert tuple(result.case_id for result in report.case_results) == ("MOM-01", "MOM-02", "MOM-ETF-01")
     assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)
     for result in report.case_results:
         assert _component(result, ComponentKind.NUMERICAL_CORRECTNESS).outcome is ComponentOutcome.PASS
@@ -136,6 +138,7 @@ async def test_reviewed_momentum_cases_run_deterministically_and_pass() -> None:
     [
         (MOMENTUM_SUCCESS_CASE, TrendStatus.BULLISH, MetricStatus.OK, None),
         (MOMENTUM_BOUNDARY_CASE, TrendStatus.UNKNOWN, MetricStatus.UNAVAILABLE, ReasonCode.INSUFFICIENT_HISTORY),
+        (MOMENTUM_ETF_CASE, TrendStatus.BULLISH, MetricStatus.OK, None),
     ],
 )
 async def test_reviewed_momentum_native_status_and_boundary_fields_are_exact(
@@ -148,7 +151,7 @@ async def test_reviewed_momentum_native_status_and_boundary_fields_are_exact(
     result = await dispatch_fixture_case(
         case,
         MomentumToolArguments(
-            ticker="MOM",
+            ticker="FLSW" if case.case_id == "MOM-ETF-01" else "MOM",
             short_window=MOMENTUM_SHORT_WINDOW,
             long_window=MOMENTUM_LONG_WINDOW,
             rsi_period=MOMENTUM_RSI_PERIOD,
@@ -161,7 +164,7 @@ async def test_reviewed_momentum_native_status_and_boundary_fields_are_exact(
     assert metrics.rsi_result is not None
     assert metrics.rsi_result.status is rsi_status
     assert metrics.rsi_result.reason_code is rsi_reason
-    if case.case_id == "MOM-01":
+    if case.case_id != "MOM-02":
         assert metrics.long_sma_val == 103.0
         assert metrics.crossover_signal == 0.0
     else:

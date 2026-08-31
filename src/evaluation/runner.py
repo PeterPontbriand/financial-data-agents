@@ -6,13 +6,13 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from typing import Final
 from uuid import UUID
 
 from src.analysis.fcf_earnings_growth import FCFEarningsGrowthResult
 from src.analysis.graham_value.service import GrahamGrowthAnalysis, GrahamNumberAnalysis
 from src.analysis.momentum.momentum_analyzer import MomentumRun
-from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import (
     TrajectoryErrorRecord,
     TrajectoryEventType,
@@ -25,7 +25,7 @@ from src.evaluation.composition import (
     dispatch_fixture_case,
 )
 from src.evaluation.evaluator import (
-    evaluate_execution_status,
+    evaluate_domain_outcomes,
     evaluate_fixture_status,
     evaluate_graham_method_selection,
     evaluate_numerical_correctness,
@@ -35,6 +35,7 @@ from src.evaluation.models import (
     Case,
     ComponentKind,
     ComponentResult,
+    DomainOutcomeObservation,
     ExecutionMode,
     NumericalObservation,
     Observation,
@@ -78,6 +79,7 @@ class _ExecutionEvidence:
     """Internal execution evidence before component evaluation."""
 
     numerical_observations: tuple[NumericalObservation, ...]
+    domain_outcome_observations: tuple[DomainOutcomeObservation, ...]
     tool_result_summary: dict[str, object]
     fixture_failure: str | None = None
     execution_failure: str | None = None
@@ -254,9 +256,14 @@ async def _run_case(
         execution_mode=ExecutionMode.DETERMINISTIC_NO_LLM,
         observed_at=executed_at,
         numerical_observations=evidence.numerical_observations,
+        domain_outcome_observations=evidence.domain_outcome_observations,
     )
     fixture_status = evaluate_fixture_status(evidence.fixture_failure)
-    execution_status = evaluate_execution_status(evidence.execution_failure)
+    execution_status = evaluate_domain_outcomes(
+        request.case.expectation.domain_outcome_expectations,
+        observation,
+        execution_failure=evidence.execution_failure,
+    )
     components: tuple[ComponentResult, ...] = (
         evaluate_tool_selection(request.case.expectation.tool_constraints, observation),
         evaluate_graham_method_selection(request.case.expectation.graham_method_constraints, observation),
@@ -302,55 +309,63 @@ async def _execute(request: DeterministicCaseRequest, *, executed_at: datetime) 
         )
     except FixtureCompositionError as exc:
         return _ExecutionEvidence(
-            (),
-            {"success": False, "stage": "fixture_composition"},
+            numerical_observations=(),
+            domain_outcome_observations=(),
+            tool_result_summary={"success": False, "stage": "fixture_composition"},
             fixture_failure=str(exc),
         )
     except Exception as exc:
         return _ExecutionEvidence(
-            (),
-            {"success": False, "stage": "production_dispatch", "error_type": type(exc).__name__},
+            numerical_observations=(),
+            domain_outcome_observations=(),
+            tool_result_summary={
+                "success": False,
+                "stage": "production_dispatch",
+                "error_type": type(exc).__name__,
+            },
             execution_failure=f"Production dispatch raised {type(exc).__name__}: {exc}",
         )
 
     if not dispatch_result.success:
         return _ExecutionEvidence(
-            (),
-            {"success": False, "stage": "production_handler"},
+            numerical_observations=(),
+            domain_outcome_observations=(),
+            tool_result_summary={"success": False, "stage": "production_handler"},
             execution_failure=dispatch_result.error_message or "Production dispatch failed without an error message.",
         )
     try:
         native_result = _native_result(dispatch_result)
     except TypeError as exc:
         return _ExecutionEvidence(
-            (),
-            {"success": False, "stage": "result_contract"},
+            numerical_observations=(),
+            domain_outcome_observations=(),
+            tool_result_summary={"success": False, "stage": "result_contract"},
             execution_failure=str(exc),
         )
-    fixture_failure, execution_failure = _status_failures(native_result)
     try:
         numerical = _numerical_observations(request.case, native_result)
+        domain_outcomes = _domain_outcome_observations(request.case, native_result)
     except (TypeError, ValueError) as exc:
         return _ExecutionEvidence(
-            (),
-            {
+            numerical_observations=(),
+            domain_outcome_observations=(),
+            tool_result_summary={
                 "success": False,
                 "stage": "result_extraction",
                 "result_type": type(native_result).__name__,
             },
-            fixture_failure=fixture_failure,
             execution_failure=f"Structured result extraction failed: {exc}",
         )
     return _ExecutionEvidence(
-        numerical,
-        {
+        numerical_observations=numerical,
+        domain_outcome_observations=domain_outcomes,
+        tool_result_summary={
             "success": True,
             "result_type": type(native_result).__name__,
             "calculation_status": _native_status(native_result),
             "numerical_observations": [observation.model_dump(mode="json") for observation in numerical],
+            "domain_outcome_observations": [observation.model_dump(mode="json") for observation in domain_outcomes],
         },
-        fixture_failure=fixture_failure,
-        execution_failure=execution_failure,
     )
 
 
@@ -360,26 +375,6 @@ def _native_result(dispatch_result: ToolCallResult) -> NativeAnalysisResult:
     if isinstance(result, (MomentumRun, GrahamNumberAnalysis, GrahamGrowthAnalysis, FCFEarningsGrowthResult)):
         return result
     raise TypeError(f"Production dispatcher returned unsupported result type {type(result).__name__!r}.")
-
-
-def _status_failures(result: NativeAnalysisResult) -> tuple[str | None, str | None]:
-    """Classify native provider/data outcomes separately from execution failures."""
-    status: CalculationStatus | None
-    reason: str | None
-    if isinstance(result, MomentumRun):
-        return None, None
-    if isinstance(result, (GrahamNumberAnalysis, GrahamGrowthAnalysis)):
-        status = result.result.status
-        reason = result.result.reason
-    else:
-        status = result.execution_status
-        reason = result.classification_reason
-
-    if status in (CalculationStatus.INPUT_UNAVAILABLE, CalculationStatus.PROVIDER_ERROR):
-        return reason or f"Fixture/data resolution returned {status.value}.", None
-    if status is CalculationStatus.INVALID_INPUT:
-        return None, reason or "Production analysis returned invalid_input."
-    return None, None
 
 
 def _native_status(result: NativeAnalysisResult) -> str | None:
@@ -407,16 +402,41 @@ def _numerical_observations(case: Case, result: NativeAnalysisResult) -> tuple[N
     return tuple(observations)
 
 
+def _domain_outcome_observations(
+    case: Case,
+    result: NativeAnalysisResult,
+) -> tuple[DomainOutcomeObservation, ...]:
+    """Extract only explicitly expected scalar native-result outcome fields."""
+    observations: list[DomainOutcomeObservation] = []
+    for expectation in case.expectation.domain_outcome_expectations:
+        found, value = _resolved_field_value(result, expectation.field_path)
+        if not found:
+            continue
+        if isinstance(value, Enum):
+            value = value.value
+        if value is not None and not isinstance(value, (str, bool, int)):
+            raise TypeError(f"{expectation.field_path!r} is not a supported domain-outcome field")
+        observations.append(DomainOutcomeObservation(field_path=expectation.field_path, value=value))
+    return tuple(observations)
+
+
 def _field_value(result: NativeAnalysisResult, field_path: str) -> object | None:
     """Resolve one reviewed dotted field path from a native typed result."""
+    found, value = _resolved_field_value(result, field_path)
+    return value if found else None
+
+
+def _resolved_field_value(result: NativeAnalysisResult, field_path: str) -> tuple[bool, object | None]:
+    """Resolve one dotted field path while distinguishing missing fields from explicit nulls."""
     current: object = result
-    for segment in field_path.split("."):
+    segments = field_path.split(".")
+    for index, segment in enumerate(segments):
         if not hasattr(current, segment):
-            return None
+            return False, None
         current = getattr(current, segment)
         if current is None:
-            return None
-    return current
+            return index == len(segments) - 1, None
+    return True, current
 
 
 def _tool_name(arguments: AnalysisToolArguments) -> ToolName:

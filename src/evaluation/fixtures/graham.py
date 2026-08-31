@@ -19,6 +19,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Final
 
+from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from src.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -26,7 +27,7 @@ from src.data.financial.facts import (
     FinancialUnit,
     ProviderFact,
 )
-from src.data.financial.provenance import FinancialSubjectKind
+from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 
 # ---------------------------------------------------------------------------
 # Synthetic identity constants (NOT production mappings)
@@ -109,6 +110,38 @@ GOLDEN_BASELINE_AAA_YIELD: Final = 4.4
 GOLDEN_PRECEDENCE_EPS_OVERRIDE: Final = 5.0
 GOLDEN_PRECEDENCE_BVPS_CACHE: Final = 20.0
 GOLDEN_HISTORICAL_AS_OF: Final = datetime(2024, 8, 1, 12, 0, tzinfo=UTC)
+
+
+def precedence_bvps_cache() -> InMemoryResolvedInputCache:
+    """Build the explicit reviewed cache evidence used by Golden case GRN-04."""
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
+    cached_bvps = ResolvedInput(
+        field_name=FinancialField.BVPS,
+        value=GOLDEN_PRECEDENCE_BVPS_CACHE,
+        source_kind=SourceKind.PROVIDER,
+        resolved_at=NOW,
+        units="currency_per_share",
+        currency=CURRENCY,
+        provider_id=PROVIDER_ID,
+        provider_field=FIELD_BVPS,
+        available_at=BVPS_AVAIL,
+        as_of=NOW,
+        retrieved_at=RETRIEVED_AT,
+    )
+    cache.put(
+        ResolvedInputCacheKey(
+            subject_kind=FinancialSubjectKind.SECURITY,
+            subject_id=SECURITY_ID,
+            field_name=FinancialField.BVPS,
+            basis=None,
+            provider_id=PROVIDER_ID,
+            analysis_as_of=NOW,
+            schema_version=1,
+        ),
+        cached_bvps,
+    )
+    return cache
+
 
 # ---------------------------------------------------------------------------
 # Adverse-case subject IDs

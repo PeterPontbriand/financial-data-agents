@@ -9,13 +9,18 @@ import pytest
 
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent, TrajectoryEventType
-from src.evaluation.composition import KNOWN_ETF_PROFILE_FIXTURE_ID, MOMENTUM_SUCCESS_FIXTURE_ID
+from src.evaluation.composition import (
+    KNOWN_ETF_PROFILE_FIXTURE_ID,
+    MOMENTUM_BOUNDARY_FIXTURE_ID,
+    MOMENTUM_SUCCESS_FIXTURE_ID,
+)
 from src.evaluation.fixtures.market_data import MOMENTUM_LONG_WINDOW, MOMENTUM_RSI_PERIOD, MOMENTUM_SHORT_WINDOW
 from src.evaluation.models import (
     Case,
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
+    DomainOutcomeExpectation,
     Expectation,
     NumericalExpectation,
     ToolConstraints,
@@ -230,6 +235,35 @@ async def test_fixture_composition_failure_is_reported_separately() -> None:
     assert any(event.event_type is TrajectoryEventType.ERROR for event in sink.events)
     tool_result = next(event for event in sink.events if event.event_type is TrajectoryEventType.TOOL_RESULT)
     assert tool_result.tool_result_summary == {"success": False, "stage": "fixture_composition"}
+
+
+@pytest.mark.asyncio
+async def test_domain_outcome_path_through_null_intermediate_is_missing() -> None:
+    """A null parent does not manufacture a present nested-null outcome."""
+    base_case = _momentum_case(MOMENTUM_BOUNDARY_FIXTURE_ID)
+    expectation = base_case.expectation.model_copy(
+        update={
+            "domain_outcome_expectations": (
+                DomainOutcomeExpectation(field_path="metrics.long_sma_val.impossible", expected_value=None),
+            )
+        }
+    )
+    request = DeterministicCaseRequest(
+        case=base_case.model_copy(update={"expectation": expectation}),
+        arguments=MomentumToolArguments(
+            ticker="mom",
+            short_window=MOMENTUM_SHORT_WINDOW,
+            long_window=MOMENTUM_LONG_WINDOW,
+            rsi_period=MOMENTUM_RSI_PERIOD,
+        ),
+    )
+
+    report = await _run(_recorder(RecordingSink()), request)
+
+    execution = _component(report, ComponentKind.EXECUTION_STATUS)
+    assert execution.outcome is ComponentOutcome.FAIL
+    assert execution.failure_reason is not None
+    assert "missing metrics.long_sma_val.impossible" in execution.failure_reason
 
 
 @pytest.mark.asyncio

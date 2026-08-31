@@ -18,7 +18,13 @@ from src.analysis.fcf_earnings_growth.models import (
 from src.core.analysis_status import CalculationStatus
 from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.models import TrajectoryEvent
-from src.evaluation.cases.fcf_earnings_growth import FCF_01, FCF_02, FCF_03, FCF_EARNINGS_GROWTH_CASES
+from src.evaluation.cases.fcf_earnings_growth import (
+    FCF_01,
+    FCF_02,
+    FCF_03,
+    FCF_EARNINGS_GROWTH_CASES,
+    FCF_ETF_01,
+)
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.evaluator import evaluate_tool_selection
 from src.evaluation.fixtures.fcf_earnings_growth import FCF_GROWTH_HISTORICAL_AS_OF
@@ -63,7 +69,7 @@ def _recorder() -> TrajectoryRecorder:
 def _arguments(case: Case) -> FCFEarningsGrowthToolArguments:
     """Build the reviewed arguments for one FCF case."""
     return FCFEarningsGrowthToolArguments(
-        ticker="ACME",
+        ticker="FLSW" if case.case_id == "FCF-ETF-01" else "ACME",
         historical_horizon=(
             HistoricalHorizon.FOUR_YEARS if case.case_id == "FCF-03" else HistoricalHorizon.LONGEST_AVAILABLE
         ),
@@ -76,13 +82,19 @@ def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentRe
     return next(component for component in result.components if component.kind is kind)
 
 
-def test_reviewed_fcf_catalog_contains_only_the_three_g4_cases() -> None:
+def test_reviewed_fcf_catalog_contains_the_corrected_minimum_cases() -> None:
     """Catalog IDs, fixtures, tool constraints, signals, and truth are explicit."""
-    assert tuple(case.case_id for case in FCF_EARNINGS_GROWTH_CASES) == ("FCF-01", "FCF-02", "FCF-03")
+    assert tuple(case.case_id for case in FCF_EARNINGS_GROWTH_CASES) == (
+        "FCF-01",
+        "FCF-02",
+        "FCF-03",
+        "FCF-ETF-01",
+    )
     assert tuple(case.fixture_ids for case in FCF_EARNINGS_GROWTH_CASES) == (
         ("fcf_growth_success",),
         ("fcf_growth_nonmeaningful",),
         ("fcf_growth_period_as_of",),
+        ("known_etf_profile",),
     )
     assert all(
         case.expectation.tool_constraints.permitted == (ToolName.ANALYZE_FCF_EARNINGS_GROWTH,)
@@ -128,7 +140,7 @@ def test_fcf_case_discriminates_momentum_tool_selection() -> None:
 
 @pytest.mark.asyncio
 async def test_reviewed_fcf_cases_run_deterministically_with_expected_boundary_category() -> None:
-    """The two complete cases pass and the historical boundary reports its expected failure category."""
+    """All four cases pass when their exact native domain outcomes match."""
     report = await run_deterministic_suite(
         tuple(DeterministicCaseRequest(case=case, arguments=_arguments(case)) for case in FCF_EARNINGS_GROWTH_CASES),
         suite_id="step-2.5-fcf-g4",
@@ -138,14 +150,20 @@ async def test_reviewed_fcf_cases_run_deterministically_with_expected_boundary_c
         recorder=_recorder(),
     )
 
-    assert report.total_cases == 3
-    assert report.passed_cases == 2
-    assert report.failed_cases == 1
-    assert tuple(result.case_id for result in report.case_results) == ("FCF-01", "FCF-02", "FCF-03")
-    assert all(result.outcome is CaseOutcome.PASS for result in report.case_results[:2])
+    assert report.total_cases == 4
+    assert report.passed_cases == 4
+    assert report.failed_cases == 0
+    assert tuple(result.case_id for result in report.case_results) == (
+        "FCF-01",
+        "FCF-02",
+        "FCF-03",
+        "FCF-ETF-01",
+    )
+    assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)
     boundary = report.case_results[2]
-    assert boundary.outcome is CaseOutcome.FAIL
-    assert _component(boundary, ComponentKind.FIXTURE_STATUS).outcome is ComponentOutcome.FAIL
+    assert boundary.outcome is CaseOutcome.PASS
+    assert _component(boundary, ComponentKind.FIXTURE_STATUS).outcome is ComponentOutcome.PASS
+    assert _component(boundary, ComponentKind.EXECUTION_STATUS).outcome is ComponentOutcome.PASS
     assert _component(boundary, ComponentKind.NUMERICAL_CORRECTNESS).outcome is ComponentOutcome.NOT_APPLICABLE
 
 
@@ -200,3 +218,20 @@ async def test_reviewed_fcf_native_outputs_match_dossier(case: Case) -> None:
         assert result.classification is Classification.INDETERMINATE
         assert result.trend_classification is TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH
         assert result.classification_reason_code is ReasonCode.NON_CONTIGUOUS_HISTORY
+
+
+@pytest.mark.asyncio
+async def test_reviewed_fcf_etf_native_outcome_is_not_applicable() -> None:
+    """The ETF case completes normally without requesting company facts."""
+    dispatch_result = await dispatch_fixture_case(FCF_ETF_01, _arguments(FCF_ETF_01), clock_at=EXECUTED_AT)
+    assert isinstance(dispatch_result.result, FCFEarningsGrowthResult)
+    result = dispatch_result.result
+
+    assert result.execution_status is CalculationStatus.NOT_APPLICABLE
+    assert result.selected_horizon_years is None
+    assert result.selected_observation_count == 0
+    assert result.fcf_cagr.status is MetricStatus.NOT_APPLICABLE
+    assert result.fcf_per_share_cagr.status is MetricStatus.NOT_APPLICABLE
+    assert result.eps_cagr.status is MetricStatus.NOT_APPLICABLE
+    assert result.classification is Classification.INDETERMINATE
+    assert result.classification_reason_code is ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE

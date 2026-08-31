@@ -25,6 +25,7 @@ from src.evaluation.fixtures.graham import (
     GOLDEN_GROWTH_BASE_PE,
     GOLDEN_GROWTH_MULTIPLIER,
     FixtureFinancialFactsProvider,
+    precedence_bvps_cache,
 )
 from src.evaluation.fixtures.graham import (
     PROVIDER_ID as GRAHAM_PROVIDER_ID,
@@ -51,6 +52,7 @@ from src.orchestrator.types import ToolCallRequest, ToolCallResult
 MOMENTUM_SUCCESS_FIXTURE_ID: Final = "momentum_success"
 MOMENTUM_BOUNDARY_FIXTURE_ID: Final = "momentum_boundary"
 GRAHAM_FACTS_FIXTURE_ID: Final = "graham_facts"
+GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
 FCF_GROWTH_SUCCESS_FIXTURE_ID: Final = "fcf_growth_success"
 FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID: Final = "fcf_growth_nonmeaningful"
 FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID: Final = "fcf_growth_period_as_of"
@@ -61,6 +63,7 @@ SUPPORTED_FIXTURE_IDS: Final = frozenset(
         MOMENTUM_SUCCESS_FIXTURE_ID,
         MOMENTUM_BOUNDARY_FIXTURE_ID,
         GRAHAM_FACTS_FIXTURE_ID,
+        GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID,
         FCF_GROWTH_SUCCESS_FIXTURE_ID,
         FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
         FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
@@ -145,7 +148,8 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
         if GRAHAM_FACTS_FIXTURE_ID in fixture_ids
         else _UnavailableFinancialFactsProvider()
     )
-    graham_resolver = GrahamInputResolver(provider=graham_provider, clock=lambda: clock_at)
+    graham_cache = precedence_bvps_cache() if GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID in fixture_ids else None
+    graham_resolver = GrahamInputResolver(provider=graham_provider, cache=graham_cache, clock=lambda: clock_at)
 
     annual_facts = _annual_facts(fcf_fixture_id)
     annual_provider = FixtureAnnualFinancialFactsProvider(

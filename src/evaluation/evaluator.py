@@ -7,6 +7,7 @@ from src.evaluation.models import (
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
+    DomainOutcomeExpectation,
     ExecutionMode,
     GrahamMethod,
     GrahamMethodConstraints,
@@ -189,6 +190,44 @@ def evaluate_fixture_status(failure_reason: str | None = None) -> ComponentResul
 def evaluate_execution_status(failure_reason: str | None = None) -> ComponentResult:
     """Classify non-fixture execution readiness separately from numerical output."""
     return _evaluate_status(ComponentKind.EXECUTION_STATUS, failure_reason)
+
+
+def evaluate_domain_outcomes(
+    expectations: tuple[DomainOutcomeExpectation, ...],
+    observation: Observation,
+    *,
+    execution_failure: str | None = None,
+) -> ComponentResult:
+    """Evaluate exact native-result outcomes without treating them as infrastructure failures."""
+    if execution_failure is not None:
+        return evaluate_execution_status(execution_failure)
+    if not expectations:
+        return ComponentResult(
+            kind=ComponentKind.EXECUTION_STATUS,
+            outcome=ComponentOutcome.PASS,
+            evidence="Execution completed; this case defines no exact domain-outcome expectations.",
+        )
+
+    observed_by_path = {item.field_path: item.value for item in observation.domain_outcome_observations}
+    failures: list[str] = []
+    for expectation in expectations:
+        if expectation.field_path not in observed_by_path:
+            failures.append(f"missing {expectation.field_path}")
+            continue
+        observed = observed_by_path[expectation.field_path]
+        if observed != expectation.expected_value:
+            failures.append(f"{expectation.field_path}: observed {observed!r}, expected {expectation.expected_value!r}")
+    if failures:
+        return ComponentResult(
+            kind=ComponentKind.EXECUTION_STATUS,
+            outcome=ComponentOutcome.FAIL,
+            failure_reason="Domain-outcome comparison failed: " + "; ".join(failures) + ".",
+        )
+    return ComponentResult(
+        kind=ComponentKind.EXECUTION_STATUS,
+        outcome=ComponentOutcome.PASS,
+        evidence=f"All {len(expectations)} exact domain-outcome expectations matched.",
+    )
 
 
 def _require_upstream_status(result: ComponentResult, kind: ComponentKind) -> None:

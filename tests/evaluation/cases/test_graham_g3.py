@@ -15,7 +15,7 @@ from src.core.telemetry.models import TrajectoryEvent
 from src.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from src.data.financial.facts import FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
-from src.evaluation.cases.graham_growth import GRG_01
+from src.evaluation.cases.graham_growth import GRG_01, GRG_ETF_01
 from src.evaluation.cases.graham_resolution import GRN_04, GRN_05
 from src.evaluation.composition import dispatch_fixture_case
 from src.evaluation.fixtures.graham import (
@@ -57,10 +57,10 @@ def _recorder() -> TrajectoryRecorder:
     return TrajectoryRecorder(RunContext(run_id=RUN_ID, session_id=SESSION_ID), RecordingSink())
 
 
-def _growth_arguments() -> GrahamGrowthValueToolArguments:
+def _growth_arguments(case: Case = GRG_01) -> GrahamGrowthValueToolArguments:
     """Build the exact reviewed GRG-01 arguments."""
     return GrahamGrowthValueToolArguments(
-        ticker=SECURITY_ID,
+        ticker="FLSW" if case.case_id == "GRG-ETF-01" else SECURITY_ID,
         eps_basis="ttm",
         expected_growth=6.5,
         current_aaa_yield=4.15,
@@ -113,6 +113,7 @@ def _seeded_precedence_resolver() -> GrahamInputResolver:
     ("case", "tool", "method"),
     [
         (GRG_01, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE, GrahamMethod.GRAHAM_GROWTH_VALUE),
+        (GRG_ETF_01, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE, GrahamMethod.GRAHAM_GROWTH_VALUE),
         (GRN_04, ToolName.ANALYZE_GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER),
         (GRN_05, ToolName.ANALYZE_GRAHAM_NUMBER, GrahamMethod.GRAHAM_NUMBER),
     ],
@@ -128,7 +129,12 @@ def test_reviewed_g3_catalog_constraints_and_expectations_are_explicit(
     assert case.expectation.graham_method_constraints.permitted == (method,)
     assert case.expectation.graham_method_constraints.required == (method,)
     assert case.task
-    assert case.fixture_ids == ("graham_facts",)
+    if case.case_id == "GRG-ETF-01":
+        assert case.fixture_ids == ("known_etf_profile",)
+    elif case.case_id == "GRN-04":
+        assert case.fixture_ids == ("graham_facts", "graham_precedence_cache")
+    else:
+        assert case.fixture_ids == ("graham_facts",)
 
     if case.case_id == "GRG-01":
         values = {item.field_path: item.expected_value for item in case.expectation.numerical_expectations}
@@ -138,8 +144,10 @@ def test_reviewed_g3_catalog_constraints_and_expectations_are_explicit(
         values = {item.field_path: item.expected_value for item in case.expectation.numerical_expectations}
         assert values["result.maximum_indicated_price"] == 47.43416490252569
         assert values["margin_of_safety_percent"] == -10.258081084537493
-    else:
+    elif case.case_id == "GRN-05":
         assert case.expectation.numerical_expectations == ()
+    else:
+        assert case.expectation.domain_outcome_expectations
 
 
 @pytest.mark.asyncio

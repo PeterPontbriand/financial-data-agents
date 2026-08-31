@@ -3,8 +3,9 @@
 **Review date:** 2026-08-31<br/>
 **Checkpoint:** `4d08b1273fe3e226f69b3a47e9680e9e70d001eb` on `feat/step-2.5-golden-suite`<br/>
 **Repository state at review start:** clean; checkpoint already pushed<br/>
-**Decision:** **Gate M not approved; mandatory bounded Slice H correction required**<br/>
-**Change restriction:** documentation only until the next human-approved checkpoint
+**Original decision:** **Gate M not approved; mandatory bounded Slice H correction required**<br/>
+**Re-entry status:** Slice H is implemented in the uncommitted working tree based on documentation checkpoint `dfc3182c3460ff38f8e75365d62cace2833ec448`; human Gate M decision pending<br/>
+**Current restriction:** stop at Gate M; do not commit or begin later slices without human direction
 
 ## 1. Purpose and review boundary
 
@@ -196,3 +197,34 @@ Gate M may be reconsidered only when all of the following evidence is available:
 
 The next decision is another human Gate M review. Gate M approval would authorize
 the next selected slice; it would not by itself mark Step 2.5 complete.
+
+## 7. Slice H re-entry evidence
+
+Slice H was explicitly authorized after the documentation checkpoint was
+accepted. The correction stayed within the approved boundary: no production
+financial formulas, public CLI, real-local-Ollama path, live-provider behavior,
+or dependency metadata changed.
+
+| Re-entry criterion | Result | Evidence |
+| :--- | :--- | :--- |
+| Strict typing and complete repository gate | Pass | Repository wrapper: Ruff check pass; 216 files formatted; strict mypy pass across 176 source files; 1,207 pytest tests pass; 87% line coverage. |
+| Canonical deterministic report | Pass | Suite `step-2.5-golden-minimum`, suite version `h1-v2`, fixture-set version `step-2.5-h1-v2`; 15 executed, 15 passed, 0 failed; overall pass rate 100%. |
+| Honest strategy-selection measurement | Pass | All 15 strategy-selection observations are `not_measured`; measured/applicable denominator is 0 and pass rate is null. |
+| Exact native domain outcomes | Pass | Execution-status component: 15/15; fixture-status component: 15/15. Correct expected `input_unavailable` and `not_applicable` results pass only when their exact typed status/reason/classification contracts match. |
+| Mutation sensitivity | Pass | Four regressions mutate execution status, applicability reason, classification, and ETF execution status; each produces a case failure classified under `execution_status`. |
+| ETF applicability matrix | Pass | `MOM-ETF-01`, `GRA-ETF-01`, `GRG-ETF-01`, and `FCF-ETF-01` exercise the four approved routes against the reviewed ETF profile boundary. |
+| Honest component denominators | Pass | Numerical correctness: 10 measured passes and 5 not applicable; Graham method selection: 7 not applicable and 8 not measured; no unobserved component is counted as a pass. |
+| Network/model isolation | Pass | Canonical execution used only injected deterministic fixtures and direct registered tool dispatch; no live provider or LLM call occurred. |
+
+One additional canonical-execution defect was corrected inside the approved
+harness scope: `GRN-04` previously depended on cache evidence created only by an
+individual test. Slice H moved that deterministic evidence into an explicit
+fixture-composition input so the canonical request builder can reproduce the
+reviewed precedence outcome without mutable or production cache state.
+
+The domain-path extractor also distinguishes an explicitly expected terminal
+null from a missing nested field below a null parent; an integration regression
+prevents those two outcomes from collapsing into the same observation.
+
+The re-entry evidence closes the demonstrated Slice H defects, but it is not a
+self-approval. Work remains stopped at Gate M pending human review.

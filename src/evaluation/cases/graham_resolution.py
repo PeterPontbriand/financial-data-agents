@@ -2,9 +2,10 @@
 
 from typing import Final
 
-from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID
+from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID
 from src.evaluation.models import (
     Case,
+    DomainOutcomeExpectation,
     Expectation,
     GrahamMethod,
     GrahamMethodConstraints,
@@ -33,7 +34,7 @@ GRN_04: Final = Case(
         "Analyze SYNTH with Graham Number at as_of 2025-07-01T12:00:00Z using EPS override 5.00, cached BVPS "
         "20.00, and the provider current price."
     ),
-    fixture_ids=(GRAHAM_FACTS_FIXTURE_ID,),
+    fixture_ids=(GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID),
     expectation=Expectation(
         tool_constraints=_NUMBER_TOOL_CONSTRAINTS,
         graham_method_constraints=_NUMBER_METHOD_CONSTRAINTS,
@@ -65,6 +66,15 @@ GRN_05: Final = Case(
     expectation=Expectation(
         tool_constraints=_NUMBER_TOOL_CONSTRAINTS,
         graham_method_constraints=_NUMBER_METHOD_CONSTRAINTS,
+        domain_outcome_expectations=(
+            DomainOutcomeExpectation(field_path="assembly.bvps", expected_value=None),
+            DomainOutcomeExpectation(field_path="assembly.current_price", expected_value=None),
+            DomainOutcomeExpectation(field_path="assembly.eps", expected_value=None),
+            DomainOutcomeExpectation(field_path="assembly.status", expected_value="input_unavailable"),
+            DomainOutcomeExpectation(field_path="margin_of_safety_percent", expected_value=None),
+            DomainOutcomeExpectation(field_path="result.maximum_indicated_price", expected_value=None),
+            DomainOutcomeExpectation(field_path="result.status", expected_value="input_unavailable"),
+        ),
     ),
     tags=("as_of", "graham_number", "input_unavailable", "resolution"),
 )

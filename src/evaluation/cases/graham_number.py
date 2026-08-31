@@ -5,6 +5,7 @@ from typing import Final
 from src.evaluation.composition import GRAHAM_FACTS_FIXTURE_ID, KNOWN_ETF_PROFILE_FIXTURE_ID
 from src.evaluation.models import (
     Case,
+    DomainOutcomeExpectation,
     Expectation,
     GrahamMethod,
     GrahamMethodConstraints,
@@ -100,6 +101,19 @@ GRA_ETF_01: Final = Case(
     expectation=Expectation(
         tool_constraints=_GRAHAM_NUMBER_TOOL_CONSTRAINTS,
         graham_method_constraints=_GRAHAM_NUMBER_METHOD_CONSTRAINTS,
+        domain_outcome_expectations=(
+            DomainOutcomeExpectation(field_path="assembly.status", expected_value="not_applicable"),
+            DomainOutcomeExpectation(field_path="margin_of_safety_percent", expected_value=None),
+            DomainOutcomeExpectation(field_path="result.maximum_indicated_price", expected_value=None),
+            DomainOutcomeExpectation(
+                field_path="result.reason",
+                expected_value=(
+                    "Graham Number is a company-level valuation method and does not apply directly to an ETF. "
+                    "No constituent-level or aggregate ETF valuation was performed."
+                ),
+            ),
+            DomainOutcomeExpectation(field_path="result.status", expected_value="not_applicable"),
+        ),
     ),
     tags=("graham_number", "not_applicable", "etf"),
 )

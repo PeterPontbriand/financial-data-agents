@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 
 
 class ExecutionMode(StrEnum):
@@ -176,6 +176,27 @@ class NumericalExpectation(BaseModel):
         return self
 
 
+DomainScalar = StrictStr | StrictBool | StrictInt | None
+
+
+class DomainOutcomeExpectation(BaseModel):
+    """Immutable exact expectation for one nonnumerical native-result field."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    field_path: str
+    expected_value: DomainScalar
+
+    @field_validator("field_path")
+    @classmethod
+    def validate_field_path(cls, value: str) -> str:
+        """Return a normalized, nonblank native-result field path."""
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field_path must not be blank")
+        return normalized
+
+
 class Expectation(BaseModel):
     """Immutable expected selection, behavior, and numerical evidence for one case."""
 
@@ -185,6 +206,7 @@ class Expectation(BaseModel):
     graham_method_constraints: GrahamMethodConstraints = Field(default_factory=GrahamMethodConstraints)
     behavior_constraints: BehaviorConstraints = Field(default_factory=BehaviorConstraints)
     numerical_expectations: tuple[NumericalExpectation, ...] = ()
+    domain_outcome_expectations: tuple[DomainOutcomeExpectation, ...] = ()
 
     @field_validator("numerical_expectations")
     @classmethod
@@ -192,10 +214,22 @@ class Expectation(BaseModel):
         cls,
         values: tuple[NumericalExpectation, ...],
     ) -> tuple[NumericalExpectation, ...]:
-        """Reject duplicate field paths and return deterministic path order."""
+        """Reject duplicate numerical paths and return deterministic path order."""
         field_paths = tuple(value.field_path for value in values)
         if len(field_paths) != len(set(field_paths)):
             raise ValueError("numerical expectation field paths must be unique")
+        return tuple(sorted(values, key=lambda value: value.field_path))
+
+    @field_validator("domain_outcome_expectations")
+    @classmethod
+    def validate_domain_outcome_paths(
+        cls,
+        values: tuple[DomainOutcomeExpectation, ...],
+    ) -> tuple[DomainOutcomeExpectation, ...]:
+        """Reject duplicate domain-outcome paths and return deterministic path order."""
+        field_paths = tuple(value.field_path for value in values)
+        if len(field_paths) != len(set(field_paths)):
+            raise ValueError("domain-outcome expectation field paths must be unique")
         return tuple(sorted(values, key=lambda value: value.field_path))
 
 
@@ -279,6 +313,24 @@ class NumericalObservation(BaseModel):
         return normalized
 
 
+class DomainOutcomeObservation(BaseModel):
+    """Raw exact nonnumerical observation addressed by native-result field path."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    field_path: str
+    value: DomainScalar
+
+    @field_validator("field_path")
+    @classmethod
+    def validate_field_path(cls, value: str) -> str:
+        """Return a normalized, nonblank native-result field path."""
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field_path must not be blank")
+        return normalized
+
+
 class Observation(BaseModel):
     """Immutable raw evidence observed during one case execution."""
 
@@ -289,6 +341,7 @@ class Observation(BaseModel):
     tool_calls: tuple[ToolCallObservation, ...] = ()
     graham_methods: tuple[GrahamMethodObservation, ...] = ()
     numerical_observations: tuple[NumericalObservation, ...] = ()
+    domain_outcome_observations: tuple[DomainOutcomeObservation, ...] = ()
 
     @field_validator("observed_at")
     @classmethod
@@ -308,6 +361,18 @@ class Observation(BaseModel):
         field_paths = tuple(value.field_path for value in values)
         if len(field_paths) != len(set(field_paths)):
             raise ValueError("numerical observation field paths must be unique")
+        return tuple(sorted(values, key=lambda value: value.field_path))
+
+    @field_validator("domain_outcome_observations")
+    @classmethod
+    def validate_domain_outcome_paths(
+        cls,
+        values: tuple[DomainOutcomeObservation, ...],
+    ) -> tuple[DomainOutcomeObservation, ...]:
+        """Reject duplicate domain-outcome paths and return deterministic path order."""
+        field_paths = tuple(value.field_path for value in values)
+        if len(field_paths) != len(set(field_paths)):
+            raise ValueError("domain-outcome observation field paths must be unique")
         return tuple(sorted(values, key=lambda value: value.field_path))
 
     @model_validator(mode="after")

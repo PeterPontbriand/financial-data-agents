@@ -16,6 +16,7 @@ from src.evaluation.models import (
 from src.evaluation.reporting import (
     CaseEvaluationResult,
     CaseOutcome,
+    ComponentMetric,
     EvaluationReport,
     ModelConfiguration,
     ModelSetting,
@@ -90,7 +91,7 @@ def _report(
     )
 
 
-def _metric(report: EvaluationReport, kind: ComponentKind):
+def _metric(report: EvaluationReport, kind: ComponentKind) -> ComponentMetric:
     return next(metric for metric in report.component_metrics if metric.kind is kind)
 
 
@@ -276,6 +277,7 @@ def test_real_model_configuration_is_typed_canonical_and_round_trips() -> None:
     )
     serialized = report.model_dump_json()
 
+    assert report.model_configuration is not None
     assert tuple(setting.name for setting in report.model_configuration.settings) == (
         "seed",
         "stream",

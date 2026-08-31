@@ -6,6 +6,7 @@ import pytest
 
 from src.evaluation.evaluator import (
     evaluate_behavior_constraints,
+    evaluate_domain_outcomes,
     evaluate_execution_status,
     evaluate_fixture_status,
     evaluate_graham_method_selection,
@@ -17,6 +18,8 @@ from src.evaluation.models import (
     ComponentKind,
     ComponentOutcome,
     ComponentResult,
+    DomainOutcomeExpectation,
+    DomainOutcomeObservation,
     ExecutionMode,
     GrahamMethod,
     GrahamMethodConstraints,
@@ -38,6 +41,7 @@ def _observation(
     tools: tuple[ToolName, ...] = (),
     methods: tuple[GrahamMethod, ...] = (),
     numbers: tuple[tuple[str, float], ...] = (),
+    domain_outcomes: tuple[tuple[str, str | bool | int | None], ...] = (),
 ) -> Observation:
     return Observation(
         execution_mode=mode,
@@ -47,11 +51,71 @@ def _observation(
         numerical_observations=tuple(
             NumericalObservation(field_path=field_path, value=value) for field_path, value in numbers
         ),
+        domain_outcome_observations=tuple(
+            DomainOutcomeObservation(field_path=field_path, value=value) for field_path, value in domain_outcomes
+        ),
     )
 
 
 def _pass_statuses() -> tuple[ComponentResult, ComponentResult]:
     return evaluate_fixture_status(), evaluate_execution_status()
+
+
+def test_domain_outcomes_match_exact_status_reason_and_null_values() -> None:
+    """Expected non-success native outcomes pass without becoming fixture failures."""
+    expectations = (
+        DomainOutcomeExpectation(field_path="result.status", expected_value="input_unavailable"),
+        DomainOutcomeExpectation(field_path="result.reason_code", expected_value="non_contiguous_history"),
+        DomainOutcomeExpectation(field_path="result.value", expected_value=None),
+    )
+    observation = _observation(
+        mode=ExecutionMode.DETERMINISTIC_NO_LLM,
+        domain_outcomes=(
+            ("result.status", "input_unavailable"),
+            ("result.reason_code", "non_contiguous_history"),
+            ("result.value", None),
+        ),
+    )
+
+    result = evaluate_domain_outcomes(expectations, observation)
+
+    assert result.kind is ComponentKind.EXECUTION_STATUS
+    assert result.outcome is ComponentOutcome.PASS
+    assert result.evidence == "All 3 exact domain-outcome expectations matched."
+
+
+@pytest.mark.parametrize(
+    ("observed", "reason_fragment"),
+    [
+        ((("result.status", "ok"),), "observed 'ok', expected 'not_applicable'"),
+        ((), "missing result.status"),
+    ],
+)
+def test_domain_outcomes_detect_mismatch_and_missing_fields(
+    observed: tuple[tuple[str, str], ...],
+    reason_fragment: str,
+) -> None:
+    """A mutated or absent native outcome fails the execution-status component."""
+    result = evaluate_domain_outcomes(
+        (DomainOutcomeExpectation(field_path="result.status", expected_value="not_applicable"),),
+        _observation(mode=ExecutionMode.DETERMINISTIC_NO_LLM, domain_outcomes=observed),
+    )
+
+    assert result.outcome is ComponentOutcome.FAIL
+    assert result.failure_reason is not None
+    assert reason_fragment in result.failure_reason
+
+
+def test_domain_outcome_evaluation_preserves_infrastructure_execution_failure() -> None:
+    """A dispatch exception remains distinct from a domain-outcome mismatch."""
+    result = evaluate_domain_outcomes(
+        (DomainOutcomeExpectation(field_path="result.status", expected_value="ok"),),
+        _observation(mode=ExecutionMode.DETERMINISTIC_NO_LLM),
+        execution_failure="Production dispatch raised RuntimeError.",
+    )
+
+    assert result.outcome is ComponentOutcome.FAIL
+    assert result.failure_reason == "Production dispatch raised RuntimeError."
 
 
 def _numerical(
@@ -72,8 +136,8 @@ def _numerical(
 
 def test_deterministic_tool_selection_is_not_measured() -> None:
     constraints = ToolConstraints(
-        permitted=[ToolName.ANALYZE_MOMENTUM],
-        required=[ToolName.ANALYZE_MOMENTUM],
+        permitted=(ToolName.ANALYZE_MOMENTUM,),
+        required=(ToolName.ANALYZE_MOMENTUM,),
     )
 
     result = evaluate_tool_selection(
@@ -89,8 +153,8 @@ def test_deterministic_tool_selection_is_not_measured() -> None:
 
 def test_deterministic_graham_method_selection_is_not_measured_when_applicable() -> None:
     constraints = GrahamMethodConstraints(
-        permitted=[GrahamMethod.GRAHAM_NUMBER],
-        required=[GrahamMethod.GRAHAM_NUMBER],
+        permitted=(GrahamMethod.GRAHAM_NUMBER,),
+        required=(GrahamMethod.GRAHAM_NUMBER,),
     )
 
     result = evaluate_graham_method_selection(
@@ -120,10 +184,10 @@ def test_tool_selection_is_not_applicable_without_constraints() -> None:
 
 def test_tool_selection_accepts_one_legitimate_permitted_alternative() -> None:
     constraints = ToolConstraints(
-        permitted=[
+        permitted=(
             ToolName.ANALYZE_MOMENTUM,
             ToolName.ANALYZE_FCF_EARNINGS_GROWTH,
-        ]
+        )
     )
 
     result = evaluate_tool_selection(
@@ -136,7 +200,7 @@ def test_tool_selection_accepts_one_legitimate_permitted_alternative() -> None:
 
 def test_permitted_tool_selection_requires_an_observed_call() -> None:
     result = evaluate_tool_selection(
-        ToolConstraints(permitted=[ToolName.ANALYZE_MOMENTUM]),
+        ToolConstraints(permitted=(ToolName.ANALYZE_MOMENTUM,)),
         _observation(),
     )
 
@@ -145,7 +209,7 @@ def test_permitted_tool_selection_requires_an_observed_call() -> None:
 
 
 def test_tool_selection_accepts_repeated_permitted_calls() -> None:
-    constraints = ToolConstraints(permitted=[ToolName.ANALYZE_MOMENTUM])
+    constraints = ToolConstraints(permitted=(ToolName.ANALYZE_MOMENTUM,))
 
     result = evaluate_tool_selection(
         constraints,
@@ -157,8 +221,8 @@ def test_tool_selection_accepts_repeated_permitted_calls() -> None:
 
 def test_tool_selection_fails_when_required_tool_is_missing() -> None:
     constraints = ToolConstraints(
-        permitted=[ToolName.ANALYZE_MOMENTUM],
-        required=[ToolName.ANALYZE_MOMENTUM],
+        permitted=(ToolName.ANALYZE_MOMENTUM,),
+        required=(ToolName.ANALYZE_MOMENTUM,),
     )
 
     result = evaluate_tool_selection(constraints, _observation())
@@ -169,7 +233,7 @@ def test_tool_selection_fails_when_required_tool_is_missing() -> None:
 
 
 def test_tool_selection_rejects_forbidden_tool() -> None:
-    constraints = ToolConstraints(forbidden=[ToolName.ANALYZE_GRAHAM_GROWTH_VALUE])
+    constraints = ToolConstraints(forbidden=(ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,))
 
     result = evaluate_tool_selection(
         constraints,
@@ -182,7 +246,7 @@ def test_tool_selection_rejects_forbidden_tool() -> None:
 
 
 def test_tool_selection_rejects_unpermitted_tool() -> None:
-    constraints = ToolConstraints(permitted=[ToolName.ANALYZE_MOMENTUM])
+    constraints = ToolConstraints(permitted=(ToolName.ANALYZE_MOMENTUM,))
 
     result = evaluate_tool_selection(
         constraints,
@@ -201,15 +265,15 @@ def test_graham_method_failure_is_independent_of_correct_tool_selection() -> Non
     )
     tool_result = evaluate_tool_selection(
         ToolConstraints(
-            permitted=[ToolName.ANALYZE_GRAHAM_NUMBER],
-            required=[ToolName.ANALYZE_GRAHAM_NUMBER],
+            permitted=(ToolName.ANALYZE_GRAHAM_NUMBER,),
+            required=(ToolName.ANALYZE_GRAHAM_NUMBER,),
         ),
         observation,
     )
     method_result = evaluate_graham_method_selection(
         GrahamMethodConstraints(
-            permitted=[GrahamMethod.GRAHAM_NUMBER],
-            required=[GrahamMethod.GRAHAM_NUMBER],
+            permitted=(GrahamMethod.GRAHAM_NUMBER,),
+            required=(GrahamMethod.GRAHAM_NUMBER,),
         ),
         observation,
     )
@@ -222,8 +286,8 @@ def test_graham_method_failure_is_independent_of_correct_tool_selection() -> Non
 
 def test_behavior_constraints_accept_permitted_required_behavior() -> None:
     constraints = BehaviorConstraints(
-        permitted=["retain_provenance", "use_fixture_data"],
-        required=["use_fixture_data"],
+        permitted=("retain_provenance", "use_fixture_data"),
+        required=("use_fixture_data",),
     )
 
     result = evaluate_behavior_constraints(
@@ -239,14 +303,14 @@ def test_behavior_constraints_accept_permitted_required_behavior() -> None:
 @pytest.mark.parametrize(
     ("constraints", "observed", "reason_fragment"),
     [
-        (BehaviorConstraints(forbidden=["live_fallback"]), ("live_fallback",), "forbidden behaviors"),
+        (BehaviorConstraints(forbidden=("live_fallback",)), ("live_fallback",), "forbidden behaviors"),
         (
-            BehaviorConstraints(permitted=["retain_provenance"], required=["retain_provenance"]),
+            BehaviorConstraints(permitted=("retain_provenance",), required=("retain_provenance",)),
             (),
             "Missing required behaviors",
         ),
         (
-            BehaviorConstraints(permitted=["use_fixture_data"]),
+            BehaviorConstraints(permitted=("use_fixture_data",)),
             ("invent_data",),
             "unpermitted behaviors",
         ),
@@ -271,7 +335,7 @@ def test_behavior_constraint_failures_are_classified_explicitly(
 
 def test_behavior_constraints_reject_blank_observed_identifier_as_failure() -> None:
     result = evaluate_behavior_constraints(
-        BehaviorConstraints(permitted=["use_fixture_data"]),
+        BehaviorConstraints(permitted=("use_fixture_data",)),
         (" ",),
         component_kind=ComponentKind.FIXTURE_STATUS,
     )
@@ -293,7 +357,7 @@ def test_behavior_component_is_not_applicable_without_constraints() -> None:
 def test_behavior_constraints_reject_unrelated_component_category() -> None:
     with pytest.raises(ValueError, match="fixture_status or execution_status"):
         evaluate_behavior_constraints(
-            BehaviorConstraints(permitted=["use_fixture_data"]),
+            BehaviorConstraints(permitted=("use_fixture_data",)),
             ("use_fixture_data",),
             component_kind=ComponentKind.NUMERICAL_CORRECTNESS,
         )
