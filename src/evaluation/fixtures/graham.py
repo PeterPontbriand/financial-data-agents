@@ -15,7 +15,9 @@ The provider satisfies the ``FinancialFactsProvider`` protocol:
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Final
 
 from src.data.financial.facts import (
     FinancialFactRequest,
@@ -99,6 +101,15 @@ BVPS_VALUE: float = 18.50
 QUOTE_VALUE: float = 52.30
 AAA_YIELD_VALUE: float = 4.15
 
+# Golden expectation assumptions and precedence inputs
+GOLDEN_EXPECTED_GROWTH: Final = 6.5
+GOLDEN_GROWTH_BASE_PE: Final = 8.5
+GOLDEN_GROWTH_MULTIPLIER: Final = 2.0
+GOLDEN_BASELINE_AAA_YIELD: Final = 4.4
+GOLDEN_PRECEDENCE_EPS_OVERRIDE: Final = 5.0
+GOLDEN_PRECEDENCE_BVPS_CACHE: Final = 20.0
+GOLDEN_HISTORICAL_AS_OF: Final = datetime(2024, 8, 1, 12, 0, tzinfo=UTC)
+
 # ---------------------------------------------------------------------------
 # Adverse-case subject IDs
 # ---------------------------------------------------------------------------
@@ -107,6 +118,7 @@ SUBJECT_MISSING: str = "MISSING"
 SUBJECT_ERROR: str = "ERROR"
 SUBJECT_FUTURE: str = "FUTURE"
 SUBJECT_INCOMPATIBLE: str = "INCOMPATIBLE"
+SUBJECT_MISSING_QUOTE: str = "MISSING_QUOTE"
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +136,7 @@ class FixtureFinancialFactsProvider:
     - ``ERROR``: Raises ``FinancialProviderError``.
     - ``FUTURE``: Returns a fact whose ``available_at`` is after ``NOW``.
     - ``INCOMPATIBLE``: Returns a fact with a mismatched basis (coherence failure).
+    - ``MISSING_QUOTE``: Returns happy-path required facts but no current quote.
 
     All data is synthetic and deterministic. No network, filesystem, or
     wall-clock dependency.
@@ -151,8 +164,17 @@ class FixtureFinancialFactsProvider:
         if subject == SUBJECT_INCOMPATIBLE:
             return self._incompatible_fact(request)
 
+        if subject == SUBJECT_MISSING_QUOTE:
+            return self._missing_quote_facts(request)
+
         # Happy path
         return self._happy_path(request)
+
+    def _missing_quote_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
+        """Return subject-correct required facts while omitting the optional quote."""
+        if request.subject_kind is FinancialSubjectKind.MACRO or request.field_name is FinancialField.CURRENT_PRICE:
+            return ()
+        return tuple(replace(fact, subject_id=SUBJECT_MISSING_QUOTE) for fact in self._security_facts(request))
 
     # ------------------------------------------------------------------
     # Happy-path data

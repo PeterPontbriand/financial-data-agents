@@ -5,11 +5,34 @@ Golden evaluation and analyzer tests never touch external market-data providers.
 """
 
 from datetime import date
+from typing import Final
 
 import pandas as pd
 
 from src.data.base_client import BaseDataClient, DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext
+
+MOMENTUM_SHORT_WINDOW: Final = 2
+MOMENTUM_LONG_WINDOW: Final = 3
+MOMENTUM_RSI_PERIOD: Final = 3
+MOMENTUM_SUCCESS_CLOSES: Final = (100.0, 101.0, 102.0, 103.0, 104.0)
+MOMENTUM_BOUNDARY_CLOSES: Final = MOMENTUM_SUCCESS_CLOSES[:2]
+
+
+def momentum_success_frame() -> pd.DataFrame:
+    """Return the five-observation rising series used by the success case."""
+    return _momentum_frame(MOMENTUM_SUCCESS_CLOSES)
+
+
+def momentum_boundary_frame() -> pd.DataFrame:
+    """Return the two-observation series that is one row short of the long SMA."""
+    return _momentum_frame(MOMENTUM_BOUNDARY_CLOSES)
+
+
+def _momentum_frame(closes: tuple[float, ...]) -> pd.DataFrame:
+    """Build a fresh UTC-indexed close-price frame from immutable fixture values."""
+    index = pd.date_range("2026-01-02", periods=len(closes), freq="D", tz="UTC", name="Timestamp")
+    return pd.DataFrame({"Close": closes}, index=index)
 
 
 class FixtureMarketDataProvider:

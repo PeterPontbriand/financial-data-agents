@@ -8,6 +8,18 @@ from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, 
 from src.data.security_identity import SecurityIdentity
 
 FIXTURE_PROFILE_RESOLVED_AT = datetime(2026, 8, 30, 18, 0, tzinfo=UTC)
+GOLDEN_ETF_TICKER = "FLSW"
+GOLDEN_ETF_NAME = "Franklin FTSE Switzerland ETF"
+
+
+def fixture_known_etf_profile() -> InstrumentProfile:
+    """Return affirmative provider-backed ETF evidence for the cross-strategy case."""
+    return fixture_instrument_profile(
+        GOLDEN_ETF_TICKER,
+        kind=InstrumentKind.ETF,
+        provider_value="ETF",
+        instrument_name=GOLDEN_ETF_NAME,
+    )
 
 
 def fixture_instrument_profile(

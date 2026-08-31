@@ -6,3 +6,41 @@ harness introduced in Milestone v0.2 Step 2.5. Financial calculations remain
 owned by their strategy packages, and benchmark fixtures remain separate from
 production cache and persistence data.
 """
+
+from src.evaluation.models import (
+    BehaviorConstraints,
+    Case,
+    ComponentKind,
+    ComponentOutcome,
+    ComponentResult,
+    ExecutionMode,
+    Expectation,
+    GrahamMethod,
+    GrahamMethodConstraints,
+    GrahamMethodObservation,
+    NumericalExpectation,
+    NumericalObservation,
+    Observation,
+    ToolCallObservation,
+    ToolConstraints,
+    ToolName,
+)
+
+__all__ = [
+    "BehaviorConstraints",
+    "Case",
+    "ComponentKind",
+    "ComponentOutcome",
+    "ComponentResult",
+    "ExecutionMode",
+    "Expectation",
+    "GrahamMethod",
+    "GrahamMethodConstraints",
+    "GrahamMethodObservation",
+    "NumericalExpectation",
+    "NumericalObservation",
+    "Observation",
+    "ToolCallObservation",
+    "ToolConstraints",
+    "ToolName",
+]
