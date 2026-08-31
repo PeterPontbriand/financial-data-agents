@@ -6,6 +6,7 @@ from src.evaluation.fixtures.fcf_earnings_growth import (
     annual_series,
 )
 from src.evaluation.fixtures.graham import FixtureFinancialFactsProvider
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureDataClient, FixtureMarketDataProvider
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "FixtureMarketDataProvider",
     "annual_fact",
     "annual_series",
+    "fixture_instrument_profile",
 ]

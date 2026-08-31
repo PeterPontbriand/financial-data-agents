@@ -44,11 +44,13 @@ from src.data.financial.providers import (
     ProductionFinancialFactsProvider,
     SecEdgarFinancialFactsAdapter,
 )
-from src.data.security_identity import (
-    SecurityIdentityRequest,
-    SecurityIdentityResolution,
-    resolve_security_identity,
+from src.data.instrument_profile import (
+    InstrumentProfile,
+    InstrumentProfileCandidate,
+    compose_instrument_profile,
+    profile_identity_resolution,
 )
+from src.data.security_identity import SecurityIdentityResolution
 from src.data.yfinance import YFinanceClient
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
@@ -128,21 +130,23 @@ def momentum(  # noqa: PLR0913
         analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=data_client)
         config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         run = analyzer.run_with_context(config=config, ticker=target_ticker)
-        identity_resolution = resolve_security_identity(
-            data_client,
-            SecurityIdentityRequest(ticker=run.metrics.ticker, provider_id=data_client.provider_id),
+        profile = compose_instrument_profile(
+            run.metrics.ticker,
+            identity_candidates=(InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),),
+            kind_candidate=InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),
         )
         presentation = MomentumPresentation(
             metrics=run.metrics,
             config=config,
             market_data=run.market_data,
-            identity_resolution=identity_resolution,
+            identity_resolution=profile_identity_resolution(profile),
+            instrument_profile=profile,
         )
         typer.echo(render_momentum(presentation, mode))
     except DataFetchError as err:
         label = target_ticker or "the configured default ticker"
         typer.echo(
-            f"Unable to analyze {label}: no usable market data was returned. Verify the ticker symbol and try again.",
+            f"Unable to analyze {label}: the configured market-data provider returned no usable price history.",
             err=True,
         )
         raise typer.Exit(code=1) from err
@@ -247,6 +251,7 @@ def graham(  # noqa: PLR0913
         raise typer.Exit(code=1) from err
 
     try:
+        profile_provider = YFinanceClient()
         if method is GrahamCliMethod.NUMBER:
             output, exit_code = _run_graham_number(
                 resolver=resolver,
@@ -260,6 +265,7 @@ def graham(  # noqa: PLR0913
                 as_of=analysis_as_of,
                 use_cache=not no_cache,
                 mode=mode,
+                profile_provider=profile_provider,
             )
         else:
             assert expected_growth is not None
@@ -277,6 +283,7 @@ def graham(  # noqa: PLR0913
                 as_of=analysis_as_of,
                 use_cache=not no_cache,
                 mode=mode,
+                profile_provider=profile_provider,
             )
     except Exception as err:
         typer.echo(f"Graham analysis failed unexpectedly for {target_ticker}.", err=True)
@@ -335,6 +342,12 @@ def fcf_growth(  # noqa: PLR0913
 
     try:
         provider = _build_sec_production_provider()
+        profile = _compose_analysis_profile(
+            target_ticker,
+            primary_provider=provider,
+            primary_provider_id=provider_id,
+            yahoo_provider=provider,
+        )
         resolver = ProductionAnnualGrowthSeriesResolver(
             provider,
             cache=InMemoryResolvedInputCache(),
@@ -348,11 +361,9 @@ def fcf_growth(  # noqa: PLR0913
             provider_id=provider_id,
             use_cache=not no_cache,
             effective_as_of=boundary,
+            instrument_profile=profile,
         )
-        identity_resolution = resolve_security_identity(
-            provider,
-            SecurityIdentityRequest(ticker=target_ticker, provider_id=provider_id),
-        )
+        identity_resolution = profile_identity_resolution(profile)
     except ValueError as err:
         typer.echo(f"Unable to start FCF & earnings-growth analysis: {err}", err=True)
         raise typer.Exit(code=1) from err
@@ -360,8 +371,8 @@ def fcf_growth(  # noqa: PLR0913
         typer.echo(f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.", err=True)
         raise typer.Exit(code=1) from err
 
-    output = render_fcf_earnings_growth(result, mode, identity_resolution)
-    exit_code = 0 if result.execution_status is CalculationStatus.OK else 1
+    output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
+    exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)
@@ -386,6 +397,27 @@ def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     if not massive.is_configured:
         raise ValueError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
     return massive
+
+
+def _compose_analysis_profile(
+    ticker: str,
+    *,
+    primary_provider: object,
+    primary_provider_id: str,
+    yahoo_provider: object,
+) -> InstrumentProfile:
+    """Compose current profile evidence with explicit production precedence."""
+    yahoo_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo_provider)
+    identity_candidates: tuple[InstrumentProfileCandidate, ...] = (
+        InstrumentProfileCandidate(primary_provider_id, primary_provider),
+    )
+    if primary_provider_id != YFINANCE_PROVIDER_ID:
+        identity_candidates = (*identity_candidates, yahoo_candidate)
+    return compose_instrument_profile(
+        ticker,
+        identity_candidates=identity_candidates,
+        kind_candidate=yahoo_candidate,
+    )
 
 
 def _build_graham_resolver(*, method: GrahamCliMethod, data_provider: str | None) -> GrahamInputResolver:
@@ -441,8 +473,15 @@ def _run_graham_number(  # noqa: PLR0913
     as_of: datetime | None,
     use_cache: bool,
     mode: PresentationMode,
+    profile_provider: object,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
+    profile = _compose_analysis_profile(
+        ticker,
+        primary_provider=resolver.provider,
+        primary_provider_id=security_provider_id,
+        yahoo_provider=profile_provider,
+    )
     analysis = run_graham_number_analysis(
         resolver=resolver,
         ticker=ticker,
@@ -454,20 +493,29 @@ def _run_graham_number(  # noqa: PLR0913
         quote_override=quote_override,
         as_of=as_of,
         use_cache=use_cache,
+        instrument_profile=profile,
     )
     assembly = analysis.assembly
-    identity_resolution = resolve_security_identity(
-        resolver.provider,
-        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
-    )
+    identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
+        if assembly.status is CalculationStatus.NOT_APPLICABLE:
+            presentation = GrahamNumberPresentation(
+                ticker=ticker,
+                assembly=assembly,
+                result=analysis.result,
+                as_of=as_of,
+                identity_resolution=identity_resolution,
+                instrument_profile=profile,
+            )
+            return render_graham_number(presentation, mode), 0
         return _number_failure_output(
             ticker=ticker,
             assembly=assembly,
             as_of=as_of,
             mode=mode,
             identity_resolution=identity_resolution,
+            instrument_profile=profile,
         )
 
     presentation_assembly = _number_with_public_quote_reason(assembly)
@@ -478,6 +526,7 @@ def _run_graham_number(  # noqa: PLR0913
         as_of=as_of,
         margin_of_safety_percent=analysis.margin_of_safety_percent,
         identity_resolution=identity_resolution,
+        instrument_profile=profile,
     )
     exit_code = 1 if analysis.result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_number(presentation, mode), exit_code
@@ -497,9 +546,16 @@ def _run_graham_growth(  # noqa: PLR0913
     as_of: datetime | None,
     use_cache: bool,
     mode: PresentationMode,
+    profile_provider: object,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
     policy = _growth_assumptions()
+    profile = _compose_analysis_profile(
+        ticker,
+        primary_provider=resolver.provider,
+        primary_provider_id=security_provider_id,
+        yahoo_provider=profile_provider,
+    )
     analysis = run_graham_growth_analysis(
         resolver=resolver,
         ticker=ticker,
@@ -513,20 +569,32 @@ def _run_graham_growth(  # noqa: PLR0913
         as_of=as_of,
         use_cache=use_cache,
         policy=policy,
+        instrument_profile=profile,
     )
     assembly = analysis.assembly
-    identity_resolution = resolve_security_identity(
-        resolver.provider,
-        SecurityIdentityRequest(ticker=ticker, provider_id=security_provider_id),
-    )
+    identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
+        if assembly.status is CalculationStatus.NOT_APPLICABLE:
+            presentation = GrahamGrowthPresentation(
+                ticker=ticker,
+                assembly=assembly,
+                result=analysis.result,
+                base_pe=policy.base_pe,
+                growth_multiplier=policy.growth_multiplier,
+                baseline_aaa_yield=policy.baseline_aaa_yield,
+                as_of=as_of,
+                identity_resolution=identity_resolution,
+                instrument_profile=profile,
+            )
+            return render_graham_growth(presentation, mode), 0
         return _growth_failure_output(
             ticker=ticker,
             assembly=assembly,
             as_of=as_of,
             mode=mode,
             identity_resolution=identity_resolution,
+            instrument_profile=profile,
         )
 
     presentation_assembly = _growth_with_public_quote_reason(assembly)
@@ -540,18 +608,20 @@ def _run_graham_growth(  # noqa: PLR0913
         as_of=as_of,
         margin_of_safety_percent=analysis.margin_of_safety_percent,
         identity_resolution=identity_resolution,
+        instrument_profile=profile,
     )
     exit_code = 1 if analysis.result.status is CalculationStatus.INVALID_INPUT else 0
     return render_graham_growth(presentation, mode), exit_code
 
 
-def _number_failure_output(
+def _number_failure_output(  # noqa: PLR0913
     *,
     ticker: str,
     assembly: GrahamNumberInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution,
+    instrument_profile: InstrumentProfile,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
@@ -562,17 +632,19 @@ def _number_failure_output(
         result=None,
         as_of=as_of,
         identity_resolution=identity_resolution,
+        instrument_profile=instrument_profile,
     )
     return render_graham_number(presentation, mode), 1
 
 
-def _growth_failure_output(
+def _growth_failure_output(  # noqa: PLR0913
     *,
     ticker: str,
     assembly: GrowthValueInputAssembly,
     as_of: datetime | None,
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution,
+    instrument_profile: InstrumentProfile,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
@@ -587,6 +659,7 @@ def _growth_failure_output(
         baseline_aaa_yield=policy.baseline_aaa_yield,
         as_of=as_of,
         identity_resolution=identity_resolution,
+        instrument_profile=instrument_profile,
     )
     return render_graham_growth(presentation, mode), 1
 
@@ -616,18 +689,12 @@ def _public_quote_reason(status: CalculationStatus) -> str:
 
 def _friendly_graham_failure(ticker: str, status: CalculationStatus, reason: str | None) -> str:
     """Map resolver failure classes to concise investor-facing errors."""
-    if reason is not None and reason.startswith("Unable to verify ticker"):
+    if reason is not None and reason.startswith("Unable to analyze"):
         return reason
     if status is CalculationStatus.PROVIDER_ERROR:
-        return (
-            f"Unable to analyze {ticker}: provider-backed security data retrieval failed. "
-            "Verify the ticker and provider configuration."
-        )
+        return f"Unable to analyze {ticker}: the configured provider could not retrieve required security data."
     if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return (
-            f"Unable to analyze {ticker}: required financial data is unavailable. "
-            "Verify the ticker, provider, and requested data basis."
-        )
+        return f"Unable to analyze {ticker}: required financial data is unavailable for the requested method."
     return f"Unable to analyze {ticker}: the requested Graham inputs are invalid. Review the method and overrides."
 
 

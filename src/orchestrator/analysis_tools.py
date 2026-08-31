@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from types import MappingProxyType
 from typing import Annotated, Final, Literal
@@ -27,6 +27,7 @@ from src.analysis.graham_value.service import (
     run_graham_number_analysis,
 )
 from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, MomentumPolicy, MomentumRun
+from src.data.instrument_profile import InstrumentProfile
 from src.orchestrator.dispatcher import AsyncToolDispatcher
 
 ANALYZE_MOMENTUM_TOOL: Final = "analyze_momentum"
@@ -145,6 +146,7 @@ class AnalysisToolDependencies:
     fcf_analyzer: FCFEarningsGrowthAnalyzer
     fcf_provider_id: str
     clock: Callable[[], datetime]
+    profile_resolver: Callable[[str], InstrumentProfile] | None = None
 
     def __post_init__(self) -> None:
         """Reject missing provider selections before any tool is registered."""
@@ -172,15 +174,18 @@ class AnalysisToolHandlers:
             long_window=arguments.long_window,
             rsi_period=arguments.rsi_period,
         )
-        return self._dependencies.momentum_analyzer.run_with_context(
+        run = self._dependencies.momentum_analyzer.run_with_context(
             config=config,
             ticker=arguments.ticker,
             as_of=arguments.as_of,
         )
+        profile = self._resolve_profile(arguments.ticker)
+        return replace(run, instrument_profile=profile) if profile is not None else run
 
     def analyze_graham_number(self, **raw_arguments: object) -> GrahamNumberAnalysis:
         """Validate, resolve, and calculate one Graham Number run."""
         arguments = GrahamNumberToolArguments.model_validate(raw_arguments)
+        profile = self._resolve_profile(arguments.ticker)
         return run_graham_number_analysis(
             resolver=self._dependencies.graham_resolver,
             ticker=arguments.ticker,
@@ -192,11 +197,13 @@ class AnalysisToolHandlers:
             quote_override=arguments.current_price_override,
             as_of=arguments.as_of,
             use_cache=arguments.use_cache,
+            instrument_profile=profile,
         )
 
     def analyze_graham_growth_value(self, **raw_arguments: object) -> GrahamGrowthAnalysis:
         """Validate, resolve, and calculate one Graham growth-value run."""
         arguments = GrahamGrowthValueToolArguments.model_validate(raw_arguments)
+        profile = self._resolve_profile(arguments.ticker)
         return run_graham_growth_analysis(
             resolver=self._dependencies.graham_resolver,
             ticker=arguments.ticker,
@@ -210,6 +217,7 @@ class AnalysisToolHandlers:
             as_of=arguments.as_of,
             use_cache=arguments.use_cache,
             policy=self._dependencies.graham_growth_policy,
+            instrument_profile=profile,
         )
 
     def analyze_fcf_earnings_growth(self, **raw_arguments: object) -> FCFEarningsGrowthResult:
@@ -222,6 +230,7 @@ class AnalysisToolHandlers:
             include_fcf_yield=arguments.include_fcf_yield,
         )
         effective_as_of = arguments.as_of or self._validated_clock_value()
+        profile = self._resolve_profile(arguments.ticker)
         return self._dependencies.fcf_analyzer.run_analysis(
             ticker=arguments.ticker,
             policy=policy,
@@ -230,7 +239,13 @@ class AnalysisToolHandlers:
             provider_id=self._dependencies.fcf_provider_id,
             use_cache=arguments.use_cache,
             effective_as_of=effective_as_of,
+            instrument_profile=profile,
         )
+
+    def _resolve_profile(self, ticker: str) -> InstrumentProfile | None:
+        """Resolve optional injected profile evidence once for one tool invocation."""
+        resolver = self._dependencies.profile_resolver
+        return resolver(ticker) if resolver is not None else None
 
     def _validated_clock_value(self) -> datetime:
         """Return an unambiguous injected execution timestamp."""

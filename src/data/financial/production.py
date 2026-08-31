@@ -9,6 +9,7 @@ from src.data.financial.facts import (
     FinancialFactsProvider,
     ProviderFact,
 )
+from src.data.instrument_profile import InstrumentKindEvidence, InstrumentKindProvider, InstrumentKindRequest
 from src.data.massive.constants import MASSIVE_PROVIDER_ID
 from src.data.massive.financial_facts import MassiveFinancialFactsAdapter
 from src.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -50,3 +51,10 @@ class ProductionFinancialFactsProvider:
         if provider is None or not isinstance(provider, SecurityIdentityProvider):
             return None
         return provider.resolve_security_identity(request)
+
+    def resolve_instrument_kind(self, request: InstrumentKindRequest) -> InstrumentKindEvidence | None:
+        """Route an optional kind request without widening numeric facts."""
+        provider = self._providers.get(request.provider_id)
+        if provider is None or not isinstance(provider, InstrumentKindProvider):
+            return None
+        return provider.resolve_instrument_kind(request)

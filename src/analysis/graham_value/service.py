@@ -15,6 +15,7 @@ from src.analysis.graham_value.input_resolver import (
 from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
+from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ class GrahamNumberAnalysis:
     assembly: GrahamNumberInputAssembly
     result: GrahamNumberResult
     margin_of_safety_percent: float | None
+    instrument_profile: InstrumentProfile | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,7 @@ class GrahamGrowthAnalysis:
     result: GrahamGrowthValueResult
     policy: GrahamGrowthCalculationPolicy
     margin_of_safety_percent: float | None
+    instrument_profile: InstrumentProfile | None = None
 
 
 def run_graham_number_analysis(  # noqa: PLR0913
@@ -73,19 +76,27 @@ def run_graham_number_analysis(  # noqa: PLR0913
     quote_override: float | None,
     as_of: datetime | None,
     use_cache: bool,
+    instrument_profile: InstrumentProfile | None = None,
 ) -> GrahamNumberAnalysis:
     """Resolve and calculate one Graham Number analysis without rendering it."""
-    assembly = resolver.assemble_graham_number(
-        security_subject_id=ticker,
-        security_provider_id=security_provider_id,
-        eps_basis=eps_basis,
-        eps_override=eps_override,
-        bvps_override=bvps_override,
-        quote_override=quote_override,
-        quote_provider_id=quote_provider_id,
-        as_of=as_of,
-        use_cache=use_cache,
-    )
+    _validate_profile_ticker(ticker, instrument_profile)
+    if _is_known_etf(instrument_profile):
+        assembly = GrahamNumberInputAssembly(
+            status=CalculationStatus.NOT_APPLICABLE,
+            reason=_etf_not_applicable_reason("Graham Number"),
+        )
+    else:
+        assembly = resolver.assemble_graham_number(
+            security_subject_id=ticker,
+            security_provider_id=security_provider_id,
+            eps_basis=eps_basis,
+            eps_override=eps_override,
+            bvps_override=bvps_override,
+            quote_override=quote_override,
+            quote_provider_id=quote_provider_id,
+            as_of=as_of,
+            use_cache=use_cache,
+        )
     if assembly.status is CalculationStatus.OK and not _has_provider_backed_security_evidence(
         assembly.eps, assembly.bvps, assembly.current_price
     ):
@@ -117,6 +128,7 @@ def run_graham_number_analysis(  # noqa: PLR0913
         assembly=assembly,
         result=result,
         margin_of_safety_percent=margin,
+        instrument_profile=instrument_profile,
     )
 
 
@@ -134,22 +146,30 @@ def run_graham_growth_analysis(  # noqa: PLR0913
     as_of: datetime | None,
     use_cache: bool,
     policy: GrahamGrowthCalculationPolicy,
+    instrument_profile: InstrumentProfile | None = None,
 ) -> GrahamGrowthAnalysis:
     """Resolve and calculate one Graham growth-value analysis without rendering it."""
-    assembly = resolver.assemble_growth_value(
-        security_subject_id=ticker,
-        security_provider_id=security_provider_id,
-        eps_basis=eps_basis,
-        eps_override=eps_override,
-        expected_growth=expected_growth,
-        aaa_subject_id="AAA",
-        aaa_provider_id="user_override",
-        aaa_yield_override=aaa_yield_override,
-        quote_override=quote_override,
-        quote_provider_id=quote_provider_id,
-        as_of=as_of,
-        use_cache=use_cache,
-    )
+    _validate_profile_ticker(ticker, instrument_profile)
+    if _is_known_etf(instrument_profile):
+        assembly = GrowthValueInputAssembly(
+            status=CalculationStatus.NOT_APPLICABLE,
+            reason=_etf_not_applicable_reason("Graham growth-value method"),
+        )
+    else:
+        assembly = resolver.assemble_growth_value(
+            security_subject_id=ticker,
+            security_provider_id=security_provider_id,
+            eps_basis=eps_basis,
+            eps_override=eps_override,
+            expected_growth=expected_growth,
+            aaa_subject_id="AAA",
+            aaa_provider_id="user_override",
+            aaa_yield_override=aaa_yield_override,
+            quote_override=quote_override,
+            quote_provider_id=quote_provider_id,
+            as_of=as_of,
+            use_cache=use_cache,
+        )
     if assembly.status is CalculationStatus.OK and not _has_provider_backed_security_evidence(
         assembly.eps, assembly.current_price
     ):
@@ -190,6 +210,28 @@ def run_graham_growth_analysis(  # noqa: PLR0913
         result=result,
         policy=policy,
         margin_of_safety_percent=margin,
+        instrument_profile=instrument_profile,
+    )
+
+
+def _validate_profile_ticker(ticker: str, profile: InstrumentProfile | None) -> None:
+    """Reject accidental reuse of evidence for another requested instrument."""
+    if profile is not None and profile.ticker != ticker.strip().upper():
+        raise ValueError("Instrument profile ticker does not match the Graham analysis ticker.")
+
+
+def _is_known_etf(profile: InstrumentProfile | None) -> bool:
+    """Return whether affirmative provider evidence classifies the instrument as an ETF."""
+    return (
+        profile is not None and profile.kind_evidence is not None and profile.kind_evidence.kind is InstrumentKind.ETF
+    )
+
+
+def _etf_not_applicable_reason(method_name: str) -> str:
+    """Explain why a company-level Graham method does not apply to an ETF."""
+    return (
+        f"{method_name} is a company-level valuation method and does not apply directly to an ETF. "
+        "No constituent-level or aggregate ETF valuation was performed."
     )
 
 
@@ -201,7 +243,7 @@ def _has_provider_backed_security_evidence(*inputs: ResolvedInput | None) -> boo
 def _unverified_ticker_reason(ticker: str) -> str:
     """Return the public failure used when only overrides support a ticker."""
     return (
-        f"Unable to verify ticker {ticker}: no provider-backed security fact or quote was resolved. "
+        f"Unable to analyze {ticker}: no provider-backed security fact or quote was resolved. "
         "Fully override-driven security analysis is not accepted in v0.2."
     )
 

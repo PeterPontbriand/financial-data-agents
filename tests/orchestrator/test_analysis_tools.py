@@ -22,6 +22,7 @@ from src.analysis.graham_value.service import (
 from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumRun
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.production import ProductionFinancialFactsProvider
+from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID
 from src.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
@@ -39,6 +40,7 @@ from src.evaluation.fixtures.graham import (
 from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
 from src.orchestrator.analysis_tools import (
     ANALYSIS_TOOL_ARGUMENT_MODELS,
@@ -139,6 +141,55 @@ async def test_registered_handlers_execute_all_approved_strategies() -> None:
     assert fcf.result.execution_status is CalculationStatus.OK
     assert fcf.result.ticker == "ACME"
     assert fcf.result.effective_as_of == EXECUTION_TIME
+
+
+@pytest.mark.asyncio
+async def test_registered_handlers_apply_known_etf_policy_without_changing_momentum() -> None:
+    """One injected profile drives consistent native applicability across handlers."""
+    profile_calls: list[str] = []
+
+    def resolve_profile(ticker: str) -> InstrumentProfile:
+        profile_calls.append(ticker)
+        return fixture_instrument_profile(
+            ticker,
+            kind=InstrumentKind.ETF,
+            provider_value="ETF",
+            instrument_name="Franklin FTSE Switzerland ETF",
+        )
+
+    dependencies = replace(_dependencies(), profile_resolver=resolve_profile)
+    dispatcher = AsyncToolDispatcher()
+    register_analysis_tools(dispatcher, dependencies)
+
+    momentum = await dispatcher.dispatch(
+        _call(
+            ANALYZE_MOMENTUM_TOOL,
+            {"ticker": "FLSW", "short_window": 2, "long_window": 3, "rsi_period": 2},
+        )
+    )
+    number = await dispatcher.dispatch(_call(ANALYZE_GRAHAM_NUMBER_TOOL, {"ticker": "FLSW"}))
+    growth = await dispatcher.dispatch(
+        _call(
+            ANALYZE_GRAHAM_GROWTH_VALUE_TOOL,
+            {"ticker": "FLSW", "expected_growth": 5.0, "current_aaa_yield": 4.4},
+        )
+    )
+    fcf = await dispatcher.dispatch(_call(ANALYZE_FCF_EARNINGS_GROWTH_TOOL, {"ticker": "FLSW"}))
+
+    assert momentum.success is True
+    assert isinstance(momentum.result, MomentumRun)
+    assert momentum.result.metrics.status.value == "BULLISH"
+    assert momentum.result.instrument_profile is not None
+    assert number.success is True
+    assert isinstance(number.result, GrahamNumberAnalysis)
+    assert number.result.result.status is CalculationStatus.NOT_APPLICABLE
+    assert growth.success is True
+    assert isinstance(growth.result, GrahamGrowthAnalysis)
+    assert growth.result.result.status is CalculationStatus.NOT_APPLICABLE
+    assert fcf.success is True
+    assert isinstance(fcf.result, FCFEarningsGrowthResult)
+    assert fcf.result.execution_status is CalculationStatus.NOT_APPLICABLE
+    assert profile_calls == ["FLSW", "FLSW", "FLSW", "FLSW"]
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 # Step 2.5 Golden Suite Slice Plan
 
-**Status:** Active; prerequisite extraction and production-handler registration are complete. P1 instrument-applicability hardening is the mandatory next gate before Slice A1. Cline implementation attempts were terminated; Codex owns P1 and the remaining Step 2.5 implementation, subject to the existing human review gates.<br/>
+**Status:** Active; prerequisite extraction and production-handler registration are complete. P1-A and P1-B are approved; P1-C is implemented and awaiting final P1 review. Cline implementation attempts were terminated; Codex owns P1 and the remaining Step 2.5 implementation, subject to the existing human review gates.<br/>
 **Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Evaluation contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
@@ -92,7 +92,7 @@ Correct the concrete FLSW defect before Golden behavior is frozen: preserve prov
 ### Fixed invariants
 
 - Instrument kind is provider-backed evidence. Never infer it from a ticker, instrument name, absence of SEC facts, or the success of another strategy.
-- The immutable identity/profile snapshot retains optional normalized kind, raw provider classification, provider identity, and timezone-aware resolution time.
+- The composed profile preserves the existing one-provider identity separately from optional normalized/raw kind evidence; each retains its own provider and timezone-aware resolution time.
 - Missing or failed kind resolution remains unknown and fail-open. Only affirmative ETF evidence changes applicability.
 - Momentum remains ETF-applicable. Both Graham methods and the existing company-level FCF Growth strategy return `not_applicable` for a known ETF.
 - `not_applicable` is a completed domain outcome with successful direct-CLI process status. It is not input unavailability, provider error, ticker invalidity, or implicit selection of another tool.
@@ -102,11 +102,11 @@ Correct the concrete FLSW defect before Golden behavior is frozen: preserve prov
 
 ### P1-A — provider evidence and contract checkpoint
 
-Inspect authoritative provider documentation and representative payload shapes for instrument classification, especially Yahoo's ETF/equity discriminator and retained raw value. Propose the minimum normalized vocabulary, exact mappings, unknown/unsupported behavior, and identity/profile schema-version consequences. Update the provider mapping record and relevant design/architecture text, then stop for human approval before production code changes.
+Inspect authoritative provider documentation and representative payload shapes for instrument classification, especially Yahoo's ETF/equity discriminator and retained raw value. Propose the minimum normalized vocabulary, exact mappings, unknown/unsupported behavior, and identity/profile schema-version consequences in [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). Update the relevant historical mapping/design cross-references and architecture text, then stop for human approval before production code changes.
 
 ### P1-B — identity/profile contract and request-scoped composition
 
-After P1-A approval, implement the reviewed optional kind evidence on the existing immutable security-identity boundary and a narrow ordered candidate resolver. Reuse retained strategy-provider evidence first and consult Yahoo only when the required name or kind remains unresolved. Preserve winning provenance and fail-open diagnostics. Add deterministic tests for mappings, unknown values, provider failure, fallback order, no duplicate candidate lookup, immutability, and serialization. Stop for focused contract review.
+After P1-A approval, preserve the existing immutable security-identity boundary, implement the reviewed separate kind-evidence/profile contracts, and add a narrow ordered candidate resolver. Reuse retained strategy-provider identity first, use the injected Yahoo capability for kind evidence, and consult Yahoo for identity only when no higher-precedence identity is available. Preserve field-level provenance and fail-open diagnostics. Add deterministic tests for mappings, unknown values, provider failure, fallback order, no duplicate network metadata fetch, immutability, and serialization. Stop for focused contract review.
 
 ### P1-C — strategy applicability, presentation, and full gate
 
@@ -423,7 +423,7 @@ Support the full suite, one named case, deterministic/no-LLM mode, optional real
 
 ## 18. Current handoff
 
-The human ended the Cline implementation experiment for the entire Golden Suite on 2026-08-30; do not retry any Step 2.5 slice through Cline or another Cline model profile. The FLSW review then established and approved the P1/P2 split above. Codex owns the work, but this documentation update does not authorize production edits: the next action is P1-A provider-evidence research and a written mapping proposal, followed by its mandatory human approval. A1 remains blocked through P1-C approval. P2 remains deferred until after Step 3.1.
+The human ended the Cline implementation experiment for the entire Golden Suite on 2026-08-30; do not retry any Step 2.5 slice through Cline or another Cline model profile. The FLSW review then established and approved the P1/P2 split above. P1-A and P1-B are approved. Codex has implemented P1-C's ETF applicability control flow, native statuses, identity/kind presentation, JSON schema changes, CLI process semantics, shared-handler behavior, and deterministic regressions. Stop for explicit final P1 review before A1. P2 remains deferred until after Step 3.1.
 
 ## 19. Retired Cline and Ollama execution profile
 
@@ -898,7 +898,9 @@ Final preflight result on 2026-08-30: after fully stopping the stale server and 
 | Slice | Attempt/config | Implementation summary | Independent review findings | Corrections/follow-up | Verification | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | P0 | Codex prerequisite work; no Cline attempt | Extracted deterministic fixtures, added evaluation scaffold/guide, and registered four dependency-injected production handlers. | Reviewed during prerequisite implementation; full repository gate passed with 940 tests and 86% coverage. | None recorded. | Ruff, format, strict mypy, 940 pytest tests | Complete |
-| P1 | Codex; approved production prerequisite | — | FLSW exposed inconsistent identity and invalid-ticker messaging plus missing ETF applicability semantics. | Execute P1-A–P1-C with review stops; no Golden model work before approval. | Pending | Approved; next |
+| P1-A | Codex; approved production prerequisite | Inspected yfinance 1.6.0 sources and live FLSW/AAPL/BTC-USD metadata, then proposed exact kind mappings, separate evidence/profile contracts, schema changes, and P1-B/P1-C tests. | Mapping record preserves SEC identity separately from Yahoo kind evidence; no production code changed. | Human approved the record without amendment on 2026-08-30. | Live read-only metadata check; documentation diff check | Complete and approved |
+| P1-B | Codex; focused production-contract slice | Added immutable kind evidence/profile contracts, exact Yahoo mapping, ordered fail-open candidate composition, shared Yahoo metadata retrieval, narrow adapter/façade routing, and deterministic tests. | SEC identity and Yahoo kind retain separate provenance; unknown/error remains fail-open; no strategy or presentation behavior changed. | Human reviewed and approved P1-B on 2026-08-30, authorizing P1-C. | Focused Ruff, format, strict mypy, and 28 deterministic tests | Complete and approved |
+| P1-C | Codex; strategy-applicability slice | Wired request-scoped profiles through CLI and production handlers; added ETF-native Graham/FCF `not_applicable`, retained Momentum behavior, coherent identity/kind presentation, successful domain-outcome exit codes, and removed unsupported ticker-verification advice. | Only affirmative ETF evidence short-circuits; equity, unknown, and provider-error profiles retain existing resolution. FCF result schema advances to 3 without a method-version change; Momentum/Graham presentation schemas advance to 3 and FCF presentation to 4. | Stop for explicit final P1 review before A1. | Focused Ruff, format, strict mypy, and 89 deterministic tests; complete gate: Ruff, format, strict mypy, 972 tests, 86% coverage | Implemented; final P1 approval pending |
 | A (retired monolith) | Attempts 1–2; recommended model/profile | Twice claimed a complete typed contract and passing verification. | Attempt 1 wrote a truncated, non-importable module and an unintended root file; attempt 2 replaced the module with one comment, retained the unintended file and incomplete tests, and again reported checks that did not match disk state. | Human cleanup; replace the monolith with A1–A2 and require relative write paths, full-file read-back, and exact command evidence. | Attempt 1: Ruff 76 errors, mypy 69 errors, pytest collection error. Attempt 2: Ruff 1 error, format pass, vacuous mypy pass, pytest import error. | Rejected/retired |
 | A1 (Cline attempt) | Attempt 1; fresh Qwen task with reduced prompt | Claimed all enums, four frozen leaf models, comprehensive tests, and successful checks. | Wrote only five enum classes, imported unavailable third-party `strenum` instead of `enum.StrEnum`, omitted every leaf model, and never created the test file. | Reject the artifact and terminate Cline implementation for all Golden Suite slices. | Ruff 13 errors; format failed; mypy 6 errors; pytest found no test file. | Rejected; Cline experiment terminated |
 | A1 (implementation) | Pending; Codex implementation | — | — | — | — | Blocked by P1-C approval |

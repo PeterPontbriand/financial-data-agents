@@ -921,14 +921,14 @@ This is the empirical test of the architectural objective established in Steps 2
 
 #### 4.5.0 P1 — Pre-Golden instrument applicability hardening
 
-**Status:** Approved for implementation on 2026-08-30; mandatory before the typed Golden Case slices begin.
+**Status:** P1-A and P1-B are approved; P1-C is implemented and awaiting final P1 review on 2026-08-30. P1 remains mandatory before the typed Golden Case slices begin.
 
 **Goal:** Make the Step 2.4 identity, status, provider-composition, and presentation seams an adequate long-lived basis for known non-company instruments without adding persistence or an ETF aggregate strategy.
 
 P1 is a concrete-defect correction, not a reopening of the approved financial formulas. Implement it as one bounded production slice with these requirements:
 
 1. **Provider-evidence checkpoint:** inspect authoritative provider documentation and representative deterministic payloads before mapping provider instrument classifications. Record the initial normalized vocabulary and exact supported mappings. The minimum approved capability must distinguish a provider-confirmed ETF from an instrument that is not confirmed to be an ETF; do not infer kind from a ticker or instrument name.
-2. **Identity/profile evidence:** minimally extend the immutable security-identity snapshot with optional normalized instrument-kind evidence and the retained raw provider classification needed to audit the mapping. Preserve provider identity and timezone-aware `resolved_at`. Do not broaden numeric `ProviderFact` to carry descriptive metadata.
+2. **Identity/profile evidence:** preserve the immutable one-provider `SecurityIdentity`, add separate immutable normalized/raw instrument-kind evidence with its own provider and timezone-aware resolution time, and compose both without rewriting field-level provenance. Do not broaden numeric `ProviderFact` to carry descriptive metadata. The exact P1-A proposal is recorded in [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
 3. **Fail-open classification:** missing, unsupported, or failed identity/kind resolution remains unknown and must not invalidate or downgrade an otherwise usable analysis. Only affirmative provider-backed kind evidence may control strategy applicability. Unknown kind must continue through the existing data-resolution path.
 4. **Narrow fallback composition:** permit one analysis run to consult an ordered, explicitly injected identity/profile candidate list, using retained strategy-provider evidence first and Yahoo only when the required name or kind remains unresolved. Query each candidate at most once per run, retain the winning provider provenance, and do not introduce a broad provider registry or hidden live fallback in deterministic execution.
 5. **Strategy-specific applicability:** Momentum continues to support ETFs. A provider-confirmed ETF is `not_applicable` to both Graham methods and to the existing company-level Free Cash Flow & Earnings Growth strategy. This is a valid completed applicability result, not `input_unavailable`, `provider_error`, an invalid ticker, or an automatic request to run a future aggregate strategy.
@@ -1542,8 +1542,8 @@ All of the following must be true before declaring the milestone complete and op
 
 Steps 2.3 and 2.4 are complete and approved. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step, but the approved P1 concrete-defect correction is now its mandatory first gate on `feat/step-2.5-golden-suite`.
 
-1. Begin only P1-A provider-evidence research and stop for approval of the proposed normalized vocabulary and mappings; then complete P1-B/P1-C under their focused and full review gates.
-2. After P1 approval, begin the typed Golden Case model, independently verified expected values, and minimum heterogeneous deterministic suite under the remaining Section 4.5 sequence and review gates.
+1. Review and approve or amend the completed P1-C strategy applicability, presentation, CLI/handler behavior, schema decisions, and full-gate evidence recorded in the [`P1 Instrument Applicability Mapping Record`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+2. Only after explicit P1 approval, begin the typed Golden Case model, independently verified expected values, and minimum heterogeneous deterministic suite under the remaining Section 4.5 sequence and review gates.
 3. Preserve classified unavailability so later representative live validation can measure the useful-result ratio and identify whether a separately reviewed provider-mapping expansion is warranted.
 4. Implement Step 2.6 reliability limits, then Step 3.1 persistence. Review P2's exact placement only after Step 3.1 is approved; continue Steps 3.2–3.4 according to the resulting dependency decision.
 5. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.

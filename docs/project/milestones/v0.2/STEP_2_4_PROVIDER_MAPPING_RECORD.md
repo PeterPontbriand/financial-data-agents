@@ -1,6 +1,6 @@
 # Free Cash Flow & Earnings Growth Provider Mapping Record
 
-**Status:** D0–D5 and E1–E3 complete and approved<br/>
+**Status:** D0–D5 and E1–E3 complete and approved; P1 cross-strategy instrument-kind proposal recorded separately<br/>
 **Scope:** SEC EDGAR required annual actuals and E1 weighted-average diluted-share evidence<br/>
 **Prepared:** 2026-08-27; E1 amended 2026-08-29<br/>
 **Governing design:** `STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`  
@@ -90,6 +90,17 @@ mapping because Company Facts supplies entity-wide standard-taxonomy facts and
 does not prove that diluted EPS belongs to the requested listed class. Examples
 observed include `BRK-A`/`BRK-B`, `GOOG`/`GOOGL`, and the common/preferred and
 note tickers associated with JPMorgan's CIK.
+
+### 3.1A Post-closeout P1 instrument-kind evidence
+
+The SEC identity mapping above does not establish operating-company equity, ETF,
+or another normalized instrument kind. P1 must not infer kind from SEC ticker
+membership or missing Company Facts. The cross-strategy Yahoo evidence, exact
+normalized mappings, separate kind-evidence contract, request-scoped composition,
+and ETF applicability proposal are recorded in
+[`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+That proposal does not change any approved SEC financial-fact mapping in this
+record and requires explicit human approval before production implementation.
 
 ### 3.2 Filing and period shape
 

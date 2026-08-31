@@ -1,6 +1,6 @@
 # Evaluations & Golden Suite
 
-**Status:** Milestone v0.2 Step 2.5 scaffold; P1 instrument-applicability hardening is the mandatory prerequisite before benchmark model/case implementation<br/>
+**Status:** Milestone v0.2 Step 2.5 scaffold; P1-C instrument-applicability hardening is implemented and awaits final P1 approval before benchmark model/case implementation<br/>
 **Governing sequence and acceptance criteria:** [Milestone v0.2 Implementation Plan](project/milestones/v0.2/IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Formal implementation slices:** [Step 2.5 Golden Suite Slice Plan](project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](project/ARCHITECTURE.md#7-golden-suite-architecture-step-25)
@@ -26,7 +26,7 @@ Production strategy handlers are registered outside the evaluation and test pack
 
 Typed Golden Case models, evaluators, reports, execution harnesses, CLI commands, and empirical local-model evaluation have not yet been implemented.
 
-The implementation proceeds in bounded reviewed slices. Before those evaluation slices begin, approved P1 hardening must add provider-backed instrument-kind evidence and native strategy-applicability behavior. A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name. P1 must pass its production review gate before the Golden Suite treats these contracts as stable.
+The implementation proceeds in bounded reviewed slices. Before those evaluation slices begin, P1 hardening adds provider-backed instrument-kind evidence and native strategy-applicability behavior. The exact P1 evidence, mappings, implementation decisions, and review record are recorded in the [P1 Instrument Applicability Mapping Record](project/milestones/v0.2/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md). A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name. P1-C is implemented and must receive final human approval before the Golden Suite treats these contracts as stable.
 
 P1 does not add persistence or another strategy. P2 — durable instrument profiles and a distinct ETF aggregate FCF-growth strategy — is planned only after Step 3.1. P2 may later extend the reviewed suite through the normal human-directed case-expansion process; it must not change existing case definitions, silently substitute for company-level FCF Growth, or turn production cache data into Golden fixtures.
 
