@@ -1,6 +1,6 @@
 # Evaluations & Golden Suite
 
-**Status:** Milestone v0.2 Step 2.5 scaffold; benchmark implementation has not yet begun<br/>
+**Status:** Milestone v0.2 Step 2.5 scaffold; P1 instrument-applicability hardening is the mandatory prerequisite before benchmark model/case implementation<br/>
 **Governing sequence and acceptance criteria:** [Milestone v0.2 Implementation Plan](project/milestones/v0.2/IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Formal implementation slices:** [Step 2.5 Golden Suite Slice Plan](project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](project/ARCHITECTURE.md#7-golden-suite-architecture-step-25)
@@ -26,7 +26,11 @@ Production strategy handlers are registered outside the evaluation and test pack
 
 Typed Golden Case models, evaluators, reports, execution harnesses, CLI commands, and empirical local-model evaluation have not yet been implemented.
 
-The implementation proceeds in bounded reviewed slices. The minimum heterogeneous deterministic suite must work and stop for human review before case expansion or optional local-model evaluation continues.
+The implementation proceeds in bounded reviewed slices. Before those evaluation slices begin, approved P1 hardening must add provider-backed instrument-kind evidence and native strategy-applicability behavior. A known ETF remains applicable to Momentum but is `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown kind remains fail-open; it is never guessed from missing facts, a ticker, or a name. P1 must pass its production review gate before the Golden Suite treats these contracts as stable.
+
+P1 does not add persistence or another strategy. P2 — durable instrument profiles and a distinct ETF aggregate FCF-growth strategy — is planned only after Step 3.1. P2 may later extend the reviewed suite through the normal human-directed case-expansion process; it must not change existing case definitions, silently substitute for company-level FCF Growth, or turn production cache data into Golden fixtures.
+
+The minimum heterogeneous deterministic suite must work and stop for human review before case expansion or optional local-model evaluation continues.
 
 ## 3. Execution modes
 
@@ -73,17 +77,19 @@ Golden fixtures are tracked, deterministic, reviewable benchmark evidence. They 
 - remain independent of SQLite and later production persistence; and
 - preserve explicit `as_of` boundaries wherever dates affect eligibility.
 
+Instrument-profile fixtures retain the normalized kind, raw provider classification, provider identity, and resolution timestamp required to audit applicability. A deterministic known-ETF case must obtain ETF status from that fixture evidence; absence of company facts alone is not ETF evidence.
+
 Benchmark fixture implementations belong to the importable `src/evaluation/fixtures/` boundary rather than under `tests/`. Test modules may construct additional small fakes, but the runtime evaluation package must not import test code. The extracted deterministic providers preserve the approved provider-neutral contracts and remain separate from production cache data.
 
 Expected numerical values are benchmark contract data. They must be verified using transparent reference calculations, a separate reference implementation, or sufficiently simple manual calculations. Production functions under test must never generate their own expected values. Tolerances are case-appropriate absolute and/or relative tolerances rather than one universal constant.
 
 ## 6. Initial benchmark composition
 
-The minimum heterogeneous set defined by the milestone plan includes Momentum success and boundary behavior; the default and TTM Graham Number variants; Graham `not_applicable`, growth-value, missing-price, method-selection, and input-resolution behavior; and FCF/Earnings Growth success, nonmeaningful or insufficient growth, period alignment, and historical `as_of` behavior.
+The minimum heterogeneous set defined by the milestone plan includes Momentum success and boundary behavior; the default and TTM Graham Number variants; Graham `not_applicable`, growth-value, missing-price, method-selection, and input-resolution behavior; FCF/Earnings Growth success, nonmeaningful or insufficient growth, period alignment, and historical `as_of` behavior; and one provider-confirmed ETF case proving the cross-strategy applicability contract without an invalid-ticker claim or automatic aggregate-strategy substitution.
 
 At least one case must materially discriminate the requested strategy from a plausible wrong strategy. A discriminating case may also satisfy another required minimum category when that overlap is explicit and useful.
 
-This minimum produces approximately 11–12 cases depending on deliberate overlap and therefore already falls within the approved initial target of 10–18 high-signal cases. Expansion beyond the reviewed minimum is review-driven, not automatic. Each added case must document the failure mode or signal it contributes.
+This minimum produces approximately 12–13 cases depending on deliberate overlap and therefore already falls within the approved initial target of 10–18 high-signal cases. Expansion beyond the reviewed minimum is review-driven, not automatic. Each added case must document the failure mode or signal it contributes.
 
 ## 7. Telemetry and reporting
 

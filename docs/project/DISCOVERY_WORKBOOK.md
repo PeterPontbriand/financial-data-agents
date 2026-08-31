@@ -484,6 +484,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 - **BaseAnalyzer** — Existing abstract analysis boundary.
 - **BaseDataClient** — Historical-price provider boundary.
 - **FinancialFactsProvider** — Step 2.3 provider-neutral boundary for the minimum quote, fundamentals, and macro-observation contracts required by Graham analysis.
+- **Instrument Profile** — Time-aware provider-backed security identity plus normalized/raw instrument-kind evidence and provenance. Missing kind remains unknown; affirmative kind may establish strategy applicability.
 - **GrahamInputResolver** — Field-level override/cache/provider/unavailable resolution with typed provenance and time boundaries.
 - **Analysis Run** — Durable investor-domain record of one requested analysis, distinct from trajectory telemetry; contains configuration, status, typed result, provenance, warnings, timestamps, and version identifiers.
 - **Watchlist** — Named local set of tickers plus supported requested analysis configuration used by Step 3.4 user-initiated refresh.
@@ -513,6 +514,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | 2026-08-21 | Investor-facing UX reconsidered before Slice F: E3 added for a user-viable standard Graham data configuration; F split into presentation/direct CLI; Step 3.4 watchlists + Analysis Run library added; Light Mode validation strengthened; bounded v0.2 agentic workflow separated from v1.0 unattended autonomy |
 | 2026-08-24 | F2 investor workflow synchronized: standard Graham analyses using SEC EDGAR financial facts, Yahoo quote routing, explicit Massive TTM configuration, provider-backed ticker verification, result-first concise presentation, and explicit AAA-yield override policy recorded; Slice G final synchronization/gate began |
 | 2026-08-30 | Step 2.4 shared security identity synchronized; Slice G documentation, complete repository gate, and explicit closeout approval completed; Step 2.5 became current; Step 3.4 investor reports defined as deterministic, independently versioned projections of persisted Analysis Runs |
+| 2026-08-30 | Live FLSW behavior exposed a pre-Golden identity/applicability defect; approved P1 before Golden implementation and deferred durable instrument profiles plus a distinct ETF aggregate FCF-growth strategy to P2 after Step 3.1 |
 
 ---
 
@@ -557,6 +559,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | D35 | 2026-08-24 | Use result-first concise success output and avoid redundant assumption/warning repetition | Prioritizes the investor's financial question while retaining progressive disclosure and material caveats | Accepted |
 | D36 | 2026-08-30 | Treat investor reports as deterministic, independently versioned projections of persisted Analysis Runs | Preserves one canonical financial record, makes historical rendering reproducible, and prevents current provider/LLM/cache/clock state from silently changing old reports | Accepted |
 | D37 | 2026-08-30 | Approve Slice G and Step 2.4 closeout; make Step 2.5 the current step | The synchronized documentation and complete quality gate satisfy the final Step 2.4 review gate, so Golden evaluation may begin against the stable approved contracts | Accepted |
+| D38 | 2026-08-30 | Split ETF identity/applicability work into P1 before the Golden Suite and P2 after Step 3.1 | FLSW proved that missing company facts, ticker validity, instrument identity, and strategy applicability were conflated. P1 adds only provider-backed kind evidence, request-scoped fallback, native `not_applicable` behavior, and presentation/error corrections so Golden cases freeze deliberate production behavior. P2 later adds durable instrument profiles and a separate holdings-based ETF aggregate FCF-growth strategy after persistence, without redefining or silently substituting the company-level strategy. | Accepted |
 
 ---
 

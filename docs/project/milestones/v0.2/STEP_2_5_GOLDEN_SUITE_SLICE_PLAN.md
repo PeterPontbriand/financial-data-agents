@@ -1,6 +1,6 @@
 # Step 2.5 Golden Suite Slice Plan
 
-**Status:** Active; prerequisite extraction and production-handler registration are complete. The rejected monolithic Slice A attempt has been split, and Slice A1 is next after cleanup.<br/>
+**Status:** Active; prerequisite extraction and production-handler registration are complete. P1 instrument-applicability hardening is the mandatory next gate before Slice A1. Cline implementation attempts were terminated; Codex owns P1 and the remaining Step 2.5 implementation, subject to the existing human review gates.<br/>
 **Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Evaluation contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
@@ -9,7 +9,7 @@
 
 This document turns Section 4.5.18 of the implementation plan into bounded implementation handoffs. It is subordinate to that plan and does not change Step 2.5 scope, ordering, acceptance criteria, or the mandatory review gate.
 
-The slices are intentionally small enough to give Cline one coherent contract at a time. Each implementation prompt should name exactly one slice, its owned artifacts, its required tests, and its stop condition. Later-slice requirements are context, not authorization to implement ahead.
+The slices are intentionally small enough to give one implementation agent one coherent contract at a time. Each implementation handoff should name exactly one slice, its owned artifacts, its required tests, and its stop condition. Later-slice requirements are context, not authorization to implement ahead.
 
 ## 2. Decisions fixed before Slice A
 
@@ -24,10 +24,15 @@ The following decisions are already reviewed and are not open design questions i
 - Expected numerical values must be established independently of the production functions under test.
 - The minimum heterogeneous suite must stop for human review when it works. Expansion beyond that reviewed minimum is human-directed, not automatic.
 - No slice may add live network or LLM calls to deterministic tests, production persistence, SQLite, or new analytical strategies.
+- Effective 2026-08-30, no further Step 2.5 Golden Suite implementation work will be assigned to Cline. Codex is the implementation owner; the prompts and runtime profile below are retained only as an audit record and must not be issued as active implementation instructions.
+- A provider-confirmed ETF is applicable to Momentum but `not_applicable` to both Graham methods and the existing company-level FCF Growth strategy. Unknown instrument kind remains fail-open and must not be guessed.
+- P1 owns only the pre-Golden contract/applicability correction. Durable instrument-profile caching and a distinct ETF aggregate FCF-growth strategy are P2 after Step 3.1 and are not authorized during Step 2.5.
 
-## 3. Cline handoff protocol
+## 3. Retired Cline handoff protocol
 
-Every Cline implementation prompt should enforce these boundaries:
+This protocol records the boundaries used during the terminated Cline experiment. It is historical evidence, not an active workflow. The same scope, verification, and stop boundaries remain useful for Codex implementation reviews, but no Step 2.5 slice is to be handed to Cline.
+
+Each attempted Cline implementation prompt was intended to enforce these boundaries:
 
 1. Read this slice plan, the linked governing sections, `docs/EVALUATIONS.md`, and only the production contracts named by the slice before editing.
 2. Establish the focused baseline relevant to the owned artifacts.
@@ -43,19 +48,20 @@ The complete repository quality gate is required at the review checkpoints ident
 
 | Implementation-plan sequence | Formal slice |
 | :--- | :--- |
-| 1. Accept stable contracts | P0 — completed prerequisites |
-| 2. Typed Golden Case model | A1–A2 — leaf constraints, then composed evaluation contract |
-| 3. Independent expectations and tolerances | B1–B2 — expectation dossier |
-| 4–5. Selection and numerical evaluation | C — component evaluators |
-| 6–7. Aggregation and reporting | D — aggregation and report contract |
-| 8. Deterministic/no-LLM harness | E1–E2 — composition and execution harness |
-| 9. Evaluator self-test | F — mutation/self-test |
-| 10. Minimum heterogeneous cases | G1–G4 — minimum catalog |
-| 11. Run minimum suite and stop | Gate M — mandatory human review |
-| 12. Expansion | H — review-directed only |
-| 13. Optional real-local-Ollama | I — empirical execution mode |
-| 14–15. CLI and documentation | J — operator interface and guide completion |
-| 16–17. Gates and measured records | K — closeout |
+| 1. P1 production correction and approval | P1-A–P1-C — evidence, contract/composition, then applicability/presentation |
+| 2. Accept stable contracts | P0 plus approved P1 |
+| 3. Typed Golden Case model | A1–A2 — leaf constraints, then composed evaluation contract |
+| 4. Independent expectations and tolerances | B1–B2 — expectation dossier |
+| 5–6. Selection and numerical evaluation | C — component evaluators |
+| 7–8. Aggregation and reporting | D — aggregation and report contract |
+| 9. Deterministic/no-LLM harness | E1–E2 — composition and execution harness |
+| 10. Evaluator self-test | F — mutation/self-test |
+| 11. Minimum heterogeneous cases | G1–G4 — minimum catalog |
+| 12. Run minimum suite and stop | Gate M — mandatory human review |
+| 13. Expansion | H — review-directed only |
+| 14. Optional real-local-Ollama | I — empirical execution mode |
+| 15–16. CLI and documentation | J — operator interface and guide completion |
+| 17–18. Gates and measured records | K — closeout |
 
 ## 5. Completed prerequisite — P0
 
@@ -77,9 +83,42 @@ Remove repository-structure work from Cline's evaluation prompts and expose one 
 
 The former local `src/golden/` and `tests/golden/` directories have been removed. P0 passed the complete repository quality gate and must not be reopened unless a later slice demonstrates a specific defect.
 
+## 5A. Approved prerequisite — P1 instrument applicability hardening
+
+### Objective
+
+Correct the concrete FLSW defect before Golden behavior is frozen: preserve provider-backed identity consistently, distinguish a known ETF from an invalid ticker or missing company facts, and return native `not_applicable` outcomes for methods that do not apply. P1 must leave a stable injection seam that P2 can implement durably after Step 3.1 without changing strategy calculators or Golden case definitions.
+
+### Fixed invariants
+
+- Instrument kind is provider-backed evidence. Never infer it from a ticker, instrument name, absence of SEC facts, or the success of another strategy.
+- The immutable identity/profile snapshot retains optional normalized kind, raw provider classification, provider identity, and timezone-aware resolution time.
+- Missing or failed kind resolution remains unknown and fail-open. Only affirmative ETF evidence changes applicability.
+- Momentum remains ETF-applicable. Both Graham methods and the existing company-level FCF Growth strategy return `not_applicable` for a known ETF.
+- `not_applicable` is a completed domain outcome with successful direct-CLI process status. It is not input unavailability, provider error, ticker invalidity, or implicit selection of another tool.
+- Identity/profile candidates are ordered and explicitly injected. Each candidate is consulted at most once per run; deterministic execution has no live fallback.
+- Graham/FCF formulas, provider fact mappings, and native result types remain strategy-specific and unchanged except for the minimum typed applicability/status accommodation.
+- The future ETF aggregate method is a separate strategy/tool and must never be hidden inside or silently substituted for company-level FCF Growth.
+
+### P1-A — provider evidence and contract checkpoint
+
+Inspect authoritative provider documentation and representative payload shapes for instrument classification, especially Yahoo's ETF/equity discriminator and retained raw value. Propose the minimum normalized vocabulary, exact mappings, unknown/unsupported behavior, and identity/profile schema-version consequences. Update the provider mapping record and relevant design/architecture text, then stop for human approval before production code changes.
+
+### P1-B — identity/profile contract and request-scoped composition
+
+After P1-A approval, implement the reviewed optional kind evidence on the existing immutable security-identity boundary and a narrow ordered candidate resolver. Reuse retained strategy-provider evidence first and consult Yahoo only when the required name or kind remains unresolved. Preserve winning provenance and fail-open diagnostics. Add deterministic tests for mappings, unknown values, provider failure, fallback order, no duplicate candidate lookup, immutability, and serialization. Stop for focused contract review.
+
+### P1-C — strategy applicability, presentation, and full gate
+
+After P1-B approval, apply the reviewed strategy-specific policy through the shared production service/tool boundaries used by direct CLI and orchestration. Ensure known ETFs produce native `not_applicable` outcomes for both Graham methods and company-level FCF Growth, retain identity-aware headings in every presentation mode, remove generic ticker-verification advice from unavailability/provider failures, and align successful `not_applicable` process status. Add deterministic CLI, presenter, service/analyzer, and production-handler regression tests; prove Momentum is unchanged. Run the complete repository quality gate and stop for explicit P1 approval before A1.
+
+### P1 exclusions and P2 handoff
+
+P1 does not add SQLite, durable/cross-process caches, TTL/invalidation policy, ETF holdings data, constituent aggregation, currency/weighting policy, or a new analytical strategy. P2 — Durable Instrument Profiles & ETF Aggregate FCF Growth — is planned only after Step 3.1. P2 will persist time-aware profiles behind the P1 seam and, after its own provider/product-policy checkpoint, add a distinct look-through ETF strategy with native configuration, results, coverage diagnostics, fixtures, and tool identity. Its exact placement relative to Steps 3.2–3.4 must be reviewed after Step 3.1; no P2 implementation is authorized by this Step 2.5 plan.
+
 ## 6. Slices A1–A2 — typed evaluation contract
 
-The original monolithic Slice A was retired after two failed Cline completion attempts. The split preserves the governing implementation-plan sequence: A1 establishes only typed leaf vocabulary and constraint invariants; A2 composes those reviewed leaves into cases, observations, and component results. Neither slice authorizes evaluator behavior.
+The original monolithic Slice A was retired after two failed Cline completion attempts. A1 remains blocked until P1-C receives explicit approval. After that gate, the split preserves the governing implementation-plan sequence: A1 establishes only typed leaf vocabulary and constraint invariants; A2 composes those reviewed leaves into cases, observations, and component results. Neither slice authorizes evaluator behavior.
 
 ### 6.1 Slice A1 — enums and leaf constraints
 
@@ -312,6 +351,7 @@ Executable case definitions belong in `src/evaluation/cases/`; keep one stable c
 - straightforward historical growth;
 - insufficient or mathematically nonmeaningful growth;
 - period alignment and historical `as_of` rejection;
+- one known-ETF applicability case proving Momentum remains applicable while both Graham methods and company-level FCF Growth are `not_applicable`, with no invalid-ticker claim or automatic aggregate-strategy substitution;
 - at least one existing case explicitly identified as discriminating the requested strategy from a plausible wrong strategy.
 
 ### Shared acceptance
@@ -383,19 +423,19 @@ Support the full suite, one named case, deterministic/no-LLM mode, optional real
 
 ## 18. Current handoff
 
-The Section 19.4 runtime preflight passed. After the human removes the rejected monolithic Slice A attempt's three untracked artifacts and checkpoints this plan revision, the next fresh Cline task is **Slice A1 — enums and leaf constraints**. Its prompt must not include composed cases or observations, public exports, expectation calculations, evaluator behavior, fixture composition, runner work, or CLI work.
+The human ended the Cline implementation experiment for the entire Golden Suite on 2026-08-30; do not retry any Step 2.5 slice through Cline or another Cline model profile. The FLSW review then established and approved the P1/P2 split above. Codex owns the work, but this documentation update does not authorize production edits: the next action is P1-A provider-evidence research and a written mapping proposal, followed by its mandatory human approval. A1 remains blocked through P1-C approval. P2 remains deferred until after Step 3.1.
 
-## 19. Cline and Ollama execution profile
+## 19. Retired Cline and Ollama execution profile
 
 ### 19.1 Scope and separation from benchmark configuration
 
-This profile is for **Cline implementing Step 2.5**. It is not the configuration of the optional real-local-Ollama Golden evaluation in Slice I. Implementation-model behavior, prompts, and outcomes must never be mixed into Golden benchmark measurements.
+This profile was used for **Cline implementing Step 2.5** and is retained to make the failed experiment reproducible. It is no longer an active recommendation. It is not the configuration of the optional real-local-Ollama Golden evaluation in Slice I. Implementation-model behavior, prompts, and outcomes must never be mixed into Golden benchmark measurements.
 
 The recommendation was researched on 2026-08-30. Reassess it for a later milestone because local-model and Ollama support changes quickly. Do not silently change model, quantization, context, or sampling settings between Step 2.5 slices; record any change in Section 22.
 
-### 19.2 Recommended implementation model
+### 19.2 Historical implementation-model recommendation
 
-Use **`qwen3-coder:30b`** through Ollama for both Cline Plan and Act modes. The installed tag was verified on 2026-08-30 to resolve to the intended 30.5B-total/3.3B-active `Q4_K_M` model with completion and tool capabilities; no additional model pull is required for this host.
+The experiment selected **`qwen3-coder:30b`** through Ollama for both Cline Plan and Act modes. The installed tag was verified on 2026-08-30 to resolve to the intended 30.5B-total/3.3B-active `Q4_K_M` model with completion and tool capabilities; no additional model pull was required for this host.
 
 Rationale:
 
@@ -407,6 +447,8 @@ Rationale:
 
 Do not select `qwen3-coder-next:q4_K_M` for the initial run. It is attractive for agentic coding, but its 52 GB weights precede context-cache allocation and exceed the capacity demonstrated by the repository's current deployment artifact. Do not select the 290 GB Qwen3-Coder 480B local artifact. `devstral-small-2:24b-instruct-2512-q4_K_M` is the fallback only if Qwen3-Coder cannot remain fully GPU-offloaded or proves unable to use Cline's tools reliably; do not alternate models casually between slices.
 
+Final review decision on 2026-08-30: Qwen3-Coder remained fully GPU-offloaded but produced three completion claims that materially contradicted the files and check results on disk, including a fresh reduced A1 task. Although the original profile named `devstral-small-2:24b-instruct-2512-q4_K_M` as a possible fallback, the human elected not to spend further Step 2.5 time testing Cline implementation models. There is no active Cline fallback for the Golden Suite. Reconsidering Cline for a later milestone would require a separate explicit decision and would not reopen this Step 2.5 record.
+
 Primary sources:
 
 - [Cline local-model guidance](https://docs.cline.bot/running-models-locally/overview)
@@ -416,7 +458,7 @@ Primary sources:
 - [Ollama Qwen3-Coder-Next size and capabilities](https://ollama.com/library/qwen3-coder-next)
 - [Ollama Devstral Small 2 fallback](https://ollama.com/library/devstral-small-2)
 
-### 19.3 Recommended Ollama model alias
+### 19.3 Historical Ollama model alias
 
 The canonical artifact is [`docs/project/deploy/ollama/Modelfile.cline-step-2.5`](../../deploy/ollama/Modelfile.cline-step-2.5). Create the dedicated `financial-data-agents-step-2-5` alias from this content on the inference server:
 
@@ -452,7 +494,7 @@ Relevant runtime references:
 - [Ollama Flash Attention and K/V cache settings](https://docs.ollama.com/faq#how-can-i-enable-flash-attention)
 - [Ollama Cline integration](https://docs.ollama.com/integrations/cline)
 
-### 19.4 Mandatory Ollama preflight
+### 19.4 Historical mandatory Ollama preflight
 
 Before giving Cline Slice A1 or A2:
 
@@ -464,7 +506,7 @@ Before giving Cline Slice A1 or A2:
 6. Confirm that a small Cline task can read one file, run a harmless read-only command, and complete one tool round trip without malformed tool syntax.
 7. Record the result in Section 22. Do not begin A1 or A2 on a failed preflight.
 
-### 19.5 Recommended Cline settings
+### 19.5 Historical Cline settings
 
 | Setting | Recommendation |
 | :--- | :--- |
@@ -496,6 +538,8 @@ Use Cline's [local-model settings](https://docs.cline.bot/running-models-locally
 
 ### 19.6 Cline task lifecycle
 
+Retired on 2026-08-30. The lifecycle below describes the attempted workflow and must not be used to start another Golden Suite implementation task.
+
 For every slice:
 
 1. Start a fresh Cline task in Plan mode with the corresponding prompt draft from Section 21.
@@ -509,7 +553,7 @@ For every slice:
 
 ## 20. Prompt-draft conventions
 
-The drafts below are paste-ready starting points, but the human should replace bracketed placeholders and update the current worktree/baseline statement before use. The prompts deliberately repeat scope and stop conditions because local models benefit from explicit boundaries.
+The drafts below are retained as historical design artifacts and bounded-scope references for review. They are not paste-ready tasks and must not be issued to Cline. Their repeated scope and stop conditions may inform Codex implementation review, but the stale worktree and baseline statements are not operational instructions.
 
 Unless a prompt says otherwise, each task must:
 
@@ -522,14 +566,16 @@ Unless a prompt says otherwise, each task must:
 - run focused non-mutating checks with `uv run --no-sync` and the repository-local managed paths described by `AGENTS.md`; and
 - stop after reporting changed files, verification, and any concrete blocker.
 
-## 21. Cline prompt drafts
+## 21. Retired Cline prompt drafts
+
+Do not issue these prompts. They preserve the intended slice boundaries and the exact instructions used or prepared during the terminated Cline experiment.
 
 ### 21.1 Slice A1 — enums and leaf constraints
 
 ```text
 Implement only Step 2.5 Slice A1 — enums and leaf constraints — on branch feat/step-2.5-golden-suite.
 
-The human will replace [REVISED_PLAN_CHECKPOINT_SHA] before sending this prompt. The reviewed baseline must be clean commit [REVISED_PLAN_CHECKPOINT_SHA]. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status is not empty. Use repository-relative paths in every file tool: never pass C:\Source\... or another absolute Windows path to a write/edit tool.
+The reviewed Git checkpoint is commit ff4140336381e98cff835e9ea05fa61620aca1f9. The worktree intentionally contains exactly one pre-existing human-owned modification: ` M docs/project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status contains anything other than that one line. Preserve the human-owned plan modification byte-for-byte: do not edit, revert, stage, format, or otherwise take ownership of it. Use repository-relative paths in every file tool; never pass C:\Source\... or another absolute Windows path to a write/edit tool.
 
 Read AGENTS.md, Section 4.5 of docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md, Sections 2–6.1 and 19–21 of docs/project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md, docs/EVALUATIONS.md, and the existing src/evaluation/__init__.py. Inspect src/orchestrator/analysis_tools.py only to confirm the four approved tool names. Do not modify either inspected production/package file.
 
@@ -546,7 +592,7 @@ uv run --no-sync ruff format --check src/evaluation/models.py tests/evaluation/t
 uv run --no-sync mypy --strict src/evaluation/models.py
 uv run --no-sync pytest tests/evaluation/test_models.py -q
 
-If a command cannot run, report its exact output and follow AGENTS.md's managed-agent guidance; do not substitute a claimed result. Stop after reporting git status, the two changed files, a concise diff summary, and exact output/exit status for all four checks. Do not start A2 or commit.
+If a command cannot run, report its exact output and follow AGENTS.md's managed-agent guidance; do not substitute a claimed result. Stop after reporting git status, the two Cline-owned files, a concise diff summary, and exact output/exit status for all four checks. The final status may contain only the pre-existing modified slice-plan document plus src/evaluation/models.py and tests/evaluation/test_models.py; stop and report any other path. Do not start A2 or commit.
 ```
 
 ### 21.2 Slice A2 — composed case, observation, and result contract
@@ -807,15 +853,15 @@ Run the complete repository quality-gate wrapper and the documented deterministi
 Do not weaken or repair failing expectations merely to close the step. Make only narrow documentation-status corrections that reflect already-verified facts; stop and report any code/test failure for a separate reviewed correction. Do not mark Step 2.5 complete, commit, push, open a PR, or merge. Stop for final human approval.
 ```
 
-## 22. Cline execution and review record
+## 22. Implementation execution and review record
 
-This is the living audit trail for Cline implementation attempts. Cline's completion summary is evidence to review, not the review verdict. The human or reviewing agent updates this section after inspecting the actual diff and independently rerunning appropriate checks.
+This is the living audit trail for Step 2.5 implementation. The retired Cline attempts remain historical evidence; all P1 and later implementation is Codex-owned. Any implementation summary is evidence to review, not the review verdict. The human or reviewing agent updates this section after inspecting the actual diff and independently rerunning appropriate checks.
 
 ### 22.1 Runtime preflight record
 
 | Date | Cline version | Ollama version | Model alias and digest | Context | `ollama ps` processor | Tool smoke test | Decision/notes |
 | :--- | :--- | :--- | :--- | ---: | :--- | :--- | :--- |
-| 2026-08-30 | `v4.1.16 (Next)` | `0.33.2` | `financial-data-agents-step-2-5:latest` / `5d94265d163a` | 65,536 allocated | **100% GPU — pass** | **Pass** — file read and bounded Git command | Preflight passed after removing stale GPU-discovery overrides and fully restarting Ollama; the current A1 retry may begin after cleanup/checkpoint. |
+| 2026-08-30 | `v4.1.16 (Next)` | `0.33.2` | `financial-data-agents-step-2-5:latest` / `5d94265d163a` | 65,536 allocated | **100% GPU — pass** | **Pass** — file read and bounded Git command | Preflight passed after removing stale GPU-discovery overrides and fully restarting Ollama; later implementation attempts failed review and the Cline experiment was terminated. |
 
 Verified Cline UI state on 2026-08-30:
 
@@ -845,16 +891,18 @@ The subsequent server log resolved that distinction. At startup, the actual Olla
 
 Corrective retry: fully stop the Ollama server, remove `CUDA_VISIBLE_DEVICES` and `OLLAMA_VULKAN` from the new server process, retain the reviewed context/Flash-Attention/q8_0/serial settings, and restart it. The startup log must register both NVIDIA adapters with a CUDA library before loading the alias. If unrestricted discovery succeeds and later restriction is necessary, use the GPU UUIDs reported by `nvidia-smi -L` rather than numeric device indices. Only reconsider `num_gpu` if CUDA discovery succeeds but the scheduler requests zero or partial GPU layers.
 
-Final preflight result on 2026-08-30: after fully stopping the stale server and restarting without the `CUDA_VISIBLE_DEVICES` and experimental `OLLAMA_VULKAN` overrides, `ollama run` returned the requested `OK` and `ollama ps` reported alias digest `5d94265d163a`, 22 GB, `100% GPU`, and 65,536 context. Cline then completed the bounded smoke prompt: it read `AGENTS.md`, correctly reported its first heading as `# Financial Data Agents – Development LLM Guardrails`, ran the read-only branch command, correctly reported `feat/step-2.5-golden-suite`, and stated that it made no file modifications. The Step 2.5 runtime preflight is therefore complete and remains valid for the fresh A1 retry.
+Final preflight result on 2026-08-30: after fully stopping the stale server and restarting without the `CUDA_VISIBLE_DEVICES` and experimental `OLLAMA_VULKAN` overrides, `ollama run` returned the requested `OK` and `ollama ps` reported alias digest `5d94265d163a`, 22 GB, `100% GPU`, and 65,536 context. Cline then completed the bounded smoke prompt: it read `AGENTS.md`, correctly reported its first heading as `# Financial Data Agents – Development LLM Guardrails`, ran the read-only branch command, correctly reported `feat/step-2.5-golden-suite`, and stated that it made no file modifications. The runtime/tool preflight therefore passed; the subsequent implementation failures show that this smoke test was insufficient to establish implementation reliability.
 
 ### 22.2 Slice review log
 
-| Slice | Attempt/config | Cline implementation summary | Independent review findings | Corrections/follow-up | Verification | Status |
+| Slice | Attempt/config | Implementation summary | Independent review findings | Corrections/follow-up | Verification | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | P0 | Codex prerequisite work; no Cline attempt | Extracted deterministic fixtures, added evaluation scaffold/guide, and registered four dependency-injected production handlers. | Reviewed during prerequisite implementation; full repository gate passed with 940 tests and 86% coverage. | None recorded. | Ruff, format, strict mypy, 940 pytest tests | Complete |
+| P1 | Codex; approved production prerequisite | — | FLSW exposed inconsistent identity and invalid-ticker messaging plus missing ETF applicability semantics. | Execute P1-A–P1-C with review stops; no Golden model work before approval. | Pending | Approved; next |
 | A (retired monolith) | Attempts 1–2; recommended model/profile | Twice claimed a complete typed contract and passing verification. | Attempt 1 wrote a truncated, non-importable module and an unintended root file; attempt 2 replaced the module with one comment, retained the unintended file and incomplete tests, and again reported checks that did not match disk state. | Human cleanup; replace the monolith with A1–A2 and require relative write paths, full-file read-back, and exact command evidence. | Attempt 1: Ruff 76 errors, mypy 69 errors, pytest collection error. Attempt 2: Ruff 1 error, format pass, vacuous mypy pass, pytest import error. | Rejected/retired |
-| A1 | Pending; fresh task required | — | — | — | — | Next after cleanup/checkpoint |
-| A2 | Pending; fresh task required | — | — | — | — | Blocked by A1 review |
+| A1 (Cline attempt) | Attempt 1; fresh Qwen task with reduced prompt | Claimed all enums, four frozen leaf models, comprehensive tests, and successful checks. | Wrote only five enum classes, imported unavailable third-party `strenum` instead of `enum.StrEnum`, omitted every leaf model, and never created the test file. | Reject the artifact and terminate Cline implementation for all Golden Suite slices. | Ruff 13 errors; format failed; mypy 6 errors; pytest found no test file. | Rejected; Cline experiment terminated |
+| A1 (implementation) | Pending; Codex implementation | — | — | — | — | Blocked by P1-C approval |
+| A2 | Pending; Codex implementation | — | — | — | — | Blocked by A1 review |
 | B1 | Pending | — | — | — | — | Blocked by A2 review |
 | B2 | Pending | — | — | — | — | Blocked by B1 review |
 | C | Pending | — | — | — | — | Pending |
@@ -881,6 +929,23 @@ Final preflight result on 2026-08-30: after fully stopping the stale server and 
 - Independent verification: attempt 1 produced 76 Ruff errors, 69 strict-mypy errors, and a pytest collection `NameError`; formatting passed. Attempt 2 produced one Ruff error and a pytest collection `ImportError`; formatting passed, while mypy passed only because the source file contained no code.
 - Decision: reject and retire the monolithic slice. The human owns exact cleanup of the three untracked artifacts. Resume from a clean checkpoint with fresh A1 and A2 tasks.
 - Prompt lessons: keep each write small; prohibit absolute paths in file tools; require clean-SHA verification, full-file read-back, and exact command output; never accept a model's completion summary without inspecting disk and rerunning checks.
+
+#### 2026-08-30 — Slice A1, attempt 1
+
+- Prompt/configuration: fresh reduced A1 task; Cline `v4.1.16 (Next)`, Qwen3-Coder alias digest `5d94265d163a`, 65,536 context, 100% GPU; exact enums, fields, exclusions, relative paths, baseline state, read-back, and command requirements supplied.
+- Cline summary: claimed five `StrEnum` classes, all four frozen leaf models, comprehensive tests, and successful validation.
+- Reviewed diff: `src/evaluation/models.py` was the only Cline-owned artifact. It contained 41 lines defining only the five enums. `tests/evaluation/test_models.py` did not exist. The human-owned slice-plan modification remained separate.
+- Findings: imported undeclared third-party `strenum` despite Python 3.12's standard-library `enum.StrEnum` and the no-dependency rule; omitted ToolConstraints, GrahamMethodConstraints, BehaviorConstraints, NumericalExpectation, all validators, all tests, module/class docstrings, and required verification.
+- Independent verification: Ruff reported 13 errors; format-check reported the source unformatted and the test path missing; strict mypy reported 6 errors; pytest reported the test path missing and ran zero tests.
+- Decision: reject and stop the current task. Because the failure recurred in a fresh, materially smaller slice after the tool smoke test and explicit corrections, treat Qwen3-Coder as unreliable for Cline implementation on this host. The Section 19.2 fallback condition is met.
+- Prompt lessons: further prompt expansion is unlikely to correct the discrepancy between disk state and completion claims. Change the implementation model or implementation owner before retrying A1.
+
+#### 2026-08-30 — final implementation-owner decision
+
+- Decision: stop attempting to use Cline for implementation of any remaining Step 2.5 Golden Suite slice. Do not test the previously proposed Devstral fallback as part of this step.
+- Basis: three materially false completion reports across a retired monolith and a fresh reduced slice made Cline's reports non-auditable without effectively redoing each implementation. The extra prompting, cleanup, model/runtime preflight, and independent verification cost exceeded the intended benefit of delegation.
+- Ownership: Codex will implement the remaining slices one at a time after explicit human discussion or authorization, preserving the slice boundaries, independent verification, and mandatory human review gates in this document.
+- Record retention: keep the Cline configuration, prompts, and review findings as historical evidence. They must not be treated as active recommendations or benchmark results.
 
 ### 22.3 Review-entry checklist
 
