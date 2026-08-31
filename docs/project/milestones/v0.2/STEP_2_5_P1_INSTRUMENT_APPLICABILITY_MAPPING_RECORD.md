@@ -1,6 +1,6 @@
 # P1 Instrument Applicability Mapping Record
 
-**Status:** P1-A and P1-B approved; P1-C implemented and awaiting final P1 review  
+**Status:** P1-A through P1-C complete and approved; consumed by the Step 2.5 Golden implementation<br/>
 **Prepared:** 2026-08-30  
 **Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#450-p1--pre-golden-instrument-applicability-hardening)  
 **Slice plan:** [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#5a-approved-prerequisite--p1-instrument-applicability-hardening)  

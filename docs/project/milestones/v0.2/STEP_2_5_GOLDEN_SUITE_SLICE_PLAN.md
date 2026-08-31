@@ -1,6 +1,6 @@
 # Step 2.5 Golden Suite Slice Plan
 
-**Status:** Active; prerequisite extraction and production-handler registration are complete. P1-A and P1-B are approved; P1-C is implemented and awaiting final P1 review. Cline implementation attempts were terminated; Codex owns P1 and the remaining Step 2.5 implementation, subject to the existing human review gates.<br/>
+**Status:** Active and paused at Gate M. Checkpoint `4d08b1273fe3e226f69b3a47e9680e9e70d001eb` contains P1 and Slices A1–G4. The 2026-08-31 review did not approve Gate M and made Slice H mandatory. All changes until the next checkpoint are documentation only.<br/>
 **Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Evaluation contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
@@ -372,9 +372,43 @@ After G1–G4:
 
 No case expansion, real-local-Ollama execution, CLI work, or Step 2.5 completion claim is authorized before this gate is approved.
 
+### 2026-08-31 decision
+
+Gate M is **not approved**. The complete findings and verification evidence are
+recorded in the [Step 2.5 Gate M Review](STEP_2_5_GATE_M_REVIEW.md). The blocking
+conditions are:
+
+- the repository gate fails with 76 strict-mypy errors in four evaluation test
+  files, although focused evaluation tests and the complete pytest suite pass;
+- the aggregate runner treats correct expected historical `input_unavailable`
+  outcomes as failures and does not enforce several expected statuses, reasons,
+  availability states, or classifications;
+- there is no canonical operation that executes all reviewed minimum cases as
+  one versioned deterministic report; and
+- the Golden catalog proves only the Graham Number branch of the required
+  cross-strategy ETF applicability scenario.
+
+Slices I–K remain blocked. The next implementation work is only the approved
+Slice H correction below, after the documentation-only checkpoint is reviewed.
+
 ## 14. Slice H — review-directed case changes or expansion
 
-This slice exists only if Gate M review identifies missing signal or explicitly approves additional cases. The approximately 11–12 minimum cases already fall within the approved 10–18 initial range, so expansion is not presumed necessary.
+Slice H is mandatory because Gate M identified demonstrated evaluator and
+coverage defects. It is limited to the following approved actions:
+
+1. correct the 76 strict-mypy failures without changing production financial
+   behavior;
+2. represent and evaluate exact expected native domain outcomes, including
+   status, metric availability, reason, and classification where material;
+3. correct/version the expectations for `MOM-02`, `GRA-ETF-01`, `GRN-05`,
+   `FCF-02`, and `FCF-03` while preserving IDs and verified numerical values;
+4. add `MOM-ETF-01`, `GRG-ETF-01`, and `FCF-ETF-01` so the existing
+   `GRA-ETF-01` scenario proves the complete four-strategy P1 applicability
+   matrix; these bring the suite to fifteen cases, within the approved range;
+5. add one canonical deterministic catalog/request-builder entry point that
+   produces a single versioned report without adding the public CLI; and
+6. add mutation/regression evidence, run focused checks, the canonical suite,
+   and the complete repository wrapper, then stop again at Gate M.
 
 Every added case must state the distinct failure mode or signal it contributes. Do not add cases mechanically to reach a number, remove a useful failure, or alter expectations to improve measured performance.
 
@@ -423,7 +457,14 @@ Support the full suite, one named case, deterministic/no-LLM mode, optional real
 
 ## 18. Current handoff
 
-The human ended the Cline implementation experiment for the entire Golden Suite on 2026-08-30; do not retry any Step 2.5 slice through Cline or another Cline model profile. The FLSW review then established and approved the P1/P2 split above. P1-A and P1-B are approved. Codex has implemented P1-C's ETF applicability control flow, native statuses, identity/kind presentation, JSON schema changes, CLI process semantics, shared-handler behavior, and deterministic regressions. Stop for explicit final P1 review before A1. P2 remains deferred until after Step 3.1.
+The repository is paused at Gate M on checkpoint
+`4d08b1273fe3e226f69b3a47e9680e9e70d001eb`. P1 and Slices A1–G4 are present,
+but Gate M is not approved for the reasons recorded in
+[`STEP_2_5_GATE_M_REVIEW.md`](STEP_2_5_GATE_M_REVIEW.md). All changes until the
+next checkpoint are documentation only. After that checkpoint receives explicit
+review, the only authorized implementation is the bounded Slice H correction in
+Section 14; rerun Gate M and stop before Slices I–K. P2 remains deferred until
+after Step 3.1.
 
 ## 19. Retired Cline and Ollama execution profile
 
@@ -794,13 +835,12 @@ Run the full deterministic/no-LLM minimum suite and the complete repository qual
 Do not change expectations, remove failures, expand cases, add Ollama mode, add CLI work, claim Step 2.5 complete, or commit. If a test or case fails, report the exact classified failure and relevant evidence without weakening the benchmark. Stop and provide the case/results table and complete gate output summary for human review.
 ```
 
-### 21.15 Slice H — conditional review-directed correction or expansion
+### 21.15 Slice H — approved Gate M correction
 
 ```text
-Implement only the Gate M review action described below; this is conditional Step 2.5 Slice H work.
+Implement only the Step 2.5 Slice H corrections approved by the 2026-08-31 Gate M review.
 
-Human-approved review action:
-[INSERT ONE SPECIFIC REVIEW FINDING OR APPROVED ADDITION, INCLUDING CASE ID/SIGNAL]
+Correct the 76 strict-mypy errors. Add and wire a narrowly typed expected-domain-outcome contract so the runner/report evaluates exact native statuses, material metric availability, reasons, and classifications. Preserve case IDs and verified numbers while correcting/versioning MOM-02, GRA-ETF-01, GRN-05, FCF-02, and FCF-03. Add MOM-ETF-01, GRG-ETF-01, and FCF-ETF-01 against the reviewed ETF fixture boundary. Add one canonical deterministic fifteen-case catalog/request builder and report entry point, but no public CLI. Add mutation/regression tests proving wrong domain outcomes fail and correct expected input_unavailable/not_applicable outcomes pass.
 
 Read AGENTS.md, Sections 12–14 and 19–22 of the Step 2.5 slice plan, the Gate M review entry, and only the contracts named by the approved action.
 
@@ -808,10 +848,12 @@ In Plan mode, explain why the action adds distinct benchmark signal or corrects 
 
 In Act mode, implement only that action. Preserve all reviewed case IDs and expectations unless the human explicitly approved a versioned correction. Add focused deterministic tests and document the reason for any new case.
 
-Do not perform generic expansion, opportunistic cleanup, real-Ollama work, CLI work, or other review findings. Run focused checks and the deterministic suite, then stop. Do not commit.
+Do not perform generic expansion, opportunistic cleanup, real-Ollama work, CLI work, production financial changes, or other review findings. Run focused checks, the canonical deterministic suite, and the complete repository quality-gate wrapper, then stop at Gate M. Do not commit.
 ```
 
-Do not use Slice H without replacing the placeholder with an explicit human-approved action. If Gate M approves the minimum unchanged, skip H.
+This handoff becomes executable only after the current documentation-only
+checkpoint is explicitly reviewed. It does not authorize implementation during
+the documentation-only interval.
 
 ### 21.16 Slice I — optional real-local-Ollama evaluation mode
 
@@ -900,24 +942,12 @@ Final preflight result on 2026-08-30: after fully stopping the stale server and 
 | P0 | Codex prerequisite work; no Cline attempt | Extracted deterministic fixtures, added evaluation scaffold/guide, and registered four dependency-injected production handlers. | Reviewed during prerequisite implementation; full repository gate passed with 940 tests and 86% coverage. | None recorded. | Ruff, format, strict mypy, 940 pytest tests | Complete |
 | P1-A | Codex; approved production prerequisite | Inspected yfinance 1.6.0 sources and live FLSW/AAPL/BTC-USD metadata, then proposed exact kind mappings, separate evidence/profile contracts, schema changes, and P1-B/P1-C tests. | Mapping record preserves SEC identity separately from Yahoo kind evidence; no production code changed. | Human approved the record without amendment on 2026-08-30. | Live read-only metadata check; documentation diff check | Complete and approved |
 | P1-B | Codex; focused production-contract slice | Added immutable kind evidence/profile contracts, exact Yahoo mapping, ordered fail-open candidate composition, shared Yahoo metadata retrieval, narrow adapter/façade routing, and deterministic tests. | SEC identity and Yahoo kind retain separate provenance; unknown/error remains fail-open; no strategy or presentation behavior changed. | Human reviewed and approved P1-B on 2026-08-30, authorizing P1-C. | Focused Ruff, format, strict mypy, and 28 deterministic tests | Complete and approved |
-| P1-C | Codex; strategy-applicability slice | Wired request-scoped profiles through CLI and production handlers; added ETF-native Graham/FCF `not_applicable`, retained Momentum behavior, coherent identity/kind presentation, successful domain-outcome exit codes, and removed unsupported ticker-verification advice. | Only affirmative ETF evidence short-circuits; equity, unknown, and provider-error profiles retain existing resolution. FCF result schema advances to 3 without a method-version change; Momentum/Graham presentation schemas advance to 3 and FCF presentation to 4. | Stop for explicit final P1 review before A1. | Focused Ruff, format, strict mypy, and 89 deterministic tests; complete gate: Ruff, format, strict mypy, 972 tests, 86% coverage | Implemented; final P1 approval pending |
+| P1-C | Codex; strategy-applicability slice | Wired request-scoped profiles through CLI and production handlers; added ETF-native Graham/FCF `not_applicable`, retained Momentum behavior, coherent identity/kind presentation, successful domain-outcome exit codes, and removed unsupported ticker-verification advice. | Only affirmative ETF evidence short-circuits; equity, unknown, and provider-error profiles retain existing resolution. FCF result schema advances to 3 without a method-version change; Momentum/Graham presentation schemas advance to 3 and FCF presentation to 4. | Human approval authorized A1; the completed P1 contract is now Golden input. | Focused Ruff, format, strict mypy, and 89 deterministic tests; complete gate: Ruff, format, strict mypy, 972 tests, 86% coverage | Complete and approved |
 | A (retired monolith) | Attempts 1–2; recommended model/profile | Twice claimed a complete typed contract and passing verification. | Attempt 1 wrote a truncated, non-importable module and an unintended root file; attempt 2 replaced the module with one comment, retained the unintended file and incomplete tests, and again reported checks that did not match disk state. | Human cleanup; replace the monolith with A1–A2 and require relative write paths, full-file read-back, and exact command evidence. | Attempt 1: Ruff 76 errors, mypy 69 errors, pytest collection error. Attempt 2: Ruff 1 error, format pass, vacuous mypy pass, pytest import error. | Rejected/retired |
 | A1 (Cline attempt) | Attempt 1; fresh Qwen task with reduced prompt | Claimed all enums, four frozen leaf models, comprehensive tests, and successful checks. | Wrote only five enum classes, imported unavailable third-party `strenum` instead of `enum.StrEnum`, omitted every leaf model, and never created the test file. | Reject the artifact and terminate Cline implementation for all Golden Suite slices. | Ruff 13 errors; format failed; mypy 6 errors; pytest found no test file. | Rejected; Cline experiment terminated |
-| A1 (implementation) | Pending; Codex implementation | — | — | — | — | Blocked by P1-C approval |
-| A2 | Pending; Codex implementation | — | — | — | — | Blocked by A1 review |
-| B1 | Pending | — | — | — | — | Blocked by A2 review |
-| B2 | Pending | — | — | — | — | Blocked by B1 review |
-| C | Pending | — | — | — | — | Pending |
-| D | Pending | — | — | — | — | Pending |
-| E1 | Pending | — | — | — | — | Pending |
-| E2 | Pending | — | — | — | — | Pending |
-| F | Pending | — | — | — | — | Pending |
-| G1 | Pending | — | — | — | — | Pending |
-| G2 | Pending | — | — | — | — | Pending |
-| G3 | Pending | — | — | — | — | Pending |
-| G4 | Pending | — | — | — | — | Pending |
-| Gate M | Pending | — | — | — | — | Mandatory stop |
-| H | Conditional | — | — | — | — | Not authorized |
+| A1–G4 | Codex; reviewed implementation sequence | Added the typed models, expected-value dossier, evaluators, reports, deterministic runner, self-tests, fixtures/composition, and twelve reviewed cases now present at checkpoint `4d08b127`. | The 2026-08-31 Gate M audit found the bounded runner/domain-outcome, canonical-catalog, ETF-matrix, and strict-typing defects recorded in the Gate M review. | Complete only the approved Slice H corrections; do not rewrite verified numerical expectations. | 217 focused evaluation tests pass; complete pytest has 1189 passes and 87% coverage; the repository wrapper fails strict mypy with 76 errors. | Implemented; Gate M corrections required |
+| Gate M | Independent checkpoint audit | Enumerated the exact twelve cases, inspected aggregate semantics, and ran the repository/focused/full-test verification described in `STEP_2_5_GATE_M_REVIEW.md`. | Mandatory gate is red; one canonical full-suite report cannot yet be produced. | Slice H approved as a bounded mandatory correction; return to Gate M afterward. | Ruff/format pass; strict mypy fail; focused and full pytest pass. | Not approved |
+| H | Approved correction; not yet started | — | Scope is fixed by Sections 13–14 and the Gate M review. | Wait for documentation-only checkpoint review, then implement only the fixed correction. | — | Authorized next implementation after checkpoint review |
 | I | Optional after Gate M | — | — | — | — | Not authorized |
 | J | Pending | — | — | — | — | Pending |
 | K | Pending | — | — | — | — | Pending |

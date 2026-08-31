@@ -295,6 +295,21 @@ precedes its availability.
 | Market capitalization | Unavailable | No D0 provider mapping reviewed |
 | FY1/FY2 analyst consensus EPS | Unavailable | Meaning, horizon, provenance, updates, and licensing are unverified |
 
+### 7.1 Approved future extension; current support unchanged
+
+The 2026-08-31 [SEC EDGAR FPI / IFRS D0 Mapping
+Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) approves a corrected Step 2.5A
+plan after Step 2.5 closes. That future work first adds `20-F`/`40-F` annual
+forms to the existing exact US-GAAP **duration** concepts without broadening
+balance-sheet forms, then adds exact IFRS duration mappings for diluted EPS,
+adjusted weighted-average shares, operating cash flow, and physical-PP&E CapEx.
+
+This future plan does not change the production truth in the table above. Until
+Step 2.5A is implemented, verified, and approved, all `20-F`/`40-F` and IFRS
+shapes remain unavailable through this adapter. IFRS BVPS, absence-based
+preferred-zero inference, ADR/ADS conversion, currency conversion, and custom
+extensions are not approved by that plan.
+
 JPMorgan is a representative complete-strategy negative case: the reviewed
 payload lacks the exact CapEx concept and its CIK maps to multiple listed
 securities. Negative operating cash flow itself is valid data and is not the

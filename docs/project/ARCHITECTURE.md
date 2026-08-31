@@ -4,8 +4,8 @@
 **Active implementation detail:** `milestones/v0.2/IMPLEMENTATION_PLAN.md`<br/>
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
-**Last updated:** 2026-08-30<br/>
-**Current status:** Steps 2.2–2.4 are complete and approved. Slice G documentation synchronization, the complete repository gate, and explicit Step 2.4 closeout approval completed on 2026-08-30. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Last updated:** 2026-08-31<br/>
+**Current status:** Steps 2.2–2.4 are complete and approved. Step 2.5 Golden-Test Suite & Strategy Evaluation is current and paused at Gate M; the 2026-08-31 review requires a bounded Slice H correction before approval. Step 2.5A SEC foreign-private-issuer/IFRS coverage is an approved post-Step-2.5 target seam, not current implementation. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 
@@ -301,7 +301,7 @@ These stores/artifacts must not be collapsed merely because they can all be seri
 
 ## 7. Golden-Suite architecture (Step 2.5)
 
-Step 2.5 consumes the stable Steps 2.3–2.4 contracts only after approved P1 instrument-applicability hardening passes its review gate.
+Step 2.5 consumes the stable Steps 2.3–2.4 contracts after approved P1 instrument-applicability hardening. The initial implementation is paused at Gate M pending the bounded corrections in the [Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md).
 
 The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
@@ -331,7 +331,54 @@ Deterministic/no-LLM tests validate fixtures, contracts, analytics, evaluator be
 
 Real-local-Ollama evaluation is an empirical mode and remains separate from deterministic regression/CI tests unless explicitly configured.
 
-The ≥90% target is a measurement target, not permission to weaken cases until a model passes.
+The ≥90% target is a measurement target, not permission to weaken cases until a model passes. Expected native domain outcomes are first-class evidence: a deliberate `input_unavailable` or `not_applicable` result passes only when the case expects its exact observable contract, and the same result fails when success was expected. Infrastructure/fixture failures remain distinct from valid non-success analytical outcomes.
+
+The deterministic runner requires one canonical versioned case catalog and
+request-building boundary so a mandatory gate can produce one auditable report.
+Test-local per-strategy invocations are supporting evidence, not a substitute for
+that complete-suite operation.
+
+### 7.1 SEC foreign-private-issuer target seam (Step 2.5A)
+
+After Step 2.5 closes, the existing SEC adapter may be extended without creating
+a parallel IFRS provider architecture:
+
+```text
+analysis request + effective as_of
+               │
+               ▼
+immutable request-scoped SEC snapshot
+    ├── Company Facts payload
+    └── submissions/accession availability evidence
+               │
+               ▼
+latest eligible annual accession / taxonomy regime
+               │
+       ┌───────┴────────┐
+       ▼                ▼
+US-GAAP duration    exact IFRS duration
+10-K/20-F/40-F      EPS / diluted shares /
+                    OCF / physical-PP&E CapEx
+       └───────┬────────┘
+               ▼
+existing provider-neutral facts, provenance, and resolvers
+```
+
+All fields in one analysis use the same snapshot. Accounting regime is selected
+at the requested historical boundary, not from lifetime namespace presence.
+Existing annual-period, availability, currency, duplicate/restatement,
+provenance, and exact-concept rules remain authoritative.
+
+Per-share filing values and market quotes cross a separate security-unit gate.
+The first implementation accepts only affirmative ordinary-share / 1:1 quoted-
+unit evidence; unknown and ADR/ADS shapes make quote-dependent comparisons
+unavailable without erasing independently supported issuer-level facts.
+
+IFRS BVPS is not in this target seam. Company Facts does not preserve the
+dimensional ordinary/preference share-class evidence needed to infer common
+equity and denominator safely; missing preferred-share evidence is never zero.
+The exact approved scope and deferrals are in the
+[FPI / IFRS D0 Mapping Record](milestones/v0.2/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md).
 
 ---
 

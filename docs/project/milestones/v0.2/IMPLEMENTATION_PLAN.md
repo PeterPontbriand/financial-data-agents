@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-30 — Recorded Slice G and Step 2.4 closeout approval and made Step 2.5 the current step.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → current
+**Revised:** 2026-08-31 — Recorded the Step 2.5 Gate M review, mandatory Slice H correction, and approved post-Step-2.5 FPI/IFRS planning package.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → paused at Gate M pending mandatory Slice H; Step 2.5A → planned and blocked by Step 2.5 completion
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -78,6 +78,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Step 2.4 FCF/earnings-growth strategy | `feat/step-2.4-fcf-earnings-growth` | Adds the third deterministic strategy and minimally extends financial-fact resolution |
 | Step 2.4 pre-Golden shared-contract hardening | `fix/step-2.4-pre-golden-contract-hardening` | Corrects bounded Graham result, presentation, quote, and compatibility seams before benchmark fixtures freeze them |
 | Step 2.5 Golden runner | `feat/step-2.5-golden-suite` | Implements heterogeneous benchmark cases and evaluation harness after the v0.2 strategy set is stable |
+| Step 2.5A SEC FPI/IFRS coverage | `feat/step-2.5a-sec-fpi-ifrs` | Adds foreign annual forms, exact IFRS duration mappings, snapshot consistency, and security-unit gates after Golden closeout |
 | Step 2.6 reliability limits | `feat/step-2.6-circuit-breakers` | Isolates hard execution limits |
 | Step 3.1 persistence foundation | `feat/step-3.1-sqlite-foundation` | Alembic, schema, SQLite telemetry sink, production data access |
 | Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
@@ -901,7 +902,7 @@ Step 2.4 does **not** include:
 
 ### 4.5 Step 2.5 – Golden-Test Suite & Strategy Evaluation
 
-**Status:** Current step as of 2026-08-30.<br/>
+**Status:** Current step; paused at Gate M on 2026-08-31. The checkpoint implementation requires the bounded Slice H corrections recorded in the [Gate M Review](STEP_2_5_GATE_M_REVIEW.md) before Gate M can be reconsidered.<br/>
 **Goal**<br/>
 Establish a deterministic, fixture-backed benchmark that exercises the approved v0.2 set of materially different analytical strategies and separates strategy/tool-selection correctness from deterministic numerical correctness.
 
@@ -921,7 +922,7 @@ This is the empirical test of the architectural objective established in Steps 2
 
 #### 4.5.0 P1 — Pre-Golden instrument applicability hardening
 
-**Status:** P1-A and P1-B are approved; P1-C is implemented and awaiting final P1 review on 2026-08-30. P1 remains mandatory before the typed Golden Case slices begin.
+**Status:** Complete and approved. P1-A through P1-C were accepted before the typed Golden Case implementation began.
 
 **Goal:** Make the Step 2.4 identity, status, provider-composition, and presentation seams an adequate long-lived basis for known non-company instruments without adding persistence or an ETF aggregate strategy.
 
@@ -1190,7 +1191,7 @@ The formal bounded handoff boundaries, owned artifacts, intermediate review poin
 10. Add the evaluator regression/self-test.
 11. Add the minimum heterogeneous case set.
 12. Run the minimum deterministic suite and **stop for review**.
-13. Expand toward the approved initial target range.
+13. Perform only Gate M-directed correction or expansion, then rerun Gate M; skip this item only when Gate M approves the minimum unchanged.
 14. Add optional real-local-Ollama evaluation.
 15. Add the documented CLI.
 16. Update evaluation documentation.
@@ -1215,31 +1216,77 @@ Step 2.5 does **not** include:
 
 #### 4.5.20 Acceptance criteria
 
+Checked items below are already evidenced at the Gate M checkpoint; they do not
+override the open Gate M blockers or constitute Step 2.5 completion.
+
 - [ ] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
-- [ ] P1 is approved before Golden models/cases are implemented; a provider-confirmed ETF is `not_applicable` to both Graham methods and company-level FCF Growth, remains applicable to Momentum, retains its identity when available, and is not described as an invalid ticker.
-- [ ] No live market-data access is required for deterministic suite execution.
-- [ ] Existing production orchestration/tool-dispatch is reused as far as practical.
-- [ ] Expected numerical values are independently verified.
-- [ ] Strategy/tool-selection correctness is evaluated separately from numerical correctness.
-- [ ] Deterministic numerical evaluation does not depend on LLM prose.
+- [x] P1 is approved before Golden models/cases are implemented; a provider-confirmed ETF is `not_applicable` to both Graham methods and company-level FCF Growth, remains applicable to Momentum, retains its identity when available, and is not described as an invalid ticker.
+- [x] No live market-data access is required for deterministic suite execution.
+- [x] Existing production orchestration/tool-dispatch is reused as far as practical.
+- [x] Expected numerical values are independently verified.
+- [x] Strategy/tool-selection correctness is evaluated separately from numerical correctness.
+- [x] Deterministic numerical evaluation does not depend on LLM prose.
 - [ ] A minimum heterogeneous case set works before expansion.
 - [ ] The default three-year-average EPS basis, explicit TTM variation, `not_applicable` behavior, and missing-current-price behavior are covered by Graham cases.
-- [ ] At least one case verifies Graham method-selection correctness independently of broad strategy selection.
+- [x] At least one case verifies Graham method-selection correctness independently of broad strategy selection.
 - [ ] Straightforward, insufficient/nonmeaningful-growth, and period/`as_of` FCF-growth cases are covered.
-- [ ] At least one case materially discriminates correct strategy selection from a plausible wrong strategy.
+- [x] At least one case materially discriminates correct strategy selection from a plausible wrong strategy.
 - [ ] Machine-readable reporting distinguishes component and overall failures.
 - [ ] The ≥90% target is defined and reported without weakening criteria.
-- [ ] Strategy-selection accuracy is reported independently and is not artificially forced to ≥90%.
-- [ ] An evaluator self-test detects an intentionally incorrect result.
-- [ ] Deterministic/no-LLM mode is documented.
-- [ ] Optional real-local-Ollama evaluation is documented separately.
+- [x] Strategy-selection accuracy is reported independently and is not artificially forced to ≥90%.
+- [x] An evaluator self-test detects an intentionally incorrect result.
+- [x] Deterministic/no-LLM mode is documented.
+- [x] Optional real-local-Ollama evaluation is documented separately.
 - [ ] CLI execution and non-zero failure status work.
-- [ ] `docs/EVALUATIONS.md` is updated.
+- [x] `docs/EVALUATIONS.md` is updated through the Gate M decision.
 - [ ] Step 3.1 can replace fixture-backed data sources with production persistence without changing Golden case definitions.
 - [ ] Ruff, formatting, `mypy --strict`, and pytest pass.
 - [ ] Actual measured benchmark results are recorded honestly.
 
 **Definition of done:** Step 2.5 is complete when the repository contains a reproducible fixture-backed benchmark that exercises the approved heterogeneous v0.2 strategy set, distinguishes strategy/method-selection failures from deterministic numerical failures, produces an auditable machine-readable report, and remains decoupled from production persistence.
+
+---
+
+### 4.5A Step 2.5A – SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage
+
+**Status:** Corrected design and implementation sequencing approved on 2026-08-31; implementation blocked until Step 2.5 is complete and approved.<br/>
+**Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) and [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
+**Goal**<br/>
+Extend the existing SEC annual financial-fact adapter to a narrow, evidence-backed foreign-private-issuer surface without weakening exact-concept, annual-period, `as_of`, currency, restatement, provenance, or security-unit requirements.
+
+The approved first implementation has two provider increments:
+
+1. accept `20-F`, `20-F/A`, `40-F`, and `40-F/A` for already-approved US-GAAP annual **duration** concepts while leaving balance-sheet/instant forms unchanged; and
+2. map exact IFRS annual duration concepts for diluted EPS, adjusted weighted-average shares, operating cash flow, and physical-PP&E capital expenditure.
+
+One immutable analysis-scoped SEC snapshot must supply all selected facts and accession availability evidence. Accounting taxonomy is selected from the latest eligible annual accession at effective `as_of`, not from any namespace that happened to occur in the issuer's lifetime history. Requested spans that cross an unproved taxonomy/accounting transition are unavailable.
+
+Foreign security units are an independent compatibility boundary. Issuer-level FCF facts may resolve when supported, but per-share or quote comparisons require affirmative ordinary-share / quoted-unit compatibility. The first implementation is limited to proven 1:1 shapes. ADR/ADS ratio conversion and currency conversion are not approved.
+
+IFRS book value per common/ordinary share is deferred. Missing preferred-share evidence is never zero, generic outstanding-share facts do not prove an ordinary-share denominator, and Company Facts' entity-level surface does not supply the dimensional share-class evidence required for a safe IFRS BVPS derivation.
+
+**Implementation order**
+
+1. freeze minimal deterministic evidence and confirm the exact owned files;
+2. add US-GAAP foreign annual forms for duration fields only and stop for review;
+3. add request-scoped snapshot and latest-accession taxonomy selection and stop for review;
+4. add the four exact IFRS duration mappings and negative boundaries and stop for review;
+5. add the narrow security-unit compatibility predicate and stop for review;
+6. version and extend the Golden Suite only after the provider/resolver behavior is approved;
+7. update support documentation, run the complete repository and Golden gates, and stop for final approval.
+
+**Acceptance criteria**
+
+- [ ] Step 2.5 is complete and approved before implementation begins.
+- [ ] Existing US-GAAP duration concepts accept the approved foreign annual forms without broadening balance-sheet/instant forms.
+- [ ] Exact IFRS EPS, diluted-share, OCF, and physical-PP&E CapEx mappings preserve units, sign, period, availability, currency, and provenance.
+- [ ] One immutable SEC snapshot supplies all fields in one analysis.
+- [ ] Latest-eligible-accession taxonomy selection and cross-regime rejection are deterministic and `as_of` safe.
+- [ ] Missing exact concepts, ambiguous evidence, and unknown security-unit compatibility remain explicitly unavailable.
+- [ ] IFRS BVPS, preferred-zero inference, ADR/ADS conversion, currency conversion, and custom extensions remain unsupported.
+- [ ] Existing case IDs and historical Golden fixtures are preserved; any additions are deliberately versioned.
+- [ ] Focused checks, the complete repository gate, and the canonical Golden Suite pass without live provider or LLM calls.
+- [ ] The final diff receives explicit human approval before Step 2.6.
 
 ---
 

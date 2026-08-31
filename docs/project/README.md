@@ -8,7 +8,8 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 2.4 — Free Cash Flow & Earnings Growth Analysis, pre-Golden hardening, shared security identity, and Slice G closeout — complete and approved<br/>
-**Active step:** Step 2.5 — Golden-Test Suite & Strategy Evaluation<br/>
+**Active step:** Step 2.5 — Golden-Test Suite & Strategy Evaluation — paused at Gate M pending mandatory Slice H corrections<br/>
+**Current checkpoint:** `4d08b1273fe3e226f69b3a47e9680e9e70d001eb`; all changes until the next checkpoint are documentation only<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -16,7 +17,10 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 **Step 2.4 provider mapping record:** [Step 2.4 Provider Mapping Record](milestones/v0.2/STEP_2_4_PROVIDER_MAPPING_RECORD.md)<br/>
 **Initial Step 2.4 reconnaissance:** [Step 2.4 Slice A Reconnaissance](milestones/v0.2/STEP_2_4_SLICE_A_RECONNAISSANCE.md)<br/>
 **Step 2.5 evaluation guide:** [Evaluations & Golden Suite](../EVALUATIONS.md)<br/>
-**Active Step 2.5 slice plan:** [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)
+**Active Step 2.5 slice plan:** [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md)<br/>
+**Gate M decision:** [Step 2.5 Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md)<br/>
+**Approved post-Step-2.5 provider design:** [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
+**Post-Step-2.5 provider slices:** [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
 
 Update **this section** when the active milestone, step, or slice changes. General user documentation and the root README should link here rather than duplicating current project status.
 
@@ -26,7 +30,10 @@ Update **this section** when the active milestone, step, or slice changes. Gener
 - [Architecture](ARCHITECTURE.md) — current architectural boundaries and approved target seams.
 - [Discovery Workbook](DISCOVERY_WORKBOOK.md) — rationale, alternatives, decisions, and product/engineering context.
 - [Evaluations & Golden Suite](../EVALUATIONS.md) — Step 2.5 benchmark purpose, execution modes, scoring boundaries, fixtures, and maintenance rules.
-- [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md) — bounded Cline handoffs, owned artifacts, review gates, and current slice.
+- [Step 2.5 Golden Suite Slice Plan](milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md) — bounded implementation handoffs, owned artifacts, review gates, and current Gate M/Slice H status.
+- [Step 2.5 Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md) — independent checkpoint audit, blocking findings, mandatory Slice H scope, and Gate M re-entry criteria.
+- [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) — approved corrected foreign annual-form/IFRS mapping and explicit deferrals.
+- [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md) — post-Step-2.5 implementation order, review gates, and acceptance criteria.
 - [Milestone plans](milestones/) — implementation plans plus step/slice specifications for each milestone.
 - [`deploy/`](deploy/) — deployment/configuration artifacts intended for project development and review.
 
