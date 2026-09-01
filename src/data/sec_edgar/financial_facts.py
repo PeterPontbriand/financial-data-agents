@@ -36,14 +36,14 @@ _SEC_USER_AGENT_ENV = "SEC_USER_AGENT"
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
-_ACCEPTED_FORMS = frozenset({"10-K", "10-K/A"})
+_COMPLETED_ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
 _SEC_EASTERN = ZoneInfo("America/New_York")
 # A completed fiscal year can vary around 365 days, including 52/53-week years.
 # The approved mapping excludes quarterly, YTD, and TTM durations; this bounded
 # tolerance admits ordinary issuer calendar variation without guessing at them.
 _MIN_ANNUAL_DURATION_DAYS = 335
 _MAX_ANNUAL_DURATION_DAYS = 395
-_BALANCE_SHEET_FORMS = _ACCEPTED_FORMS
+_BALANCE_SHEET_FORMS = frozenset({"10-K", "10-K/A"})
 _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
     FinancialField.STOCKHOLDERS_EQUITY: ("StockholdersEquity", FinancialUnit.CURRENCY),
     FinancialField.COMMON_SHARES_OUTSTANDING: ("CommonStockSharesOutstanding", FinancialUnit.SHARES),
@@ -635,7 +635,7 @@ def _parse_operating_cash_flow_observation(  # noqa: PLR0911
 ) -> ProviderFact | None:
     """Parse one exact-concept annual operating-cash-flow observation."""
     form = observation.get("form")
-    if form not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+    if form not in _COMPLETED_ANNUAL_FORMS or observation.get("fp") != "FY":
         return None
 
     value = observation.get("val")
@@ -714,7 +714,7 @@ def _parse_capital_expenditure_observation(  # noqa: PLR0911
 ) -> ProviderFact | None:
     """Parse one non-negative exact-concept annual PP&E payment observation."""
     form = observation.get("form")
-    if form not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+    if form not in _COMPLETED_ANNUAL_FORMS or observation.get("fp") != "FY":
         return None
 
     value = observation.get("val")
@@ -1356,7 +1356,7 @@ def _parse_diluted_share_observation(  # noqa: PLR0911
     retrieved_at: datetime,
 ) -> ProviderFact | None:
     """Parse one completed-annual diluted-share denominator observation."""
-    if observation.get("form") not in _ACCEPTED_FORMS or observation.get("fp") != "FY":
+    if observation.get("form") not in _COMPLETED_ANNUAL_FORMS or observation.get("fp") != "FY":
         return None
     value = observation.get("val")
     start = observation.get("start")
@@ -1409,7 +1409,7 @@ def _parse_eps_observation(  # noqa: PLR0911
     """Parse one exact-concept completed-annual diluted-EPS observation."""
     form = observation.get("form")
     fp = observation.get("fp")
-    if form not in _ACCEPTED_FORMS or fp != "FY":
+    if form not in _COMPLETED_ANNUAL_FORMS or fp != "FY":
         return None
 
     value = observation.get("val")

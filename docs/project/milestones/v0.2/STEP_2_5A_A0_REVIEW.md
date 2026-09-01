@@ -2,7 +2,7 @@
 
 **Base checkpoint:** `a4001580838795a30d72f399fb4eedcb65dee9f3`<br/>
 **Implementation date:** 2026-08-31 (America/Toronto)<br/>
-**Status:** Implemented and verified; stopped for human review before A1<br/>
+**Status:** Implemented, verified, and approved on 2026-09-01<br/>
 **Authorization:** Gate A approval recorded in the
 [D0 evidence handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
 **Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
@@ -85,5 +85,5 @@ Reviewers should confirm that:
 - resolver-spanning snapshot ownership remains documented for B1-A rather than
   being pulled into this slice.
 
-A0 is stopped at its mandatory review gate. Do not begin A1 until this record
-and the implementation diff receive explicit human approval.
+A0 received explicit human approval on 2026-09-01. The mandatory review gate
+is closed and A1 is authorized under the slice plan.

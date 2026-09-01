@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-31 — Recorded verified Step 2.5A A0 implementation and mandatory review stop before A1.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → complete and approved; Step 2.5A → D0/Gate A complete, A0 implemented and verified awaiting review
+**Revised:** 2026-09-01 — Recorded explicit Step 2.5A A1 Gate B approval and B1-A authorization.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → complete and approved; Step 2.5A → D0/Gate A, A0, and A1/Gate B complete and approved; B1-A authorized
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1604,20 +1604,17 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.5 are complete and approved. Step 2.5A is current and is
-stopped at the mandatory A0 review gate.
+Steps 2.3 through 2.5 are complete and approved. Step 2.5A is current; A0 and
+A1/Gate B are complete and approved, and B1-A is authorized.
 
-1. Review and approve or amend the bounded A0 identity/security-unit correction
-   and verification evidence recorded in the [A0 review
-   record](STEP_2_5A_A0_REVIEW.md).
-2. Only after explicit A0 approval, implement A1 US-GAAP foreign annual-form
-   duration support and stop at Gate B. Do not pull IFRS mapping, snapshot, or
-   affirmative security-unit work into A1.
-3. Continue B1-A across both the FCF and Graham analysis resolvers, then B1-B,
+1. Implement B1-A across both the FCF and Graham analysis resolvers and stop at
+   Gate C. Do not pull exact IFRS mappings or affirmative security-unit work
+   into B1-A.
+2. After Gate C approval, continue B1-B,
    C, D, and E in the exact order and at the human-review gates defined by the
    [Step 2.5A slice plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md).
-4. Preserve classified unavailability so later representative live validation
+3. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
-5. After Step 2.5A closeout, implement Step 2.6 reliability limits and then Step
+4. After Step 2.5A closeout, implement Step 2.6 reliability limits and then Step
    3.1 persistence. Review P2's exact placement only after Step 3.1 is approved.

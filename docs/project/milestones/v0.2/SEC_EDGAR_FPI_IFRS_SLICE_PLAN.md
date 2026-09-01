@@ -1,9 +1,10 @@
 # SEC EDGAR FPI / IFRS Slice Plan
 
-**Status:** A0 implemented and verified; stopped for human review before A1<br/>
+**Status:** A0 and A1 complete and approved; B1-A authorized<br/>
 **Governing mapping:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
 **D0 handoff:** [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
 **A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)<br/>
+**A1 review:** [Step 2.5A A1 US-GAAP Foreign Annual-Form Review](STEP_2_5A_A1_REVIEW.md)<br/>
 **Milestone owner:** [v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md)
 
 ## 1. Objective and placement
@@ -17,8 +18,8 @@ bounded provider-capability enhancement rather than reliability-control work.
 Step 2.5 is complete and approved. D0 evidence minimization, fixture-candidate
 preparation, the explicit test matrix, ownership confirmation, and focused
 baseline are complete. Gate A approved the frozen evidence, bounded A0
-correction, and resolver-spanning B1-A ownership. A0 is implemented and
-verified; A1 remains blocked pending the mandatory A0 review.
+correction, and resolver-spanning B1-A ownership. A0 was implemented, verified,
+and approved on 2026-09-01; A1 is authorized.
 
 ## 2. Fixed decisions
 
@@ -85,11 +86,12 @@ bounded A0 correction, and B1-A ownership across both analysis resolvers on
 **A0 review gate:** run focused Ruff, format, strict mypy, and tests plus the
 complete repository quality wrapper. Stop for human review. Do not begin A1.
 
-**Result:** implemented and verified on 2026-08-31. The test-first run failed
+**Result:** implemented and verified on 2026-08-31, then explicitly approved on
+2026-09-01. The test-first run failed
 the two expected issuer-level cases; the corrected focused suite passed 26
 tests, the broader SEC regression set passed 70 tests, and the complete wrapper
 passed 1,225 tests at 87% reported coverage. See the [A0 review
-record](STEP_2_5A_A0_REVIEW.md). Work is stopped here pending approval.
+record](STEP_2_5A_A0_REVIEW.md). The mandatory A0 review gate is closed.
 
 ### A1 — US-GAAP foreign-annual-form duration support
 
@@ -104,6 +106,13 @@ record](STEP_2_5A_A0_REVIEW.md). Work is stopped here pending approval.
 
 **Gate B:** focused Ruff/format/mypy/tests, then human review. Do not begin IFRS
 mapping until A1 is approved.
+
+**Result:** implemented and verified on 2026-09-01, then explicitly approved at
+Gate B on 2026-09-01. Focused A1/A0 tests passed
+44 tests; complete Ruff/format and strict mypy passed; and the complete suite
+passed 1,262 tests at 88% reported coverage. See the [A1 review
+record](STEP_2_5A_A1_REVIEW.md). The mandatory Gate B review is closed and
+B1-A is authorized.
 
 ### B1-A — analysis-scoped SEC snapshot and regime lock
 
@@ -206,7 +215,7 @@ refactors.
   checksummed, and free of live-test dependencies.
 - [x] Exact ticker-to-CIK resolution remains required; multi-ticker CIKs retain
   issuer-level OCF and CapEx while per-share fields remain fail-closed.
-- [ ] Existing exact US-GAAP duration facts accept approved foreign annual forms
+- [x] Existing exact US-GAAP duration facts accept approved foreign annual forms
   without broadening balance-sheet/instant forms.
 - [ ] The four exact IFRS duration concepts map with correct units, sign, period,
   currency, availability, and provenance.
@@ -217,7 +226,7 @@ refactors.
 - [ ] Per-share/quote outputs require affirmative security-unit compatibility;
   unknown or ADR/ADS shapes fail closed without erasing valid issuer-level facts.
 - [ ] IFRS BVPS and preferred-zero inference remain unsupported.
-- [ ] Existing `10-K` behavior and all approved financial formulas remain
+- [x] Existing `10-K` behavior and all approved financial formulas remain
   unchanged.
 - [ ] Golden additions are versioned and existing case IDs/fixtures are not
   rewritten.
@@ -243,6 +252,6 @@ an implied continuation of this plan.
 
 ## 7. Current handoff
 
-Review and approve or amend the bounded A0 implementation and its recorded
-verification evidence. A1 is the next planned slice but must not begin before
-explicit A0 approval.
+Implement B1-A's analysis-scoped immutable SEC snapshot and regime lock across
+both approved analysis resolvers, run the Gate C checks, and stop for human
+review before B1-B.
