@@ -1,9 +1,11 @@
 # SEC EDGAR FPI / IFRS D0 Mapping Record
 
 **Decision date:** 2026-08-31<br/>
-**Status:** corrected design approved; Step 2.5 prerequisite satisfied and D0 is the current handoff<br/>
+**Status:** D0/Gate A complete; A0 implemented and verified, awaiting review<br/>
 **Placement:** Step 2.5A, after Step 2.5 completion and before Step 2.6<br/>
 **Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
+**D0 evidence:** [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
+**A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)
 
 ## 1. Decision summary
 
@@ -150,30 +152,34 @@ Ticker text, issuer name, absence of a ratio field, or a provider's generic
 
 ## 6. Representative evidence matrix
 
-The following live Company Facts reconnaissance was reviewed on 2026-08-31. It
-is discovery evidence, not a committed deterministic fixture and not permission
-for tests to call the network.
+The initial live reconnaissance was reviewed on 2026-08-31. D0 reconfirmed it
+against the current official sources and committed only the minimized,
+checksummed fragments listed in the evidence-freeze handoff. Tests must use
+those fragments and must not call the network.
 
 | Issuer | Filing/taxonomy shape | B1 observations | Design consequence |
 | :--- | :--- | :--- | :--- |
-| Nutrien (`NTR`) | IFRS foreign private issuer | Exact diluted EPS, adjusted weighted-average shares, operating cash flow, physical-PP&E CapEx, and parent equity appear through 2024; generic shares also appear. | Positive B1 candidate; parent equity plus generic shares still does not prove IFRS BVPS or zero preferred shares. |
-| SAP (`SAP`) | IFRS foreign private issuer | Exact diluted EPS, adjusted weighted-average shares, operating cash flow, and parent equity appear; selected physical-PP&E CapEx concept is absent. | Proves exact-concept unavailability must remain valid; do not substitute a broader combined CapEx concept. |
-| Novo Nordisk (`NVO`) | IFRS foreign private issuer / ADR | Exact diluted EPS, adjusted weighted-average shares, operating cash flow, physical-PP&E CapEx, and generic shares appear; selected parent-equity evidence is absent. | Useful B1/ADR negative boundary; no IFRS BVPS inference. |
-| ASML (`ASML`) | US-GAAP `20-F` filer | Existing exact US-GAAP duration concepts appear under foreign annual forms. | Positive A1 form-expansion candidate; does not by itself authorize IFRS mappings or instant-fact expansion. |
+| Nutrien (`NTR`) | IFRS `40-F`; one SEC ticker | Exact diluted EPS, adjusted weighted-average shares, operating cash flow, and physical-PP&E CapEx appear for FY2025. | Positive B1 candidate; no IFRS BVPS or preferred-zero inference. |
+| SAP (`SAP`) | IFRS `20-F`; `SAP`/`SAPGF` ticker rows | Exact diluted EPS, adjusted weighted-average shares, and operating cash flow appear; selected physical-PP&E CapEx is absent while a broader combined CapEx concept is present. | Proves exact-concept unavailability and exposes the current multi-ticker guard conflict. |
+| Novo Nordisk (`NVO`) | IFRS `20-F`; `NVO`/`NONOF`; ADR | Four exact duration concepts and generic shares appear. The 20-F states one NVO ADR represents one B share. | A deterministic USD quote still conflicts with DKK per-share facts; issuer-level FCF must not be erased. No IFRS BVPS inference. |
+| ASML (`ASML`) | US-GAAP `20-F`; `ASML`/`ASMLF` ticker rows | Existing exact US-GAAP duration concepts appear for FY2025. | Positive form/concept evidence, but the current single-ticker guard prevents the planned A1 path until Gate A corrects sequencing. |
 
 Primary discovery references:
 
 - [SEC EDGAR APIs and Company Facts documentation](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)
+- [SEC ticker mapping](https://www.sec.gov/files/company_tickers.json)
 - [Nutrien Company Facts](https://data.sec.gov/api/xbrl/companyfacts/CIK0001725964.json)
 - [SAP Company Facts](https://data.sec.gov/api/xbrl/companyfacts/CIK0001000184.json)
 - [Novo Nordisk Company Facts](https://data.sec.gov/api/xbrl/companyfacts/CIK0000353278.json)
+- [Novo Nordisk 2025 Form 20-F](https://www.sec.gov/Archives/edgar/data/353278/000035327826000012/nvo-20251231.htm)
 - [ASML Company Facts](https://data.sec.gov/api/xbrl/companyfacts/CIK0000937966.json)
 - [IFRS Accounting Taxonomy 2025](https://www.ifrs.org/issued-standards/ifrs-taxonomy/ifrs-accounting-taxonomy-2025/)
 - [IFRS XBRL preparer's guide](https://www.ifrs.org/content/dam/ifrs/resources-for/preparers/xbrl-using-the-ifrs-taxonomy-a-preparers-guide-december-2017.pdf)
 
-Before implementation, the useful fragments of this evidence must be minimized,
-sanitized, checksummed, and committed as deterministic fixtures. Live payloads
-must not become test dependencies or production cache seed data.
+The useful fragments are now minimized and checksummed under
+`tests/fixtures/sec_edgar/step_2_5a_d0/`. Full live payloads remain transient
+research data and must not become test dependencies or production cache seed
+data.
 
 ## 7. Deterministic test obligations
 
@@ -215,10 +221,10 @@ Step 2.5 closeout establish a stable benchmark-extension workflow.
 
 ## 9. Approval boundary
 
-This record approves the corrected design and its placement in the plan. Step
-2.5 is now complete and approved, so D0 may prepare the minimized evidence and
-exact implementation handoff governed by the slice plan. It does not authorize
-A1 before Gate A and does not change current production support claims. The
-current Step 2.4 mapping continues to report `20-F`/`40-F` and IFRS shapes as
-unavailable until the corresponding Step 2.5A slice is implemented, verified,
-reviewed, and approved.
+This record approves the corrected design and its placement in the plan. D0 is
+complete, and Gate A approved the fixture scope, exact test matrix, bounded A0
+insertion, and resolver-spanning B1-A ownership on 2026-08-31. A0 may proceed;
+A1 remains unauthorized until the A0 review gate. Current production support
+claims do not change. The Step 2.4 mapping continues to report `20-F`/`40-F` and
+IFRS shapes as unavailable until the corresponding Step 2.5A slice is
+implemented, verified, reviewed, and approved.

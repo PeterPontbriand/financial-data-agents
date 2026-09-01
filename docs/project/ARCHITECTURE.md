@@ -5,7 +5,7 @@
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Last updated:** 2026-08-31<br/>
-**Current status:** Steps 2.2–2.5 are complete and approved. Step 2.5A SEC foreign-private-issuer/IFRS coverage is current at D0 evidence freeze; no production implementation has started. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Current status:** Steps 2.2–2.5 are complete and approved. Step 2.5A D0 and Gate A are complete; bounded A0 is implemented and verified, with work stopped and A1 blocked until A0 review. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 

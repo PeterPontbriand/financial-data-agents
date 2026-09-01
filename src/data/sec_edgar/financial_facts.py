@@ -63,27 +63,28 @@ _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
     }
 )
 
-# SEC Company Facts is entity-wide. For these approved D1/D2 mappings, a CIK
-# associated with multiple listed tickers cannot prove that the requested
-# security is represented unambiguously, so the fact remains unavailable.
-_SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY = frozenset(
+# SEC Company Facts monetary cash-flow fields describe the issuer, so an exact
+# ticker-to-CIK match is sufficient even when the same CIK has other ticker
+# rows. Per-share fields describe an issuer share unit; until affirmative unit
+# evidence is implemented, multiple ticker rows cannot prove that the requested
+# listed security uses that same unit and therefore remain fail-closed.
+_SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS = frozenset(
     {
-        FinancialField.EPS,
         FinancialField.OPERATING_CASH_FLOW,
         FinancialField.CAPITAL_EXPENDITURES,
+    }
+)
+_SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS = frozenset(
+    {
+        FinancialField.EPS,
         FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
     }
 )
 
 # These SEC capabilities return completed fiscal-year duration series and use
 # the shared annual-candidate eligibility boundary.
-_SEC_COMPLETED_ANNUAL_FIELDS = frozenset(
-    {
-        FinancialField.EPS,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-    }
+_SEC_COMPLETED_ANNUAL_FIELDS = (
+    _SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS | _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
 )
 
 
@@ -194,7 +195,7 @@ class SecEdgarFinancialFactsAdapter:
                     return ()
                 raise
             if (
-                request.field_name in _SEC_FIELDS_REQUIRING_SINGLE_TICKER_IDENTITY
+                request.field_name in _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
                 and not self._has_single_ticker_identity(cik)
             ):
                 return ()

@@ -1,7 +1,9 @@
 # SEC EDGAR FPI / IFRS Slice Plan
 
-**Status:** Current at D0 evidence freeze; Step 2.5 prerequisite satisfied on 2026-08-31<br/>
+**Status:** A0 implemented and verified; stopped for human review before A1<br/>
 **Governing mapping:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
+**D0 handoff:** [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
+**A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)<br/>
 **Milestone owner:** [v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md)
 
 ## 1. Objective and placement
@@ -14,8 +16,9 @@ bounded provider-capability enhancement rather than reliability-control work.
 
 Step 2.5 is complete and approved. D0 evidence minimization, fixture-candidate
 preparation, the explicit test matrix, ownership confirmation, and focused
-baseline work may now begin. No A1 production code or user-facing support claim
-is authorized before D0 receives Gate A approval.
+baseline are complete. Gate A approved the frozen evidence, bounded A0
+correction, and resolver-spanning B1-A ownership. A0 is implemented and
+verified; A1 remains blocked pending the mandatory A0 review.
 
 ## 2. Fixed decisions
 
@@ -58,6 +61,35 @@ is authorized before D0 receives Gate A approval.
 
 **Gate A:** stop for human review of fixture scope and exact owned files. Do not
 start A1 from live-payload recollection alone.
+
+D0 stopped as required. Gate A approved the frozen fixtures/test matrix, the
+bounded A0 correction, and B1-A ownership across both analysis resolvers on
+2026-08-31.
+
+### A0 — identity/security-unit boundary correction
+
+**Required work**
+
+1. Preserve exact ticker-to-CIK resolution and existing missing/mismatched
+   identity behavior.
+2. Classify annual SEC fields explicitly by issuer-level versus per-share unit
+   scope.
+3. Allow exact issuer-level OCF and CapEx facts for a CIK with multiple ticker
+   rows; do not treat multiple rows alone as fact ambiguity.
+4. Keep EPS and weighted-average diluted shares unavailable for a multi-ticker
+   CIK until later affirmative security-unit evidence exists.
+5. Prove A0-01 through A0-04 from the approved D0 matrix without accepting
+   foreign annual forms or changing calculator, method-version, or public
+   support behavior.
+
+**A0 review gate:** run focused Ruff, format, strict mypy, and tests plus the
+complete repository quality wrapper. Stop for human review. Do not begin A1.
+
+**Result:** implemented and verified on 2026-08-31. The test-first run failed
+the two expected issuer-level cases; the corrected focused suite passed 26
+tests, the broader SEC regression set passed 70 tests, and the complete wrapper
+passed 1,225 tests at 87% reported coverage. See the [A0 review
+record](STEP_2_5A_A0_REVIEW.md). Work is stopped here pending approval.
 
 ### A1 — US-GAAP foreign-annual-form duration support
 
@@ -170,8 +202,10 @@ refactors.
 ## 5. Acceptance criteria
 
 - [x] Step 2.5 is complete and approved before Step 2.5A implementation begins.
-- [ ] Reviewed evidence fragments are deterministic, minimal, sourced, dated,
+- [x] Reviewed evidence fragments are deterministic, minimal, sourced, dated,
   checksummed, and free of live-test dependencies.
+- [x] Exact ticker-to-CIK resolution remains required; multi-ticker CIKs retain
+  issuer-level OCF and CapEx while per-share fields remain fail-closed.
 - [ ] Existing exact US-GAAP duration facts accept approved foreign annual forms
   without broadening balance-sheet/instant forms.
 - [ ] The four exact IFRS duration concepts map with correct units, sign, period,
@@ -209,7 +243,6 @@ an implied continuation of this plan.
 
 ## 7. Current handoff
 
-Perform D0 only: freeze the reviewed evidence into minimized deterministic
-fixture candidates, produce the exact field/form/regime/security-unit test
-matrix, confirm the smallest adapter/contracts owned by A1 and B1, and establish
-the focused baseline. Then stop at Gate A for human review. Do not begin A1.
+Review and approve or amend the bounded A0 implementation and its recorded
+verification evidence. A1 is the next planned slice but must not begin before
+explicit A0 approval.

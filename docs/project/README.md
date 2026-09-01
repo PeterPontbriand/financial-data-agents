@@ -8,8 +8,8 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 2.5 — Golden-Test Suite & Strategy Evaluation — complete and approved on 2026-08-31<br/>
-**Active step:** Step 2.5A — SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage — D0 evidence freeze is next; no production implementation has started<br/>
-**Current checkpoint:** `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`; the complete approved Step 2.5 change set and approval records remain in the working tree for the closeout checkpoint<br/>
+**Active step:** Step 2.5A — SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage — A0 implemented and verified; stopped for human review before A1<br/>
+**Current checkpoint:** `a4001580838795a30d72f399fb4eedcb65dee9f3`; D0 evidence, Gate A approval, and verified A0 work are in the working tree<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -21,7 +21,9 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 **Gate M decision:** [Step 2.5 Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md)<br/>
 **Step 2.5 closeout evidence:** [Step 2.5 Closeout Verification Record](milestones/v0.2/STEP_2_5_CLOSEOUT_RECORD.md)<br/>
 **Active Step 2.5A provider design:** [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
-**Active Step 2.5A slice plan:** [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
+**Active Step 2.5A slice plan:** [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
+**Approved Gate A handoff:** [Step 2.5A D0 Evidence Freeze and Implementation Handoff](milestones/v0.2/STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
+**Current A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](milestones/v0.2/STEP_2_5A_A0_REVIEW.md)
 
 Update **this section** when the active milestone, step, or slice changes. General user documentation and the root README should link here rather than duplicating current project status.
 
@@ -35,7 +37,9 @@ Update **this section** when the active milestone, step, or slice changes. Gener
 - [Step 2.5 Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md) — independent checkpoint audit, blocking findings, mandatory Slice H scope, and Gate M re-entry criteria.
 - [Step 2.5 Closeout Verification Record](milestones/v0.2/STEP_2_5_CLOSEOUT_RECORD.md) — complete quality-gate evidence, final deterministic metrics, explicit empirical absence, acceptance reconciliation, and recorded human approval.
 - [SEC EDGAR FPI / IFRS D0 Mapping Record](milestones/v0.2/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) — approved corrected foreign annual-form/IFRS mapping and explicit deferrals.
-- [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md) — current Step 2.5A D0 handoff, later implementation order, review gates, and acceptance criteria.
+- [SEC EDGAR FPI / IFRS Slice Plan](milestones/v0.2/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md) — Step 2.5A implementation order, review gates, and acceptance criteria; currently stopped at the A0 review gate.
+- [Step 2.5A D0 Evidence Freeze and Implementation Handoff](milestones/v0.2/STEP_2_5A_D0_EVIDENCE_FREEZE.md) — frozen source/fixture checksums, exact test matrix, ownership audit, baseline, and mandatory Gate A decisions.
+- [Step 2.5A A0 Identity/Security-Unit Boundary Review](milestones/v0.2/STEP_2_5A_A0_REVIEW.md) — bounded identity/unit correction, fail-closed preservation, deterministic proof, and complete quality-gate evidence.
 - [Milestone plans](milestones/) — implementation plans plus step/slice specifications for each milestone.
 - [`deploy/`](deploy/) — deployment/configuration artifacts intended for project development and review.
 

@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-31 — Recorded final Step 2.5 approval and unblocked Step 2.5A at D0 evidence freeze.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → complete and approved; Step 2.5A → current at D0 evidence freeze before Gate A
+**Revised:** 2026-08-31 — Recorded verified Step 2.5A A0 implementation and mandatory review stop before A1.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → complete and approved; Step 2.5A → D0/Gate A complete, A0 implemented and verified awaiting review
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1249,8 +1249,8 @@ closeout record. The human approved Step 2.5 on 2026-08-31.
 
 ### 4.5A Step 2.5A – SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage
 
-**Status:** Current at D0 evidence freeze. Step 2.5 is complete and approved; stop at Gate A before A1 production changes.<br/>
-**Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) and [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
+**Status:** D0/Gate A complete; bounded A0 implemented and verified, awaiting human review; A1 remains blocked.<br/>
+**Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md), [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md), [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md), and [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)<br/>
 **Goal**<br/>
 Extend the existing SEC annual financial-fact adapter to a narrow, evidence-backed foreign-private-issuer surface without weakening exact-concept, annual-period, `as_of`, currency, restatement, provenance, or security-unit requirements.
 
@@ -1268,16 +1268,33 @@ IFRS book value per common/ordinary share is deferred. Missing preferred-share e
 **Implementation order**
 
 1. freeze minimal deterministic evidence and confirm the exact owned files;
-2. add US-GAAP foreign annual forms for duration fields only and stop for review;
-3. add request-scoped snapshot and latest-accession taxonomy selection and stop for review;
-4. add the four exact IFRS duration mappings and negative boundaries and stop for review;
-5. add the narrow security-unit compatibility predicate and stop for review;
-6. version and extend the Golden Suite only after the provider/resolver behavior is approved;
-7. update support documentation, run the complete repository and Golden gates, and stop for final approval.
+2. correct the identity/security-unit boundary so multi-ticker CIKs do not erase
+   issuer-level facts while per-share use remains fail-closed, then stop for
+   review;
+3. add US-GAAP foreign annual forms for duration fields only and stop for review;
+4. add request-scoped snapshot and latest-accession taxonomy selection and stop for review;
+5. add the four exact IFRS duration mappings and negative boundaries and stop for review;
+6. complete the narrow security-unit compatibility predicate and stop for review;
+7. version and extend the Golden Suite only after the provider/resolver behavior is approved;
+8. update support documentation, run the complete repository and Golden gates, and stop for final approval.
+
+D0 found that the existing multi-ticker guard blocks the planned ASML, SAP, and
+NVO cases and erases issuer-level fields contrary to the approved unit boundary.
+It also confirmed that snapshot reuse spans both analysis resolvers. Gate A
+approved bounded A0 and the exact B1-A ownership on 2026-08-31. A0 must stop for
+review before A1.
+
+A0 is implemented and verified at that stop. Exact ticker-to-CIK resolution and
+payload-CIK validation are unchanged; OCF and CapEx no longer fail merely
+because the resolved CIK has multiple ticker rows, while EPS and diluted
+weighted-average shares remain fail-closed. The complete repository gate passed
+1,225 tests at 87% reported coverage. A1 is not started.
 
 **Acceptance criteria**
 
-- [ ] Step 2.5 is complete and approved before implementation begins.
+- [x] Step 2.5 is complete and approved before implementation begins.
+- [x] D0 evidence fragments are minimized, sourced, dated, checksummed, and
+  covered by an exact deterministic test matrix and focused baseline.
 - [ ] Existing US-GAAP duration concepts accept the approved foreign annual forms without broadening balance-sheet/instant forms.
 - [ ] Exact IFRS EPS, diluted-share, OCF, and physical-PP&E CapEx mappings preserve units, sign, period, availability, currency, and provenance.
 - [ ] One immutable SEC snapshot supplies all fields in one analysis.
@@ -1587,10 +1604,20 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 and 2.4 are complete and approved. Step 2.5 Golden-Test Suite & Strategy Evaluation is the current step, but the approved P1 concrete-defect correction is now its mandatory first gate on `feat/step-2.5-golden-suite`.
+Steps 2.3 through 2.5 are complete and approved. Step 2.5A is current and is
+stopped at the mandatory A0 review gate.
 
-1. Review and approve or amend the completed P1-C strategy applicability, presentation, CLI/handler behavior, schema decisions, and full-gate evidence recorded in the [`P1 Instrument Applicability Mapping Record`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
-2. Only after explicit P1 approval, begin the typed Golden Case model, independently verified expected values, and minimum heterogeneous deterministic suite under the remaining Section 4.5 sequence and review gates.
-3. Preserve classified unavailability so later representative live validation can measure the useful-result ratio and identify whether a separately reviewed provider-mapping expansion is warranted.
-4. Implement Step 2.6 reliability limits, then Step 3.1 persistence. Review P2's exact placement only after Step 3.1 is approved; continue Steps 3.2–3.4 according to the resulting dependency decision.
-5. Complete Step 3.5 Light Mode workflow, including empirical schema/model compatibility validation, before opening v0.2.5 real-user validation.
+1. Review and approve or amend the bounded A0 identity/security-unit correction
+   and verification evidence recorded in the [A0 review
+   record](STEP_2_5A_A0_REVIEW.md).
+2. Only after explicit A0 approval, implement A1 US-GAAP foreign annual-form
+   duration support and stop at Gate B. Do not pull IFRS mapping, snapshot, or
+   affirmative security-unit work into A1.
+3. Continue B1-A across both the FCF and Graham analysis resolvers, then B1-B,
+   C, D, and E in the exact order and at the human-review gates defined by the
+   [Step 2.5A slice plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md).
+4. Preserve classified unavailability so later representative live validation
+   can measure the useful-result ratio and identify whether a separately
+   reviewed provider-mapping expansion is warranted.
+5. After Step 2.5A closeout, implement Step 2.6 reliability limits and then Step
+   3.1 persistence. Review P2's exact placement only after Step 3.1 is approved.
