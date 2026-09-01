@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-08-31 — Implemented the approved Step 2.5 Slice H correction and recorded Gate M re-entry evidence; retained the approved post-Step-2.5 FPI/IFRS planning package.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → paused at Gate M for human re-review after Slice H; Step 2.5A → planned and blocked by Step 2.5 completion
+**Revised:** 2026-08-31 — Recorded final Step 2.5 approval and unblocked Step 2.5A at D0 evidence freeze.<br/>
+**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → complete and approved; Step 2.5A → current at D0 evidence freeze before Gate A
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -902,7 +902,7 @@ Step 2.4 does **not** include:
 
 ### 4.5 Step 2.5 – Golden-Test Suite & Strategy Evaluation
 
-**Status:** Current step; paused at Gate M on 2026-08-31. The bounded Slice H corrections are implemented and verified in the working tree; the [Gate M Review](STEP_2_5_GATE_M_REVIEW.md) now contains re-entry evidence for human review.<br/>
+**Status:** Complete and approved on 2026-08-31. Verification and the final decision are recorded in the [Step 2.5 Closeout Verification Record](STEP_2_5_CLOSEOUT_RECORD.md).<br/>
 **Goal**<br/>
 Establish a deterministic, fixture-backed benchmark that exercises the approved v0.2 set of materially different analytical strategies and separates strategy/tool-selection correctness from deterministic numerical correctness.
 
@@ -1216,9 +1216,8 @@ Step 2.5 does **not** include:
 
 #### 4.5.20 Acceptance criteria
 
-Checked items below are evidenced by the original Gate M checkpoint or the
-verified Slice H working tree. They do not constitute human Gate M approval or
-Step 2.5 completion.
+Checked items below are evidenced by the reviewed implementation and Slice K
+closeout record. The human approved Step 2.5 on 2026-08-31.
 
 - [x] A reproducible fixture-backed Golden Suite exercises Momentum, the Graham Number, the Graham growth-value method, and Free Cash Flow & Earnings Growth.
 - [x] P1 is approved before Golden models/cases are implemented; a provider-confirmed ETF is `not_applicable` to both Graham methods and company-level FCF Growth, remains applicable to Momentum, retains its identity when available, and is not described as an invalid ticker.
@@ -1238,9 +1237,9 @@ Step 2.5 completion.
 - [x] An evaluator self-test detects an intentionally incorrect result.
 - [x] Deterministic/no-LLM mode is documented.
 - [x] Optional real-local-Ollama evaluation is documented separately.
-- [ ] CLI execution and non-zero failure status work.
-- [x] `docs/EVALUATIONS.md` is updated through the Gate M decision.
-- [ ] Step 3.1 can replace fixture-backed data sources with production persistence without changing Golden case definitions.
+- [x] CLI execution and non-zero failure status work.
+- [x] `docs/EVALUATIONS.md` documents the implemented Slice J operator interface, report contract, failure interpretation, and maintenance workflow.
+- [x] Step 3.1 can replace fixture-backed data sources with production persistence without changing Golden case definitions.
 - [x] Ruff, formatting, `mypy --strict`, and pytest pass.
 - [x] Actual measured deterministic benchmark results are recorded honestly; empirical model selection remains unmeasured.
 
@@ -1250,7 +1249,7 @@ Step 2.5 completion.
 
 ### 4.5A Step 2.5A – SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage
 
-**Status:** Corrected design and implementation sequencing approved on 2026-08-31; implementation blocked until Step 2.5 is complete and approved.<br/>
+**Status:** Current at D0 evidence freeze. Step 2.5 is complete and approved; stop at Gate A before A1 production changes.<br/>
 **Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) and [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)<br/>
 **Goal**<br/>
 Extend the existing SEC annual financial-fact adapter to a narrow, evidence-backed foreign-private-issuer surface without weakening exact-concept, annual-period, `as_of`, currency, restatement, provenance, or security-unit requirements.

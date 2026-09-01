@@ -1,7 +1,7 @@
 # SEC EDGAR FPI / IFRS D0 Mapping Record
 
 **Decision date:** 2026-08-31<br/>
-**Status:** corrected design approved for planning; production implementation not yet authorized<br/>
+**Status:** corrected design approved; Step 2.5 prerequisite satisfied and D0 is the current handoff<br/>
 **Placement:** Step 2.5A, after Step 2.5 completion and before Step 2.6<br/>
 **Execution plan:** [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md)
 
@@ -215,8 +215,10 @@ Step 2.5 closeout establish a stable benchmark-extension workflow.
 
 ## 9. Approval boundary
 
-This record approves the corrected design and its placement in the plan. It does
-not authorize implementation while Step 2.5 is paused at Gate M, and it does not
-change current production support claims. The current Step 2.4 mapping continues
-to report `20-F`/`40-F` and IFRS shapes as unavailable until the corresponding
-Step 2.5A slice is implemented, verified, reviewed, and approved.
+This record approves the corrected design and its placement in the plan. Step
+2.5 is now complete and approved, so D0 may prepare the minimized evidence and
+exact implementation handoff governed by the slice plan. It does not authorize
+A1 before Gate A and does not change current production support claims. The
+current Step 2.4 mapping continues to report `20-F`/`40-F` and IFRS shapes as
+unavailable until the corresponding Step 2.5A slice is implemented, verified,
+reviewed, and approved.

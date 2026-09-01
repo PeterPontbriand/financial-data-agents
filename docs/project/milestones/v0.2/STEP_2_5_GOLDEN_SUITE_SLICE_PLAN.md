@@ -1,6 +1,6 @@
 # Step 2.5 Golden Suite Slice Plan
 
-**Status:** Active and paused at Gate M. Checkpoint `4d08b1273fe3e226f69b3a47e9680e9e70d001eb` contains P1 and Slices A1–G4. The 2026-08-31 review did not approve Gate M and made Slice H mandatory. All changes until the next checkpoint are documentation only.<br/>
+**Status:** Complete and approved on 2026-08-31. The approved working tree is based on checkpoint `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`; the closeout checkpoint has not yet been created.<br/>
 **Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
 **Evaluation contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
@@ -457,14 +457,14 @@ Support the full suite, one named case, deterministic/no-LLM mode, optional real
 
 ## 18. Current handoff
 
-The repository is paused at Gate M on checkpoint
-`4d08b1273fe3e226f69b3a47e9680e9e70d001eb`. P1 and Slices A1–G4 are present,
-but Gate M is not approved for the reasons recorded in
-[`STEP_2_5_GATE_M_REVIEW.md`](STEP_2_5_GATE_M_REVIEW.md). All changes until the
-next checkpoint are documentation only. After that checkpoint receives explicit
-review, the only authorized implementation is the bounded Slice H correction in
-Section 14; rerun Gate M and stop before Slices I–K. P2 remains deferred until
-after Step 3.1.
+The corrected Gate M result and Slices I–K received explicit human review and
+acceptance. Step 2.5 is complete and approved. Checkpoint
+`86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f` is the tracked pre-Slice-I baseline;
+the approved closeout change set remains in the working tree. The next handoff
+is Step 2.5A D0 evidence freeze under
+[`SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md`](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md). Stop at
+its Gate A before A1 production changes. P2 remains deferred until after Step
+3.1.
 
 ## 19. Retired Cline and Ollama execution profile
 
@@ -949,9 +949,9 @@ Final preflight result on 2026-08-30: after fully stopping the stale server and 
 | Gate M | Independent checkpoint audit | Enumerated the exact twelve cases, inspected aggregate semantics, and ran the repository/focused/full-test verification described in `STEP_2_5_GATE_M_REVIEW.md`. | Mandatory gate is red; one canonical full-suite report cannot yet be produced. | Slice H approved as a bounded mandatory correction; return to Gate M afterward. | Ruff/format pass; strict mypy fail; focused and full pytest pass. | Not approved |
 | H | Codex; approved Gate M correction | Added typed domain-outcome expectations/observations, exact native-outcome evaluation, corrected five reviewed boundary cases, three ETF cases, a canonical fifteen-case entry point, and mutation regressions. | No production financial calculation, public CLI, live-provider, or LLM behavior changed. A deterministic precedence-cache fixture was added so `GRN-04` is executable through the canonical production-composition seam rather than test-only setup. | Stop at Gate M; human re-review decides whether any later slice is authorized. | Focused: Ruff, strict mypy, and 235 evaluation tests pass. Canonical report: 15/15. Complete gate: Ruff/format/strict mypy pass; 1207 tests; 87% coverage. | Implemented; awaiting Gate M re-review |
 | Gate M re-entry | Slice H working tree based on documentation checkpoint `dfc3182c` | Re-ran the exact corrected deterministic minimum and complete repository gate. | All original GM-1 through GM-4 blockers have implementation evidence; GM-5 was closed by the accepted documentation checkpoint and this status update. Approval remains human-owned. | Do not start Slice I, CLI work, or closeout; do not commit until the checkpoint is requested. | Suite `step-2.5-golden-minimum`, version `h1-v2`, fixture set `step-2.5-h1-v2`: 15 passed, 0 failed; selection 15 `not_measured`; four mutations fail as expected. | Ready for human review; not yet approved |
-| I | Optional after Gate M | — | — | — | — | Not authorized |
-| J | Pending | — | — | — | — | Pending |
-| K | Pending | — | — | — | — | Pending |
+| I | Codex; optional empirical runner | Added real-local-Ollama evaluation through production orchestration, independent repetition reports, observable configuration, and reasoning-safe telemetry. | Human reviewed and accepted Slice I; normal tests use a mocked model client. | No live benchmark run was required or authorized. | Focused Ruff/format/strict mypy; five mocked tests; runner coverage 85%. | Complete and approved |
+| J | Codex; CLI/documentation completion | Added full/named-case `evaluate` CLI, deterministic and explicit Ollama modes, protected report output, failure exit codes, CLI tests, and complete operator/planning documentation. | Human reviewed and accepted Slice J after the synchronized installed launcher was verified. | Environment sync repaired the user-side launcher; no repository packaging change was required. | Focused Ruff/format/strict mypy; 306 evaluation/CLI tests; installed deterministic smoke pass. | Complete and approved |
+| K | Codex; closeout verification | Ran the complete gate and canonical installed deterministic command; recorded exact metrics, artifact hash, explicit empirical absence, and all acceptance evidence. | No implementation defect or acceptance gap found. Human approval was recorded on 2026-08-31. | Step 2.5 is closed; proceed only with Step 2.5A D0 evidence freeze and stop at Gate A. | Ruff/format/strict mypy pass; 1,219 tests; 87% coverage; deterministic suite 15/15. | Complete and approved |
 
 #### 2026-08-30 — retired Slice A, attempts 1–2
 

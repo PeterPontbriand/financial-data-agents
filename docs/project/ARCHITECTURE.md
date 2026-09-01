@@ -5,7 +5,7 @@
 **Step 2.3 implementation specification:** `milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md`<br/>
 **Rationale:** `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Last updated:** 2026-08-31<br/>
-**Current status:** Steps 2.2–2.4 are complete and approved. Step 2.5 Golden-Test Suite & Strategy Evaluation is current and paused at Gate M; the 2026-08-31 review requires a bounded Slice H correction before approval. Step 2.5A SEC foreign-private-issuer/IFRS coverage is an approved post-Step-2.5 target seam, not current implementation. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
+**Current status:** Steps 2.2–2.5 are complete and approved. Step 2.5A SEC foreign-private-issuer/IFRS coverage is current at D0 evidence freeze; no production implementation has started. Step 3.4 research-workspace concepts are approved roadmap targets, not current implementation.
 
 This document describes current boundaries and approved near-term target seams. Current Step 2.3 components are identified as implemented; later persistence/workspace/evaluation components remain explicitly labeled targets. It does not override the active milestone plan's sequencing or review gates.
 
@@ -301,7 +301,7 @@ These stores/artifacts must not be collapsed merely because they can all be seri
 
 ## 7. Golden-Suite architecture (Step 2.5)
 
-Step 2.5 consumes the stable Steps 2.3–2.4 contracts after approved P1 instrument-applicability hardening. The initial implementation is paused at Gate M pending the bounded corrections in the [Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md).
+Step 2.5 consumes the stable Steps 2.3–2.4 contracts after approved P1 instrument-applicability hardening. The initial [Gate M Review](milestones/v0.2/STEP_2_5_GATE_M_REVIEW.md) required bounded Slice H corrections; the corrected result and later Slice I empirical runner are now accepted, and Slice J supplies the CLI/report boundary pending review.
 
 The production orchestration seam exposes four explicit handlers in `src/orchestrator/analysis_tools.py`: Momentum, Graham Number, Graham growth value, and Free Cash Flow & Earnings Growth. `register_analysis_tools(...)` registers them on the existing `AsyncToolDispatcher` using injected analyzers, resolvers, provider selections, calculation policy, and clock. This keeps deterministic fixture composition and live production composition behind the same tool boundary without import-time registration, a second dispatcher, or a generic strategy framework. Tool argument schemas are derived from the strict Pydantic models in `ANALYSIS_TOOL_ARGUMENT_MODELS`; successful calls retain each strategy's native typed execution result.
 
@@ -329,7 +329,7 @@ Evaluator
 
 Deterministic/no-LLM tests validate fixtures, contracts, analytics, evaluator behavior, and report serialization. They cannot measure actual model strategy selection.
 
-Real-local-Ollama evaluation is an empirical mode and remains separate from deterministic regression/CI tests unless explicitly configured.
+Real-local-Ollama evaluation is an empirical mode and remains separate from deterministic regression/CI tests unless explicitly configured. The shared `evaluate` CLI selects one mode, one canonical full-suite or named-case request set, and one explicit local JSON report destination; it does not merge deterministic and empirical scores.
 
 The ≥90% target is a measurement target, not permission to weaken cases until a model passes. Expected native domain outcomes are first-class evidence: a deliberate `input_unavailable` or `not_applicable` result passes only when the case expects its exact observable contract, and the same result fails when success was expected. Infrastructure/fixture failures remain distinct from valid non-success analytical outcomes.
 

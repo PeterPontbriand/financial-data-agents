@@ -1,6 +1,6 @@
 # SEC EDGAR FPI / IFRS Slice Plan
 
-**Status:** approved post-Step-2.5 plan; implementation blocked until Step 2.5 completes<br/>
+**Status:** Current at D0 evidence freeze; Step 2.5 prerequisite satisfied on 2026-08-31<br/>
 **Governing mapping:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
 **Milestone owner:** [v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md)
 
@@ -12,9 +12,10 @@ financial rules. It is sequenced after Golden Suite closeout so the benchmark's
 own Gate M defects are corrected first, and before Step 2.6 because it is a
 bounded provider-capability enhancement rather than reliability-control work.
 
-No Step 2.5A code, tests, fixtures, user-facing support claim, or Golden case may
-be added while Step 2.5 remains open. Planning documentation is the only current
-authorized change.
+Step 2.5 is complete and approved. D0 evidence minimization, fixture-candidate
+preparation, the explicit test matrix, ownership confirmation, and focused
+baseline work may now begin. No A1 production code or user-facing support claim
+is authorized before D0 receives Gate A approval.
 
 ## 2. Fixed decisions
 
@@ -168,7 +169,7 @@ refactors.
 
 ## 5. Acceptance criteria
 
-- [ ] Step 2.5 is complete and approved before Step 2.5A implementation begins.
+- [x] Step 2.5 is complete and approved before Step 2.5A implementation begins.
 - [ ] Reviewed evidence fragments are deterministic, minimal, sourced, dated,
   checksummed, and free of live-test dependencies.
 - [ ] Existing exact US-GAAP duration facts accept approved foreign annual forms
@@ -205,3 +206,10 @@ IFRS BVPS work may be proposed later only with authoritative evidence for:
 
 That proposal requires a new mapping review and explicit authorization. It is not
 an implied continuation of this plan.
+
+## 7. Current handoff
+
+Perform D0 only: freeze the reviewed evidence into minimized deterministic
+fixture candidates, produce the exact field/form/regime/security-unit test
+matrix, confirm the smallest adapter/contracts owned by A1 and B1, and establish
+the focused baseline. Then stop at Gate A for human review. Do not begin A1.

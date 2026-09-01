@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, date, datetime, time
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -31,7 +33,7 @@ from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumCo
 from src.config import settings
 from src.core.analysis_status import CalculationStatus
 from src.core.constants import ConfigKeys
-from src.core.telemetry import RunContext
+from src.core.telemetry import RunContext, TrajectoryRecorder
 from src.core.telemetry.run_context import get_current_run_context, set_current_run_context
 from src.data.base_client import DataFetchError
 from src.data.financial.cache import InMemoryResolvedInputCache
@@ -52,6 +54,20 @@ from src.data.instrument_profile import (
 )
 from src.data.security_identity import SecurityIdentityResolution
 from src.data.yfinance import YFinanceClient
+from src.evaluation.catalog import (
+    DETERMINISTIC_FIXTURE_SET_VERSION,
+    DETERMINISTIC_SUITE_ID,
+    DETERMINISTIC_SUITE_VERSION,
+    build_deterministic_requests,
+)
+from src.evaluation.ollama_runner import (
+    OllamaEvaluationConfig,
+    OllamaEvaluationResult,
+    run_real_local_ollama_suite,
+)
+from src.evaluation.reporting import EvaluationReport
+from src.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
+from src.llm.client import LLMClient
 from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
     GrahamGrowthPresentation,
@@ -72,6 +88,16 @@ class GrahamCliMethod(StrEnum):
 
     NUMBER = "number"
     GROWTH = "growth"
+
+
+class EvaluationCliMode(StrEnum):
+    """User-facing Golden-Suite execution choices."""
+
+    DETERMINISTIC = "deterministic"
+    OLLAMA = "ollama"
+
+
+type EvaluationCommandResult = EvaluationReport | OllamaEvaluationResult
 
 
 @app.callback()
@@ -376,6 +402,194 @@ def fcf_growth(  # noqa: PLR0913
     typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
     if exit_code:
         raise typer.Exit(code=exit_code)
+
+
+@app.command(name="evaluate")
+def evaluate(  # noqa: PLR0913
+    *,
+    mode: Annotated[
+        EvaluationCliMode,
+        typer.Option("--mode", help="Execution mode: deterministic (default) or ollama"),
+    ] = EvaluationCliMode.DETERMINISTIC,
+    case_id: str | None = typer.Option(None, "--case", help="Run one stable Golden case ID instead of the full suite"),
+    report_path: Annotated[Path, typer.Option("--report", help="Explicit JSON report destination")],
+    overwrite: bool = typer.Option(False, "--overwrite", help="Replace an existing report file"),
+    ollama_endpoint: str | None = typer.Option(
+        None,
+        "--ollama-endpoint",
+        help="Ollama endpoint; defaults to the configured application endpoint",
+    ),
+    model_id: str | None = typer.Option(
+        None,
+        "--model",
+        help="Local model identifier; defaults to the configured application model",
+    ),
+    temperature: float | None = typer.Option(None, "--temperature", help="Empirical sampling temperature"),
+    repetitions: int | None = typer.Option(
+        None,
+        "--repetitions",
+        min=1,
+        max=100,
+        help="Independent empirical repetitions (1-100)",
+    ),
+    max_steps: int | None = typer.Option(
+        None,
+        "--max-steps",
+        min=1,
+        max=50,
+        help="Maximum orchestration steps per case (1-50)",
+    ),
+) -> None:
+    """Run the versioned Golden Suite and write one machine-readable report."""
+    requests = _select_evaluation_requests(case_id)
+    _validate_evaluation_mode_options(
+        mode,
+        ollama_endpoint=ollama_endpoint,
+        model_id=model_id,
+        temperature=temperature,
+        repetitions=repetitions,
+        max_steps=max_steps,
+    )
+    target = report_path.expanduser().resolve()
+    if target.exists() and not overwrite:
+        raise typer.BadParameter(
+            f"Report already exists: {target}. Use --overwrite to replace it.",
+            param_hint="--report",
+        )
+
+    try:
+        result = asyncio.run(
+            _run_evaluation_command(
+                requests,
+                mode=mode,
+                executed_at=datetime.now(UTC),
+                ollama_endpoint=ollama_endpoint,
+                model_id=model_id,
+                temperature=temperature,
+                repetitions=repetitions,
+                max_steps=max_steps,
+            )
+        )
+        _write_evaluation_report(result, target=target, overwrite=overwrite)
+    except (OSError, ValueError) as err:
+        typer.echo(f"Evaluation failed: {err}", err=True)
+        raise typer.Exit(code=1) from err
+    except Exception as err:
+        typer.echo(f"Evaluation failed unexpectedly: {err}", err=True)
+        raise typer.Exit(code=1) from err
+
+    passed, failed, skipped = _evaluation_case_counts(result)
+    typer.echo(f"Evaluation report written to {target} ({passed} passed, {failed} failed, {skipped} skipped).")
+    if failed or skipped:
+        raise typer.Exit(code=1)
+
+
+def _select_evaluation_requests(case_id: str | None) -> tuple[DeterministicCaseRequest, ...]:
+    """Return the full canonical catalog or one exact stable case."""
+    requests = build_deterministic_requests()
+    if case_id is None:
+        return requests
+    normalized = case_id.strip().upper()
+    selected = tuple(request for request in requests if request.case.case_id == normalized)
+    if selected:
+        return selected
+    available = ", ".join(request.case.case_id for request in requests)
+    raise typer.BadParameter(
+        f"Unknown Golden case ID {case_id!r}. Available IDs: {available}.",
+        param_hint="--case",
+    )
+
+
+def _validate_evaluation_mode_options(  # noqa: PLR0913
+    mode: EvaluationCliMode,
+    *,
+    ollama_endpoint: str | None,
+    model_id: str | None,
+    temperature: float | None,
+    repetitions: int | None,
+    max_steps: int | None,
+) -> None:
+    """Reject empirical-only controls when deterministic execution is selected."""
+    empirical_options = (ollama_endpoint, model_id, temperature, repetitions, max_steps)
+    if mode is EvaluationCliMode.DETERMINISTIC and any(value is not None for value in empirical_options):
+        raise typer.BadParameter(
+            "Ollama options require --mode ollama.",
+            param_hint="--mode",
+        )
+
+
+async def _run_evaluation_command(  # noqa: PLR0913
+    requests: tuple[DeterministicCaseRequest, ...],
+    *,
+    mode: EvaluationCliMode,
+    executed_at: datetime,
+    ollama_endpoint: str | None,
+    model_id: str | None,
+    temperature: float | None,
+    repetitions: int | None,
+    max_steps: int | None,
+) -> EvaluationCommandResult:
+    """Route one CLI request through the reviewed deterministic or empirical runner."""
+    if mode is EvaluationCliMode.DETERMINISTIC:
+        recorder = TrajectoryRecorder.from_settings(get_cli_run_context())
+        return await run_deterministic_suite(
+            requests,
+            suite_id=DETERMINISTIC_SUITE_ID,
+            suite_version=DETERMINISTIC_SUITE_VERSION,
+            fixture_set_version=DETERMINISTIC_FIXTURE_SET_VERSION,
+            executed_at=executed_at,
+            recorder=recorder,
+        )
+
+    endpoint = ollama_endpoint or settings.ollama_base_url
+    selected_model = model_id or settings.model_selection
+    config = OllamaEvaluationConfig(
+        endpoint=endpoint,
+        model_id=selected_model,
+        temperature=0.0 if temperature is None else temperature,
+        repetitions=1 if repetitions is None else repetitions,
+        max_steps=10 if max_steps is None else max_steps,
+        schema_config=settings.schema_config,
+    )
+    client = LLMClient(config.endpoint, default_model=config.model_id)
+    try:
+        return await run_real_local_ollama_suite(
+            requests,
+            suite_id=DETERMINISTIC_SUITE_ID,
+            suite_version=DETERMINISTIC_SUITE_VERSION,
+            fixture_set_version=DETERMINISTIC_FIXTURE_SET_VERSION,
+            llm_client=client,
+            config=config,
+            executed_at=executed_at,
+        )
+    finally:
+        await client.close()
+
+
+def _write_evaluation_report(
+    result: EvaluationCommandResult,
+    *,
+    target: Path,
+    overwrite: bool,
+) -> None:
+    """Serialize a complete report without replacing an existing file implicitly."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    mode = "w" if overwrite else "x"
+    with target.open(mode, encoding="utf-8", newline="\n") as report_file:
+        report_file.write(result.model_dump_json(indent=2))
+        report_file.write("\n")
+
+
+def _evaluation_case_counts(result: EvaluationCommandResult) -> tuple[int, int, int]:
+    """Return aggregate passed, failed, and skipped case-execution counts."""
+    if isinstance(result, EvaluationReport):
+        return result.passed_cases, result.failed_cases, result.skipped_cases
+    reports = tuple(item.report for item in result.repetition_reports)
+    return (
+        sum(report.passed_cases for report in reports),
+        sum(report.failed_cases for report in reports),
+        sum(report.skipped_cases for report in reports),
+    )
 
 
 def _build_sec_production_provider() -> ProductionFinancialFactsProvider:

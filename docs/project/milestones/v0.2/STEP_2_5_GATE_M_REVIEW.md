@@ -4,8 +4,8 @@
 **Checkpoint:** `4d08b1273fe3e226f69b3a47e9680e9e70d001eb` on `feat/step-2.5-golden-suite`<br/>
 **Repository state at review start:** clean; checkpoint already pushed<br/>
 **Original decision:** **Gate M not approved; mandatory bounded Slice H correction required**<br/>
-**Re-entry status:** Slice H is implemented in the uncommitted working tree based on documentation checkpoint `dfc3182c3460ff38f8e75365d62cace2833ec448`; human Gate M decision pending<br/>
-**Current restriction:** stop at Gate M; do not commit or begin later slices without human direction
+**Re-entry decision:** The corrected Gate M result was subsequently accepted; Slices I–J were also explicitly reviewed and accepted<br/>
+**Current status:** Historical Gate M record; current work is at the final approval gate documented in the [Step 2.5 Closeout Verification Record](STEP_2_5_CLOSEOUT_RECORD.md)
 
 ## 1. Purpose and review boundary
 
