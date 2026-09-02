@@ -15,6 +15,7 @@ from src.core.telemetry import RunContext, TrajectoryEvent, TrajectoryRecorder
 from src.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult, ExecutionMode
 from src.evaluation.reporting import EvaluationReport, build_case_result, build_evaluation_report
 from src.evaluation.runner import DETERMINISTIC_REQUIRED_COMPONENT_KINDS
+from tests._cli_helpers import normalize_cli_output
 
 runner = CliRunner()
 
@@ -119,10 +120,14 @@ def test_evaluate_cli_protects_existing_report_unless_overwrite_is_explicit(tmp_
     target = tmp_path / "existing.json"
     target.write_text("preserve me", encoding="utf-8")
 
-    blocked = runner.invoke(app, ["evaluate", "--case", "GRN-01", "--report", str(target)])
+    blocked = runner.invoke(
+        app,
+        ["evaluate", "--case", "GRN-01", "--report", str(target)],
+        terminal_width=80,
+    )
 
     assert blocked.exit_code == 2
-    assert "Use --overwrite" in blocked.output
+    assert "Use --overwrite" in normalize_cli_output(blocked.output)
     assert target.read_text(encoding="utf-8") == "preserve me"
 
     with patch("src.cli.TrajectoryRecorder.from_settings", side_effect=lambda *_args, **_kwargs: _recorder()):
@@ -204,8 +209,12 @@ def test_evaluate_cli_rejects_ollama_options_in_default_mode(tmp_path: Path) -> 
     """Supplying model controls cannot silently change deterministic semantics."""
     target = tmp_path / "unused.json"
 
-    result = runner.invoke(app, ["evaluate", "--report", str(target), "--model", "unexpected-model"])
+    result = runner.invoke(
+        app,
+        ["evaluate", "--report", str(target), "--model", "unexpected-model"],
+        terminal_width=80,
+    )
 
     assert result.exit_code == 2
-    assert "Ollama options require --mode ollama" in result.output
+    assert "Ollama options require --mode ollama" in normalize_cli_output(result.output)
     assert not target.exists()
