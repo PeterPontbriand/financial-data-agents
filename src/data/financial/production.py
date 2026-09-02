@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import AbstractContextManager, nullcontext
+from datetime import datetime
 
 from src.data.financial.facts import (
+    AnalysisScopedFinancialFactsProvider,
     FinancialFactRequest,
     FinancialFactsProvider,
     ProviderFact,
@@ -44,6 +47,19 @@ class ProductionFinancialFactsProvider:
         if provider is None:
             return ()
         return provider.fetch_facts(request)
+
+    def analysis_scope(
+        self,
+        *,
+        subject_id: str,
+        provider_id: str,
+        as_of: datetime | None,
+    ) -> AbstractContextManager[None]:
+        """Route an optional immutable analysis scope to the selected provider."""
+        provider = self._providers.get(provider_id.strip().lower())
+        if provider is None or not isinstance(provider, AnalysisScopedFinancialFactsProvider):
+            return nullcontext()
+        return provider.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
 
     def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
         """Route an optional identity request without widening numeric facts."""

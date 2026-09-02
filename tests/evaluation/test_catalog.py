@@ -50,7 +50,7 @@ def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentRe
     return next(component for component in result.components if component.kind is kind)
 
 
-def test_canonical_catalog_has_exactly_fifteen_unique_reviewed_cases() -> None:
+def test_canonical_catalog_has_exactly_nineteen_unique_reviewed_cases() -> None:
     """The Gate M denominator and request builder are explicit and stable."""
     expected_ids = (
         "MOM-01",
@@ -68,24 +68,28 @@ def test_canonical_catalog_has_exactly_fifteen_unique_reviewed_cases() -> None:
         "FCF-02",
         "FCF-03",
         "FCF-ETF-01",
+        "FPI-01",
+        "FPI-02",
+        "FPI-03",
+        "FPI-04",
     )
     assert tuple(case.case_id for case in DETERMINISTIC_CASES) == expected_ids
     requests = build_deterministic_requests()
     assert tuple(request.case.case_id for request in requests) == expected_ids
-    assert len({request.case.case_id for request in requests}) == 15
+    assert len({request.case.case_id for request in requests}) == 19
 
 
 @pytest.mark.asyncio
-async def test_canonical_fifteen_case_suite_produces_one_passing_versioned_report() -> None:
+async def test_canonical_nineteen_case_suite_produces_one_passing_versioned_report() -> None:
     """One operation executes the complete corrected deterministic Gate M denominator."""
     report = await run_minimum_deterministic_suite(executed_at=EXECUTED_AT, recorder=_recorder())
 
     assert report.suite_id == DETERMINISTIC_SUITE_ID
     assert report.suite_version == DETERMINISTIC_SUITE_VERSION
     assert report.fixture_set_version == DETERMINISTIC_FIXTURE_SET_VERSION
-    assert report.total_cases == 15
-    assert report.executed_cases == 15
-    assert report.passed_cases == 15
+    assert report.total_cases == 19
+    assert report.executed_cases == 19
+    assert report.passed_cases == 19
     assert report.failed_cases == 0
     assert report.overall_pass_rate == 1.0
     assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)

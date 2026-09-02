@@ -98,7 +98,7 @@ or another normalized instrument kind. P1 must not infer kind from SEC ticker
 membership or missing Company Facts. The cross-strategy Yahoo evidence, exact
 normalized mappings, separate kind-evidence contract, request-scoped composition,
 and ETF applicability proposal are recorded in
-[`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+[`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](../step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
 That proposal does not change any approved SEC financial-fact mapping in this
 record and requires explicit human approval before production implementation.
 
@@ -298,7 +298,7 @@ precedes its availability.
 ### 7.1 Approved future extension; current support unchanged
 
 The 2026-08-31 [SEC EDGAR FPI / IFRS D0 Mapping
-Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) approves a corrected Step 2.5A
+Record](../step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md) approves a corrected Step 2.5A
 plan after Step 2.5 closes. That future work first adds `20-F`/`40-F` annual
 forms to the existing exact US-GAAP **duration** concepts without broadening
 balance-sheet forms, then adds exact IFRS duration mappings for diluted EPS,

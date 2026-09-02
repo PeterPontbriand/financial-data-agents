@@ -3,9 +3,9 @@
 **Verification date:** 2026-08-31 (America/Toronto)<br/>
 **Tracked baseline:** `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`<br/>
 **Decision status:** **Complete and approved on 2026-08-31**<br/>
-**Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#45-step-25--golden-test-suite--strategy-evaluation)<br/>
+**Governing plan:** [Milestone v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md#45-step-25--golden-test-suite--strategy-evaluation)<br/>
 **Slice contract:** [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#17-slice-k--step-25-closeout)<br/>
-**Operator contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)
+**Operator contract:** [Evaluations & Golden Suite](../../../../EVALUATIONS.md)
 
 ## 1. Verification boundary
 

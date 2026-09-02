@@ -12,6 +12,10 @@ from src.evaluation.cases import (
     FCF_02,
     FCF_03,
     FCF_ETF_01,
+    FPI_01,
+    FPI_02,
+    FPI_03,
+    FPI_04,
     GRA_ETF_01,
     GRG_01,
     GRG_ETF_01,
@@ -43,8 +47,8 @@ from src.orchestrator.analysis_tools import (
 )
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
-DETERMINISTIC_SUITE_VERSION: Final = "h1-v2"
-DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v2"
+DETERMINISTIC_SUITE_VERSION: Final = "h1-v3"
+DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v3"
 
 DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (
     MOMENTUM_SUCCESS_CASE,
@@ -62,11 +66,15 @@ DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (
     FCF_02,
     FCF_03,
     FCF_ETF_01,
+    FPI_01,
+    FPI_02,
+    FPI_03,
+    FPI_04,
 )
 
 
 def build_deterministic_requests() -> tuple[DeterministicCaseRequest, ...]:
-    """Build the exact production arguments for all fifteen reviewed cases."""
+    """Build the exact production arguments for all nineteen reviewed cases."""
     return tuple(DeterministicCaseRequest(case=case, arguments=_arguments(case)) for case in DETERMINISTIC_CASES)
 
 
@@ -75,7 +83,7 @@ async def run_minimum_deterministic_suite(
     executed_at: datetime,
     recorder: TrajectoryRecorder,
 ) -> EvaluationReport:
-    """Execute the canonical fifteen-case deterministic suite and return one report."""
+    """Execute the canonical nineteen-case deterministic suite and return one report."""
     return await run_deterministic_suite(
         build_deterministic_requests(),
         suite_id=DETERMINISTIC_SUITE_ID,
@@ -86,7 +94,7 @@ async def run_minimum_deterministic_suite(
     )
 
 
-def _arguments(
+def _arguments(  # noqa: PLR0911
     case: Case,
 ) -> (
     MomentumToolArguments | GrahamNumberToolArguments | GrahamGrowthValueToolArguments | FCFEarningsGrowthToolArguments
@@ -129,6 +137,16 @@ def _arguments(
             ),
             as_of=FCF_GROWTH_HISTORICAL_AS_OF if case.case_id == "FCF-03" else None,
         )
+    if case.case_id in {"FPI-01", "FPI-02", "FPI-04"}:
+        return GrahamGrowthValueToolArguments(
+            ticker={"FPI-01": "ASML", "FPI-02": "NTR", "FPI-04": "NVO"}[case.case_id],
+            eps_basis="fiscal_year",
+            expected_growth=6.5,
+            current_aaa_yield=4.15,
+            current_price_override=100.0 if case.case_id == "FPI-04" else None,
+        )
+    if case.case_id == "FPI-03":
+        return FCFEarningsGrowthToolArguments(ticker="SAP", currency="EUR")
     raise ValueError(f"Case {case.case_id!r} is not part of the canonical deterministic catalog.")
 
 

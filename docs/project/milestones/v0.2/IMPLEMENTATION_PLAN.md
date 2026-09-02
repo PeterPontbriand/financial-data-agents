@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-01 — Recorded explicit Step 2.5A A1 Gate B approval and B1-A authorization.<br/>
-**Status:** Step 2.2 → implementation complete; Step 2.3 → complete and approved; Step 2.4 → complete and approved, including Slices A–F-1 and Slice G closeout; Step 2.5 → complete and approved; Step 2.5A → D0/Gate A, A0, and A1/Gate B complete and approved; B1-A authorized
+**Revised:** 2026-09-01 — Recorded final approval and completion of Step 2.5A.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → next, not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -583,7 +583,7 @@ Add a third materially different deterministic investor analysis before the Gold
 
 The governing design is:
 
-`docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`
+`docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`
 
 Step 2.4 is a bounded strategy addition, not a reopening of Step 2.3 and not a reason to introduce speculative strategy/plugin architecture. Its closeout also owns the bounded shared-contract hardening identified while reconciling the completed Graham implementation with its design record. That work does not change Step 2.3's historical completion status, but it must finish before Step 2.5 freezes the strategy contracts into Golden fixtures.
 
@@ -902,7 +902,7 @@ Step 2.4 does **not** include:
 
 ### 4.5 Step 2.5 – Golden-Test Suite & Strategy Evaluation
 
-**Status:** Complete and approved on 2026-08-31. Verification and the final decision are recorded in the [Step 2.5 Closeout Verification Record](STEP_2_5_CLOSEOUT_RECORD.md).<br/>
+**Status:** Complete and approved on 2026-08-31. Verification and the final decision are recorded in the [Step 2.5 Closeout Verification Record](step-2.5/STEP_2_5_CLOSEOUT_RECORD.md).<br/>
 **Goal**<br/>
 Establish a deterministic, fixture-backed benchmark that exercises the approved v0.2 set of materially different analytical strategies and separates strategy/tool-selection correctness from deterministic numerical correctness.
 
@@ -929,7 +929,7 @@ This is the empirical test of the architectural objective established in Steps 2
 P1 is a concrete-defect correction, not a reopening of the approved financial formulas. Implement it as one bounded production slice with these requirements:
 
 1. **Provider-evidence checkpoint:** inspect authoritative provider documentation and representative deterministic payloads before mapping provider instrument classifications. Record the initial normalized vocabulary and exact supported mappings. The minimum approved capability must distinguish a provider-confirmed ETF from an instrument that is not confirmed to be an ETF; do not infer kind from a ticker or instrument name.
-2. **Identity/profile evidence:** preserve the immutable one-provider `SecurityIdentity`, add separate immutable normalized/raw instrument-kind evidence with its own provider and timezone-aware resolution time, and compose both without rewriting field-level provenance. Do not broaden numeric `ProviderFact` to carry descriptive metadata. The exact P1-A proposal is recorded in [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
+2. **Identity/profile evidence:** preserve the immutable one-provider `SecurityIdentity`, add separate immutable normalized/raw instrument-kind evidence with its own provider and timezone-aware resolution time, and compose both without rewriting field-level provenance. Do not broaden numeric `ProviderFact` to carry descriptive metadata. The exact P1-A proposal is recorded in [`STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md`](step-2.5/STEP_2_5_P1_INSTRUMENT_APPLICABILITY_MAPPING_RECORD.md).
 3. **Fail-open classification:** missing, unsupported, or failed identity/kind resolution remains unknown and must not invalidate or downgrade an otherwise usable analysis. Only affirmative provider-backed kind evidence may control strategy applicability. Unknown kind must continue through the existing data-resolution path.
 4. **Narrow fallback composition:** permit one analysis run to consult an ordered, explicitly injected identity/profile candidate list, using retained strategy-provider evidence first and Yahoo only when the required name or kind remains unresolved. Query each candidate at most once per run, retain the winning provider provenance, and do not introduce a broad provider registry or hidden live fallback in deterministic execution.
 5. **Strategy-specific applicability:** Momentum continues to support ETFs. A provider-confirmed ETF is `not_applicable` to both Graham methods and to the existing company-level Free Cash Flow & Earnings Growth strategy. This is a valid completed applicability result, not `input_unavailable`, `provider_error`, an invalid ticker, or an automatic request to run a future aggregate strategy.
@@ -1177,7 +1177,7 @@ Golden case definitions should remain unchanged when the production persistence 
 
 #### 4.5.18 Implementation sequence
 
-The formal bounded handoff boundaries, owned artifacts, intermediate review points, and current handoff are recorded in the [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md). That document decomposes this governing sequence without changing its order or acceptance criteria.
+The formal bounded handoff boundaries, owned artifacts, intermediate review points, and current handoff are recorded in the [Step 2.5 Golden Suite Slice Plan](step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md). That document decomposes this governing sequence without changing its order or acceptance criteria.
 
 1. Implement P1, run the complete repository gate, and stop for explicit human approval of the corrected production contracts.
 2. Inspect and accept the stable Steps 2.3–2.4 plus P1 strategy/data/applicability contracts; do not redesign them speculatively.
@@ -1249,8 +1249,8 @@ closeout record. The human approved Step 2.5 on 2026-08-31.
 
 ### 4.5A Step 2.5A – SEC EDGAR Foreign-Private-Issuer Annual-Filing Coverage
 
-**Status:** D0/Gate A complete; bounded A0 implemented and verified, awaiting human review; A1 remains blocked.<br/>
-**Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md), [SEC EDGAR FPI / IFRS Slice Plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md), [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md), and [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)<br/>
+**Status:** complete and approved on 2026-09-01.<br/>
+**Governing records:** [SEC EDGAR FPI / IFRS D0 Mapping Record](step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md), [SEC EDGAR FPI / IFRS Slice Plan](step-2.5a/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md), [Step 2.5A D0 Evidence Freeze and Implementation Handoff](step-2.5a/STEP_2_5A_D0_EVIDENCE_FREEZE.md), and [Step 2.5A A0 Identity/Security-Unit Boundary Review](step-2.5a/STEP_2_5A_A0_REVIEW.md)<br/>
 **Goal**<br/>
 Extend the existing SEC annual financial-fact adapter to a narrow, evidence-backed foreign-private-issuer surface without weakening exact-concept, annual-period, `as_of`, currency, restatement, provenance, or security-unit requirements.
 
@@ -1295,15 +1295,15 @@ weighted-average shares remain fail-closed. The complete repository gate passed
 - [x] Step 2.5 is complete and approved before implementation begins.
 - [x] D0 evidence fragments are minimized, sourced, dated, checksummed, and
   covered by an exact deterministic test matrix and focused baseline.
-- [ ] Existing US-GAAP duration concepts accept the approved foreign annual forms without broadening balance-sheet/instant forms.
-- [ ] Exact IFRS EPS, diluted-share, OCF, and physical-PP&E CapEx mappings preserve units, sign, period, availability, currency, and provenance.
-- [ ] One immutable SEC snapshot supplies all fields in one analysis.
-- [ ] Latest-eligible-accession taxonomy selection and cross-regime rejection are deterministic and `as_of` safe.
-- [ ] Missing exact concepts, ambiguous evidence, and unknown security-unit compatibility remain explicitly unavailable.
-- [ ] IFRS BVPS, preferred-zero inference, ADR/ADS conversion, currency conversion, and custom extensions remain unsupported.
-- [ ] Existing case IDs and historical Golden fixtures are preserved; any additions are deliberately versioned.
-- [ ] Focused checks, the complete repository gate, and the canonical Golden Suite pass without live provider or LLM calls.
-- [ ] The final diff receives explicit human approval before Step 2.6.
+- [x] Existing US-GAAP duration concepts accept the approved foreign annual forms without broadening balance-sheet/instant forms.
+- [x] Exact IFRS EPS, diluted-share, OCF, and physical-PP&E CapEx mappings preserve units, sign, period, availability, currency, and provenance.
+- [x] One immutable SEC snapshot supplies all fields in one analysis.
+- [x] Latest-eligible-accession taxonomy selection and cross-regime rejection are deterministic and `as_of` safe.
+- [x] Missing exact concepts, ambiguous evidence, and unknown security-unit compatibility remain explicitly unavailable.
+- [x] IFRS BVPS, preferred-zero inference, ADR/ADS conversion, currency conversion, and custom extensions remain unsupported.
+- [x] Existing case IDs and historical Golden fixtures are preserved; additions are deliberately versioned.
+- [x] Focused checks, the complete repository gate, and the canonical Golden Suite pass without live provider or LLM calls.
+- [x] The final diff receives explicit human approval before Step 2.6.
 
 ---
 
@@ -1604,17 +1604,11 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.5 are complete and approved. Step 2.5A is current; A0 and
-A1/Gate B are complete and approved, and B1-A is authorized.
+Steps 2.3 through 2.5A are complete and approved. Step 2.6 is the next planned
+step and has not started.
 
-1. Implement B1-A across both the FCF and Graham analysis resolvers and stop at
-   Gate C. Do not pull exact IFRS mappings or affirmative security-unit work
-   into B1-A.
-2. After Gate C approval, continue B1-B,
-   C, D, and E in the exact order and at the human-review gates defined by the
-   [Step 2.5A slice plan](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md).
-3. Preserve classified unavailability so later representative live validation
+1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
-4. After Step 2.5A closeout, implement Step 2.6 reliability limits and then Step
+2. Implement Step 2.6 reliability limits and then Step
    3.1 persistence. Review P2's exact placement only after Step 3.1 is approved.

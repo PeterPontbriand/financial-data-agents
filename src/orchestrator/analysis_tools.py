@@ -86,7 +86,7 @@ class MomentumToolArguments(_AnalysisToolArguments):
 class GrahamNumberToolArguments(_AnalysisToolArguments):
     """Validated arguments for Graham Number analysis."""
 
-    eps_basis: Literal["three_year_average", "ttm"] = "three_year_average"
+    eps_basis: Literal["three_year_average", "ttm", "fiscal_year"] = "three_year_average"
     eps_override: FiniteFloat | None = None
     bvps_override: FiniteFloat | None = None
     current_price_override: FiniteFloat | None = None
@@ -96,7 +96,7 @@ class GrahamNumberToolArguments(_AnalysisToolArguments):
 class GrahamGrowthValueToolArguments(_AnalysisToolArguments):
     """Validated arguments for Graham growth-value analysis."""
 
-    eps_basis: Literal["three_year_average", "ttm"] = "three_year_average"
+    eps_basis: Literal["three_year_average", "ttm", "fiscal_year"] = "three_year_average"
     expected_growth: FiniteFloat
     current_aaa_yield: PositiveFiniteFloat
     eps_override: FiniteFloat | None = None

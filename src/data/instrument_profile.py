@@ -20,6 +20,7 @@ from src.data.security_identity import (
     SecurityIdentityResolution,
     _normalized_required,
 )
+from src.data.security_unit import SecurityUnitEvidence
 
 _YFINANCE_PROVIDER_ID = "yfinance"
 _YFINANCE_KIND_MAPPING = {
@@ -150,6 +151,7 @@ class InstrumentProfile:
     identity: SecurityIdentity | None
     kind_evidence: InstrumentKindEvidence | None
     diagnostics: tuple[InstrumentProfileDiagnostic, ...]
+    security_unit_evidence: SecurityUnitEvidence | None = None
 
     def __post_init__(self) -> None:
         """Normalize the ticker and reject evidence for another instrument."""
@@ -159,6 +161,8 @@ class InstrumentProfile:
             raise ValueError("Security identity ticker does not match the instrument profile ticker.")
         if self.kind_evidence is not None and self.kind_evidence.ticker != normalized_ticker:
             raise ValueError("Instrument-kind ticker does not match the instrument profile ticker.")
+        if self.security_unit_evidence is not None and self.security_unit_evidence.ticker != normalized_ticker:
+            raise ValueError("Security-unit ticker does not match the instrument profile ticker.")
 
 
 def profile_identity_resolution(profile: InstrumentProfile) -> SecurityIdentityResolution:

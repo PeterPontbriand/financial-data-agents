@@ -1,11 +1,13 @@
 # SEC EDGAR FPI / IFRS Slice Plan
 
-**Status:** A0 and A1 complete and approved; B1-A authorized<br/>
+**Status:** complete and approved on 2026-09-01<br/>
 **Governing mapping:** [SEC EDGAR FPI / IFRS D0 Mapping Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md)<br/>
 **D0 handoff:** [Step 2.5A D0 Evidence Freeze and Implementation Handoff](STEP_2_5A_D0_EVIDENCE_FREEZE.md)<br/>
 **A0 review:** [Step 2.5A A0 Identity/Security-Unit Boundary Review](STEP_2_5A_A0_REVIEW.md)<br/>
 **A1 review:** [Step 2.5A A1 US-GAAP Foreign Annual-Form Review](STEP_2_5A_A1_REVIEW.md)<br/>
-**Milestone owner:** [v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md)
+**B1-A review:** [Step 2.5A B1-A SEC Snapshot and Regime-Lock Review](STEP_2_5A_B1_A_REVIEW.md)<br/>
+**B1-B review:** [Step 2.5A B1-B Exact IFRS Duration-Fact Review](STEP_2_5A_B1_B_REVIEW.md)<br/>
+**Milestone owner:** [v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md)
 
 ## 1. Objective and placement
 
@@ -131,6 +133,11 @@ B1-A is authorized.
 selection, regime transition, and malformed/missing accession evidence. Stop for
 human review.
 
+**Result:** implemented and verified on 2026-09-01. Focused B1-A/A1/A0 tests
+passed 52 tests; complete Ruff/format and strict mypy passed; and the complete
+suite passed 1,270 tests at 88% reported coverage. See the [B1-A review
+record](STEP_2_5A_B1_A_REVIEW.md). Work is stopped at Gate C pending approval.
+
 ### B1-B — exact IFRS duration concepts
 
 **Required work**
@@ -147,6 +154,12 @@ human review.
 **Gate D:** focused quality checks plus human review of raw-to-normalized lineage
 for every accepted concept and every negative boundary.
 
+**Result:** implemented and verified on 2026-09-01. Eight focused exact-IFRS
+mapping tests passed, and the canonical wrapper passed Ruff/format, strict mypy,
+and 1,278 tests at 88% reported coverage. See the [B1-B review
+record](STEP_2_5A_B1_B_REVIEW.md). Gate D received explicit human approval on
+2026-09-01.
+
 ### C — security-unit compatibility
 
 **Required work**
@@ -161,6 +174,13 @@ for every accepted concept and every negative boundary.
 
 **Gate E:** stop for review of the unit predicate and all fail-closed behavior.
 No ADR conversion may be added as a convenience correction.
+
+**Result:** implemented and verified on 2026-09-01. The typed predicate and
+request-scoped evidence enforce only matching-currency ordinary-share 1:1
+comparisons. The canonical wrapper passed Ruff/format, strict mypy, and 1,288
+tests at 88% reported coverage. See the [Slice C review
+record](STEP_2_5A_C_REVIEW.md). Gate E received explicit human approval on
+2026-09-01.
 
 ### D — Golden Suite extension
 
@@ -178,6 +198,14 @@ This slice is allowed only after Step 2.5 is complete and A1 through C are appro
 **Gate F:** human review of the versioned benchmark delta. A failure is reported,
 not removed or retuned merely to maintain the aggregate target.
 
+**Result:** implemented and verified on 2026-09-01. The deterministic suite and
+fixture set advanced from `h1-v2` / `step-2.5-h1-v2` with 15/15 passing cases to
+`h1-v3` / `step-2.5-h1-v3` with 19/19 passing cases. The four additions cover
+ASML US-GAAP `20-F`, NTR exact IFRS duration evidence, SAP exact-CapEx absence,
+and NVO security-unit incompatibility. Strategy selection remains
+`not_measured`. See the [Slice D review record](STEP_2_5A_D_REVIEW.md). Work is
+stopped at Gate F pending explicit human approval.
+
 ### E — documentation, full gate, and closeout
 
 1. Update current provider support tables, financial conventions, strategy/user
@@ -187,6 +215,12 @@ not removed or retuned merely to maintain the aggregate target.
 3. Run the complete repository quality-gate wrapper and canonical deterministic
    Golden Suite.
 4. Reconcile Step 2.5A acceptance criteria and stop for final human approval.
+
+**Result:** documentation and automated closeout verification completed on
+2026-09-01. The canonical `h1-v3` deterministic suite passed 19/19 cases, and
+the complete wrapper passed Ruff/format, strict mypy, and 1,288 tests at 88%
+reported coverage. See the [Slice E closeout record](STEP_2_5A_E_CLOSEOUT.md).
+Final human approval was received on 2026-09-01; Step 2.5A is complete.
 
 No completion claim, commit, push, PR, merge, or Step 2.6 start is implied by a
 green automated gate.
@@ -217,23 +251,23 @@ refactors.
   issuer-level OCF and CapEx while per-share fields remain fail-closed.
 - [x] Existing exact US-GAAP duration facts accept approved foreign annual forms
   without broadening balance-sheet/instant forms.
-- [ ] The four exact IFRS duration concepts map with correct units, sign, period,
+- [x] The four exact IFRS duration concepts map with correct units, sign, period,
   currency, availability, and provenance.
-- [ ] Missing or ambiguous exact concepts remain unavailable.
-- [ ] Every field in one analysis uses one immutable SEC snapshot.
-- [ ] Latest-eligible-accession taxonomy selection and cross-regime rejection are
+- [x] Missing or ambiguous exact concepts remain unavailable.
+- [x] Every field in one analysis uses one immutable SEC snapshot.
+- [x] Latest-eligible-accession taxonomy selection and cross-regime rejection are
   proven at historical `as_of` boundaries.
-- [ ] Per-share/quote outputs require affirmative security-unit compatibility;
+- [x] Per-share/quote outputs require affirmative security-unit compatibility;
   unknown or ADR/ADS shapes fail closed without erasing valid issuer-level facts.
-- [ ] IFRS BVPS and preferred-zero inference remain unsupported.
+- [x] IFRS BVPS and preferred-zero inference remain unsupported.
 - [x] Existing `10-K` behavior and all approved financial formulas remain
   unchanged.
-- [ ] Golden additions are versioned and existing case IDs/fixtures are not
+- [x] Golden additions are versioned and existing case IDs/fixtures are not
   rewritten.
-- [ ] No deterministic test makes a real SEC, quote-provider, or LLM call.
-- [ ] Focused checks, the complete repository gate, and the canonical Golden
+- [x] No deterministic test makes a real SEC, quote-provider, or LLM call.
+- [x] Focused checks, the complete repository gate, and the canonical Golden
   Suite pass and are recorded honestly.
-- [ ] Final implementation/documentation diff receives explicit human approval.
+- [x] Final implementation/documentation diff receives explicit human approval.
 
 ## 6. Deferred Phase B2 entry requirements
 
@@ -252,6 +286,5 @@ an implied continuation of this plan.
 
 ## 7. Current handoff
 
-Implement B1-A's analysis-scoped immutable SEC snapshot and regime lock across
-both approved analysis resolvers, run the Gate C checks, and stop for human
-review before B1-B.
+Step 2.5A received final human approval and is complete as of 2026-09-01. Step
+2.6 remains the next planned step and has not started.

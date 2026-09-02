@@ -376,8 +376,8 @@ Current documents:
 - `RUNTIME_AGENTS.md`
 - `docs/project/MASTER_PLAN.md`
 - `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`
-- `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_DESIGN.md` — active compact specification for Step 2.3;
-- `docs/project/milestones/v0.2/STEP_2_3_GRAHAM_SLICE_PLAN.md` — live slice-status tracker and completion gate;
+- `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md` — active compact specification for Step 2.3;
+- `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md` — live slice-status tracker and completion gate;
 - `docs/project/ARCHITECTURE.md`
 - `docs/project/DISCOVERY_WORKBOOK.md`
 - `docs/EVALUATIONS.md` — Step 2.5 Golden Suite purpose, execution modes, scoring boundaries, fixtures, and maintenance rules;

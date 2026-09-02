@@ -1,9 +1,9 @@
 # Step 2.5 Golden Suite Slice Plan
 
 **Status:** Complete and approved on 2026-08-31. The approved working tree is based on checkpoint `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f`; the closeout checkpoint has not yet been created.<br/>
-**Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
-**Evaluation contract:** [Evaluations & Golden Suite](../../../EVALUATIONS.md)<br/>
-**Architecture:** [Financial Data Agents Architecture](../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
+**Governing plan:** [Milestone v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md#4518-implementation-sequence)<br/>
+**Evaluation contract:** [Evaluations & Golden Suite](../../../../EVALUATIONS.md)<br/>
+**Architecture:** [Financial Data Agents Architecture](../../../ARCHITECTURE.md#7-golden-suite-architecture-step-25)
 
 ## 1. Purpose
 
@@ -184,7 +184,7 @@ Slice B defines the benchmark truth before production evaluation code consumes i
 
 #### Owned artifacts
 
-- create `docs/project/milestones/v0.2/STEP_2_5_EXPECTED_VALUES.md`;
+- create `docs/project/milestones/v0.2/step-2.5/STEP_2_5_EXPECTED_VALUES.md`;
 - add only narrowly required deterministic fixture data under `src/evaluation/fixtures/`;
 - add fixture-focused tests under `tests/evaluation/fixtures/`.
 
@@ -462,7 +462,7 @@ acceptance. Step 2.5 is complete and approved. Checkpoint
 `86f1bd6350b9a8bb2cc051a62a4d0f8ba0a5750f` is the tracked pre-Slice-I baseline;
 the approved closeout change set remains in the working tree. The next handoff
 is Step 2.5A D0 evidence freeze under
-[`SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md`](SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md). Stop at
+[`SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md`](../step-2.5a/SEC_EDGAR_FPI_IFRS_SLICE_PLAN.md). Stop at
 its Gate A before A1 production changes. P2 remains deferred until after Step
 3.1.
 
@@ -501,7 +501,7 @@ Primary sources:
 
 ### 19.3 Historical Ollama model alias
 
-The canonical artifact is [`docs/project/deploy/ollama/Modelfile.cline-step-2.5`](../../deploy/ollama/Modelfile.cline-step-2.5). Create the dedicated `financial-data-agents-step-2-5` alias from this content on the inference server:
+The canonical artifact is [`docs/project/deploy/ollama/Modelfile.cline-step-2.5`](../../../deploy/ollama/Modelfile.cline-step-2.5). Create the dedicated `financial-data-agents-step-2-5` alias from this content on the inference server:
 
 ```text
 FROM qwen3-coder:30b
@@ -616,9 +616,9 @@ Do not issue these prompts. They preserve the intended slice boundaries and the 
 ```text
 Implement only Step 2.5 Slice A1 — enums and leaf constraints — on branch feat/step-2.5-golden-suite.
 
-The reviewed Git checkpoint is commit ff4140336381e98cff835e9ea05fa61620aca1f9. The worktree intentionally contains exactly one pre-existing human-owned modification: ` M docs/project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status contains anything other than that one line. Preserve the human-owned plan modification byte-for-byte: do not edit, revert, stage, format, or otherwise take ownership of it. Use repository-relative paths in every file tool; never pass C:\Source\... or another absolute Windows path to a write/edit tool.
+The reviewed Git checkpoint is commit ff4140336381e98cff835e9ea05fa61620aca1f9. The worktree intentionally contains exactly one pre-existing human-owned modification: ` M docs/project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`. Before any write, run git rev-parse HEAD and git status --short from the repository root. Stop if the SHA differs or status contains anything other than that one line. Preserve the human-owned plan modification byte-for-byte: do not edit, revert, stage, format, or otherwise take ownership of it. Use repository-relative paths in every file tool; never pass C:\Source\... or another absolute Windows path to a write/edit tool.
 
-Read AGENTS.md, Section 4.5 of docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md, Sections 2–6.1 and 19–21 of docs/project/milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md, docs/EVALUATIONS.md, and the existing src/evaluation/__init__.py. Inspect src/orchestrator/analysis_tools.py only to confirm the four approved tool names. Do not modify either inspected production/package file.
+Read AGENTS.md, Section 4.5 of docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md, Sections 2–6.1 and 19–21 of docs/project/milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md, docs/EVALUATIONS.md, and the existing src/evaluation/__init__.py. Inspect src/orchestrator/analysis_tools.py only to confirm the four approved tool names. Do not modify either inspected production/package file.
 
 In Plan mode, enumerate the exact enums, leaf models, validators, tests, and two files you will create. Confirm that Case, aggregate Expectation, observations, ComponentResult, and package exports are excluded. Wait for approval before Act mode.
 
@@ -668,7 +668,7 @@ Read AGENTS.md, the Step 2.5 implementation-plan sections on fixture design, ini
 
 In Plan mode, list the proposed minimum Momentum and Graham scenarios, the independent calculation method for each, the fixture additions actually required, and the exact files/tests you will touch. Do not propose evaluator or runner code. Wait for approval.
 
-In Act mode, create docs/project/milestones/v0.2/STEP_2_5_EXPECTED_VALUES.md with reviewable fixture inputs, formulas, intermediate arithmetic, expected statuses/values, tolerances, and signal rationale for the minimum Momentum and Graham cases. Cover straightforward and boundary Momentum; three-year-average and TTM Graham Number; Graham not_applicable; explicit Graham growth assumptions/yield; missing current price; method discrimination; and the relevant precedence/as_of scenario. Use transparent manual arithmetic or a separate simple reference calculation, never production functions under test.
+In Act mode, create docs/project/milestones/v0.2/step-2.5/STEP_2_5_EXPECTED_VALUES.md with reviewable fixture inputs, formulas, intermediate arithmetic, expected statuses/values, tolerances, and signal rationale for the minimum Momentum and Graham cases. Cover straightforward and boundary Momentum; three-year-average and TTM Graham Number; Graham not_applicable; explicit Graham growth assumptions/yield; missing current price; method discrimination; and the relevant precedence/as_of scenario. Use transparent manual arithmetic or a separate simple reference calculation, never production functions under test.
 
 Add only narrowly required deterministic fixture records under src/evaluation/fixtures and fixture-focused tests under tests/evaluation/fixtures. Do not create executable Golden cases, evaluator logic, runner code, reports, CLI code, or production-strategy changes.
 

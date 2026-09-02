@@ -14,8 +14,10 @@ from src.analysis.graham_value.input_resolver import (
 )
 from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
+from src.data.financial.facts import financial_facts_analysis_scope
 from src.data.financial.provenance import ResolvedInput, SourceKind
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
+from src.data.security_unit import SecurityUnitEvidence, evaluate_security_unit_compatibility
 
 
 @dataclass(frozen=True)
@@ -86,17 +88,23 @@ def run_graham_number_analysis(  # noqa: PLR0913
             reason=_etf_not_applicable_reason("Graham Number"),
         )
     else:
-        assembly = resolver.assemble_graham_number(
-            security_subject_id=ticker,
-            security_provider_id=security_provider_id,
-            eps_basis=eps_basis,
-            eps_override=eps_override,
-            bvps_override=bvps_override,
-            quote_override=quote_override,
-            quote_provider_id=quote_provider_id,
+        with financial_facts_analysis_scope(
+            resolver.provider,
+            subject_id=ticker,
+            provider_id=security_provider_id,
             as_of=as_of,
-            use_cache=use_cache,
-        )
+        ):
+            assembly = resolver.assemble_graham_number(
+                security_subject_id=ticker,
+                security_provider_id=security_provider_id,
+                eps_basis=eps_basis,
+                eps_override=eps_override,
+                bvps_override=bvps_override,
+                quote_override=quote_override,
+                quote_provider_id=quote_provider_id,
+                as_of=as_of,
+                use_cache=use_cache,
+            )
     if assembly.status is CalculationStatus.OK and not _has_provider_backed_security_evidence(
         assembly.eps, assembly.bvps, assembly.current_price
     ):
@@ -120,6 +128,10 @@ def run_graham_number_analysis(  # noqa: PLR0913
             result.maximum_indicated_price,
             assembly.current_price,
             valuation_currency=_common_currency(assembly.eps, assembly.bvps),
+            security_unit_evidence=(
+                instrument_profile.security_unit_evidence if instrument_profile is not None else None
+            ),
+            require_security_unit_evidence=instrument_profile is not None,
         )
 
     return GrahamNumberAnalysis(
@@ -156,20 +168,26 @@ def run_graham_growth_analysis(  # noqa: PLR0913
             reason=_etf_not_applicable_reason("Graham growth-value method"),
         )
     else:
-        assembly = resolver.assemble_growth_value(
-            security_subject_id=ticker,
-            security_provider_id=security_provider_id,
-            eps_basis=eps_basis,
-            eps_override=eps_override,
-            expected_growth=expected_growth,
-            aaa_subject_id="AAA",
-            aaa_provider_id="user_override",
-            aaa_yield_override=aaa_yield_override,
-            quote_override=quote_override,
-            quote_provider_id=quote_provider_id,
+        with financial_facts_analysis_scope(
+            resolver.provider,
+            subject_id=ticker,
+            provider_id=security_provider_id,
             as_of=as_of,
-            use_cache=use_cache,
-        )
+        ):
+            assembly = resolver.assemble_growth_value(
+                security_subject_id=ticker,
+                security_provider_id=security_provider_id,
+                eps_basis=eps_basis,
+                eps_override=eps_override,
+                expected_growth=expected_growth,
+                aaa_subject_id="AAA",
+                aaa_provider_id="user_override",
+                aaa_yield_override=aaa_yield_override,
+                quote_override=quote_override,
+                quote_provider_id=quote_provider_id,
+                as_of=as_of,
+                use_cache=use_cache,
+            )
     if assembly.status is CalculationStatus.OK and not _has_provider_backed_security_evidence(
         assembly.eps, assembly.current_price
     ):
@@ -201,6 +219,10 @@ def run_graham_growth_analysis(  # noqa: PLR0913
             result.growth_value,
             assembly.current_price,
             valuation_currency=assembly.eps.currency,
+            security_unit_evidence=(
+                instrument_profile.security_unit_evidence if instrument_profile is not None else None
+            ),
+            require_security_unit_evidence=instrument_profile is not None,
         )
 
     return GrahamGrowthAnalysis(
@@ -253,9 +275,20 @@ def _margin_of_safety(
     current_price: ResolvedInput | None,
     *,
     valuation_currency: str | None = None,
+    security_unit_evidence: SecurityUnitEvidence | None = None,
+    require_security_unit_evidence: bool = False,
 ) -> float | None:
     """Compute comparison only when value, quote, and known currencies are compatible."""
     if reference_value is None or current_price is None or reference_value <= 0:
+        return None
+    if (
+        require_security_unit_evidence
+        and not evaluate_security_unit_compatibility(
+            security_unit_evidence,
+            filing_currency=valuation_currency,
+            quote_currency=current_price.currency,
+        ).is_compatible
+    ):
         return None
     if (
         valuation_currency is not None

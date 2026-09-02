@@ -24,6 +24,6 @@ Create the dedicated alias from the repository root with:
 ollama create financial-data-agents-step-2-5 -f docs/project/deploy/ollama/Modelfile.cline-step-2.5
 ```
 
-Configure Cline and the Ollama server using Section 19 of the [Step 2.5 Golden Suite Slice Plan](../../milestones/v0.2/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md). In particular, Cline's context window must match the Modelfile's `num_ctx`, and `ollama ps` must confirm the requested context and full GPU offload before Slice A begins.
+Configure Cline and the Ollama server using Section 19 of the [Step 2.5 Golden Suite Slice Plan](../../milestones/v0.2/step-2.5/STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md). In particular, Cline's context window must match the Modelfile's `num_ctx`, and `ollama ps` must confirm the requested context and full GPU offload before Slice A begins.
 
 This development alias is not the model-under-evaluation configuration for the optional real-local-Ollama Golden Suite mode. Record those empirical settings separately.

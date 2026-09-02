@@ -37,6 +37,12 @@ from src.evaluation.fixtures.market_data import (
     momentum_boundary_frame,
     momentum_success_frame,
 )
+from src.evaluation.fixtures.sec_edgar_fpi import (
+    SEC_FPI_FIXTURE_IDS,
+    SEC_FPI_NVO_FIXTURE_ID,
+    fixture_nvo_security_unit_profile,
+    fixture_sec_fpi_adapter,
+)
 from src.evaluation.models import Case, ToolName
 from src.orchestrator.analysis_tools import (
     AnalysisToolDependencies,
@@ -68,6 +74,7 @@ SUPPORTED_FIXTURE_IDS: Final = frozenset(
         FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID,
         FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
         KNOWN_ETF_PROFILE_FIXTURE_ID,
+        *SEC_FPI_FIXTURE_IDS,
     }
 )
 
@@ -129,6 +136,7 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
         _FCF_FIXTURE_IDS,
         label="FCF/Earnings Growth facts",
     )
+    sec_fpi_fixture_id = _selected_variant(fixture_ids, SEC_FPI_FIXTURE_IDS, label="SEC FPI evidence")
 
     momentum_frame = (
         momentum_success_frame()
@@ -143,8 +151,13 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
         market_data_provider=FixtureMarketDataProvider(momentum_frame),
     )
 
+    sec_fpi_provider = (
+        fixture_sec_fpi_adapter(sec_fpi_fixture_id, clock_at=clock_at) if sec_fpi_fixture_id is not None else None
+    )
     graham_provider = (
-        FixtureFinancialFactsProvider()
+        sec_fpi_provider
+        if sec_fpi_provider is not None
+        else FixtureFinancialFactsProvider()
         if GRAHAM_FACTS_FIXTURE_ID in fixture_ids
         else _UnavailableFinancialFactsProvider()
     )
@@ -152,19 +165,19 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
     graham_resolver = GrahamInputResolver(provider=graham_provider, cache=graham_cache, clock=lambda: clock_at)
 
     annual_facts = _annual_facts(fcf_fixture_id)
-    annual_provider = FixtureAnnualFinancialFactsProvider(
+    annual_provider = sec_fpi_provider or FixtureAnnualFinancialFactsProvider(
         tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_facts)
     )
     fcf_analyzer = FCFEarningsGrowthAnalyzer(
         ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock_at)
     )
 
-    profile_resolver = _profile_resolver(fixture_ids)
+    profile_resolver = _profile_resolver(fixture_ids, clock_at=clock_at)
     return AnalysisToolDependencies(
         momentum_analyzer=momentum_analyzer,
         graham_resolver=graham_resolver,
-        graham_security_provider_id=GRAHAM_PROVIDER_ID,
-        graham_quote_provider_id=GRAHAM_PROVIDER_ID,
+        graham_security_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
+        graham_quote_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
         graham_growth_policy=GrahamGrowthCalculationPolicy(
             base_pe=GOLDEN_GROWTH_BASE_PE,
             growth_multiplier=GOLDEN_GROWTH_MULTIPLIER,
@@ -227,11 +240,17 @@ def _annual_facts(fixture_id: str | None) -> tuple[ProviderFact, ...]:
     return ()
 
 
-def _profile_resolver(fixture_ids: frozenset[str]) -> Callable[[str], InstrumentProfile] | None:
+def _profile_resolver(fixture_ids: frozenset[str], *, clock_at: datetime) -> Callable[[str], InstrumentProfile] | None:
     """Build an exact-ticker profile resolver without any provider fallback."""
-    if KNOWN_ETF_PROFILE_FIXTURE_ID not in fixture_ids:
+    profile = (
+        fixture_known_etf_profile()
+        if KNOWN_ETF_PROFILE_FIXTURE_ID in fixture_ids
+        else fixture_nvo_security_unit_profile(resolved_at=clock_at)
+        if SEC_FPI_NVO_FIXTURE_ID in fixture_ids
+        else None
+    )
+    if profile is None:
         return None
-    profile = fixture_known_etf_profile()
 
     def resolve(ticker: str) -> InstrumentProfile:
         if ticker.strip().upper() != profile.ticker:
@@ -268,12 +287,12 @@ def _require_tool_evidence(case: Case, *, tool_name: ToolName, ticker: str) -> N
     elif tool_name in (ToolName.ANALYZE_GRAHAM_NUMBER, ToolName.ANALYZE_GRAHAM_GROWTH_VALUE):
         if has_matching_etf_profile:
             return
-        required = frozenset({GRAHAM_FACTS_FIXTURE_ID})
+        required = frozenset({GRAHAM_FACTS_FIXTURE_ID, *SEC_FPI_FIXTURE_IDS})
         label = "Graham financial-fact"
     else:
         if has_matching_etf_profile:
             return
-        required = _FCF_FIXTURE_IDS
+        required = _FCF_FIXTURE_IDS | SEC_FPI_FIXTURE_IDS
         label = "FCF/Earnings Growth fact"
     if not fixture_ids & required:
         raise FixtureCompositionError(f"Case {case.case_id!r} has no selected {label} fixture.")

@@ -2,9 +2,9 @@
 
 **Status:** Slice B1 approved; Slice B2 FCF/Earnings Growth expectations pending human review  
 **Fixture schema:** `step-2.5-b2-v1`  
-**Authority:** [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md),
+**Authority:** [`IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md),
 [`STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md`](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md), and
-[`docs/user/FINANCE_MATH.md`](../../../user/FINANCE_MATH.md)
+[`docs/user/FINANCE_MATH.md`](../../../../user/FINANCE_MATH.md)
 
 ## 1. Scope and derivation policy
 

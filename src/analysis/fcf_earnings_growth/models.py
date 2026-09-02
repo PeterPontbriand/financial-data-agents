@@ -3,7 +3,7 @@
 Defines the normative strategy enums, the typed policy, the invariant-checked
 shared ``MetricResult`` and strategy-specific ``ForwardEvidence`` containers, the annual observation
 record, and the fixed-identifier ``FCFEarningsGrowthResult`` result type
-required by ``docs/project/milestones/v0.2/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``.
+required by ``docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``.
 
 All models are frozen.  All ``datetime`` fields, when present, must be
 timezone-aware (inherited from the shared provenance contract).

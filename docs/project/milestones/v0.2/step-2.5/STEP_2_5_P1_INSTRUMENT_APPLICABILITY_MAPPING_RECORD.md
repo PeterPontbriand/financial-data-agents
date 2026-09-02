@@ -2,9 +2,9 @@
 
 **Status:** P1-A through P1-C complete and approved; consumed by the Step 2.5 Golden implementation<br/>
 **Prepared:** 2026-08-30  
-**Governing plan:** [Milestone v0.2 Implementation Plan](IMPLEMENTATION_PLAN.md#450-p1--pre-golden-instrument-applicability-hardening)  
+**Governing plan:** [Milestone v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md#450-p1--pre-golden-instrument-applicability-hardening)  
 **Slice plan:** [Step 2.5 Golden Suite Slice Plan](STEP_2_5_GOLDEN_SUITE_SLICE_PLAN.md#5a-approved-prerequisite--p1-instrument-applicability-hardening)  
-**Predecessor identity contract:** [Step 2.4 provider mapping record](STEP_2_4_PROVIDER_MAPPING_RECORD.md#31-security-identity)
+**Predecessor identity contract:** [Step 2.4 provider mapping record](../step-2.4/STEP_2_4_PROVIDER_MAPPING_RECORD.md#31-security-identity)
 
 ## 1. Approval and current decision
 

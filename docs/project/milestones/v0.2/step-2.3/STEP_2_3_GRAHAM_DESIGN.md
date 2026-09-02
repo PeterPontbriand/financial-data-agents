@@ -103,7 +103,7 @@ ordinary/common share capital, preferred equity of zero, a compatible period-end
 denominator, or ADR/ADS unit equivalence. IFRS-derived BVPS therefore remains
 unsupported unless a later dimensional/share-class mapping passes a separate
 evidence review. See the [SEC EDGAR FPI / IFRS D0 Mapping
-Record](SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md).
+Record](../step-2.5a/SEC_EDGAR_FPI_IFRS_D0_MAPPING_RECORD.md).
 
 ## 3. Graham growth-value method
 

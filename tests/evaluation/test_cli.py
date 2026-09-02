@@ -84,10 +84,10 @@ def test_evaluate_cli_runs_full_deterministic_suite_and_writes_report(tmp_path: 
     assert result.exit_code == 0
     payload = json.loads(target.read_text(encoding="utf-8"))
     assert payload["execution_mode"] == "deterministic_no_llm"
-    assert payload["total_cases"] == 15
-    assert payload["passed_cases"] == 15
+    assert payload["total_cases"] == 19
+    assert payload["passed_cases"] == 19
     assert payload["failed_cases"] == 0
-    assert "15 passed, 0 failed, 0 skipped" in result.output
+    assert "19 passed, 0 failed, 0 skipped" in result.output
 
 
 def test_evaluate_cli_selects_one_named_case_case_insensitively(tmp_path: Path) -> None:

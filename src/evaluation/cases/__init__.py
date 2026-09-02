@@ -16,6 +16,7 @@ from src.evaluation.cases.momentum import (
     MOMENTUM_ETF_CASE,
     MOMENTUM_SUCCESS_CASE,
 )
+from src.evaluation.cases.sec_edgar_fpi import FPI_01, FPI_02, FPI_03, FPI_04, SEC_EDGAR_FPI_CASES
 
 __all__ = [
     "GRAHAM_RESOLUTION_CASES",
@@ -38,4 +39,9 @@ __all__ = [
     "FCF_03",
     "FCF_EARNINGS_GROWTH_CASES",
     "FCF_ETF_01",
+    "FPI_01",
+    "FPI_02",
+    "FPI_03",
+    "FPI_04",
+    "SEC_EDGAR_FPI_CASES",
 ]
