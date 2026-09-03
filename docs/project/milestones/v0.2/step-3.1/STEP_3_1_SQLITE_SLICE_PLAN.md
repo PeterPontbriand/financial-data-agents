@@ -1,0 +1,545 @@
+# Step 3.1 SQLite Persistence Slice Plan
+
+**Milestone:** v0.2 — Step 3.1  
+**Prepared:** 2026-09-03  
+**Status:** Planning complete; production implementation must not begin until the Step 2.6 Gate B review is approved  
+**Owning plan:** [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md), Section 4.7
+
+## 1. Goal
+
+Establish one migration-controlled SQLite database for production market-data
+cache records and trajectory telemetry while preserving the provider-neutral
+contracts created in Steps 2.1–2.5A. Step 3.1 supplies infrastructure and
+adapters; it does not move financial calculations, provider selection, cache
+eligibility, or orchestration policy into SQLite.
+
+## 2. Entry gate and scope
+
+Documentation and environment preparation may proceed now. Production-code
+implementation starts only after the human approves Step 2.6 Gate B. Before
+each implementation slice, record a clean focused-test baseline and the current
+`git status --short`; unrelated user changes remain out of scope.
+
+### In scope
+
+- an Alembic migration environment and initial SQLite schema;
+- a narrow connection/transaction boundary with WAL, foreign keys, and bounded
+  busy waiting enabled on every connection;
+- a `SQLiteTrajectorySink` satisfying the existing synchronous
+  `TrajectorySink` protocol;
+- a SQLite implementation of `ResolvedInputCacheProtocol` and
+  `ResolvedInputSeriesCacheProtocol`;
+- durable historical OHLCV caching behind the existing `BaseDataClient`
+  boundary;
+- preservation of source identity, observation/availability dates, retrieval
+  time, requested `as_of`, schema version, and lineage;
+- deterministic tests using temporary databases and no external calls; and
+- operator documentation for migration and fresh-database verification.
+
+### Explicit non-goals
+
+- Step 3.2's general-purpose repository/DAO expansion;
+- Step 3.3 freshness/invalidation policy beyond the already approved cache
+  contract and configurable TTL;
+- Step 3.4 watchlists, Analysis Runs, or run browsing;
+- P2 durable instrument profiles or ETF aggregate FCF growth;
+- changing the semantics of Momentum, Graham, or FCF/Earnings Growth;
+- storing secrets, `.env` content, databases, raw live-provider payloads, or
+  Golden fixtures in Git; and
+- async database access, a service process, a generic ORM framework, or a
+  speculative registry/factory hierarchy.
+
+## 3. Decisions to freeze before implementation
+
+### 3.1 Persistence technology
+
+Use SQLAlchemy 2.x Core plus Alembic. Core gives Alembic a supported schema and
+transaction layer without introducing ORM entities that compete with the
+project's typed domain models. SQLite remains the only Step 3.1 database.
+
+This requires explicit human permission to add `sqlalchemy` and `alembic` to
+`pyproject.toml` and refresh `uv.lock`. The dependency change is Slice A and
+must not be smuggled into a later code slice.
+
+### 3.2 Database location and URL
+
+Replace the test-like default `sqlite:///./test.db` with a production default
+under the configured data directory, while retaining an environment override.
+Resolve relative SQLite paths from the repository/application base directory,
+not from an arbitrary caller working directory. Tests always inject a temporary
+absolute database path.
+
+The database file, SQLite sidecars (`-wal`, `-shm`), migration test databases,
+and quality-run artifacts must remain ignored and untracked.
+
+### 3.3 Connection policy
+
+Every application and migration connection must establish and verify:
+
+- `PRAGMA foreign_keys = ON`;
+- `PRAGMA journal_mode = WAL` for file-backed databases;
+- a bounded `busy_timeout` configured in typed settings; and
+- explicit transaction ownership, rollback on failure, and deterministic
+  close/disposal.
+
+Do not claim WAL from a one-time setup call alone. A focused integration test
+must query the effective journal mode from a fresh connection. In-memory
+SQLite is not used for the WAL assertion because it cannot represent the
+file-backed production behavior.
+
+### 3.4 Serialization boundary
+
+Persist losslessly reconstructable domain data. Use canonical JSON only for
+bounded nested values that do not benefit from relational querying (for
+example telemetry payloads and immutable notes). Store timestamps in a single
+documented UTC representation and reconstruct timezone-aware values. Store
+enums by stable string value. Reject non-finite numeric values before writes;
+never coerce missing data to zero.
+
+### 3.5 Ownership of cache semantics
+
+SQLite storage implements the approved cache protocols. The resolver continues
+to own precedence and temporal eligibility. The durable cache may enforce its
+configured TTL exactly as the in-memory implementation does, but it must not
+invent provider fallback, rewrite provenance, or relabel stored provider or
+derived inputs as cache-sourced results.
+
+### 3.6 Initial schema groups
+
+The first migration creates only tables required by Step 3.1:
+
+1. `schema_metadata` for application schema/version metadata where Alembic's
+   revision table alone is insufficient;
+2. `trajectory_events`, keyed by event identity and uniquely ordered by
+   `(run_id, sequence)`;
+3. `resolved_input_cache`, keyed by the complete normalized cache identity,
+   including nullable `as_of` and optional period bounds without collapsing
+   current and historical requests;
+4. `market_price_observations` for normalized OHLCV observations; and
+5. `market_data_cache_entries` for request/provider/retrieval/context metadata
+   describing a cached historical series.
+
+Instrument-profile tables, Analysis Runs, watchlists, and evaluation reports
+are intentionally absent. If exact SQLite uniqueness with nullable key members
+cannot express the cache contract safely, freeze an explicit normalized-key
+encoding in the design test before authoring the migration; do not rely on
+SQLite treating `NULL` values as equal in a unique constraint.
+
+## 4. Slice design principles for a local implementation model
+
+Each slice is a fresh Cline task and has one primary behavior, a small explicit
+file allowlist, focused tests, and a hard stop. The model must first inspect the
+named contracts, restate the files it intends to change, and wait for approval
+before Act mode. After editing it must reread every changed file, run the named
+checks, show `git status --short`, and report command output accurately.
+
+No slice may commit, push, install packages, weaken tests, edit unrelated files,
+or begin the next slice. A claimed success is not evidence: the human/reviewer
+inspects the diff and independently reruns the gate. If a slice needs a public
+contract change not stated here, it stops and reports the mismatch.
+
+Keep individual implementation tasks below roughly four production files and
+two focused test files. Prefer extending an already reviewed narrow module over
+creating abstractions in anticipation of later steps.
+
+## 5. Implementation slices
+
+### Slice D0 — contract and schema mapping freeze
+
+**Purpose:** Convert the approved domain objects into a field-level persistence
+mapping before migration code exists.
+
+**Artifacts:** This document plus, if useful, one adjacent mapping record. No
+production code, dependency, or lock-file changes.
+
+**Required work:**
+
+- enumerate every persisted field from `TrajectoryEvent`,
+  `ResolvedInputCacheKey`, `ResolvedInputCacheEntry`, `ResolvedInput`,
+  `HistoricalMarketData`, and `MarketDataContext`;
+- classify each field as relational column, canonical JSON, derived/non-stored,
+  or excluded with rationale;
+- define primary keys, uniqueness, foreign keys, indexes, timestamp encoding,
+  enum encoding, nullable-key normalization, and reconstruction rules;
+- define overwrite/idempotency behavior for duplicate telemetry events, cache
+  puts, and overlapping OHLCV observations; and
+- identify any contract gap. Contract gaps stop at Gate D0 rather than being
+  repaired opportunistically.
+
+**Gate D0:** Human approves the mapping and exact first-migration table list.
+
+### Slice A — dependency and configuration boundary
+
+**Prerequisite:** explicit permission to edit `pyproject.toml` and `uv.lock`.
+
+**Purpose:** Add only the supported migration/database dependencies and typed
+settings needed by later slices.
+
+**Likely files:** `pyproject.toml`, `uv.lock`, `src/config.py`,
+`tests/test_config.py`, and ignore rules if the D0 audit proves they are
+incomplete.
+
+**Required work:**
+
+- add bounded compatible SQLAlchemy 2.x and Alembic dependencies through `uv`;
+- define the production database URL/path and a positive busy-timeout setting;
+- allow `telemetry_sink="sqlite"` without changing the runtime default until
+  the SQLite sink is integrated and tested;
+- test defaults, environment overrides, invalid timeout values, and path
+  resolution; and
+- prove no database file is created merely by importing settings.
+
+**Focused gate:** Ruff, format check, strict mypy for changed source/tests, and
+focused configuration tests. Stop for review.
+
+### Slice B1 — SQLite engine and transaction policy
+
+**Purpose:** Establish one small reusable SQLite connection boundary.
+
+**Likely files:** `src/data/repositories/sqlite.py`,
+`src/data/repositories/__init__.py`, and
+`tests/data/repositories/test_sqlite.py`.
+
+**Required work:**
+
+- construct/dispose the SQLAlchemy engine from typed settings;
+- apply foreign-key, WAL, and busy-timeout policy to every connection;
+- expose bounded transaction/read helpers rather than raw global connections;
+- distinguish file-backed behavior from test-only SQLite edge cases; and
+- test rollback, persistence across connections, effective pragmas, and clean
+  resource release with a temporary file-backed database.
+
+**Non-goal:** no tables, Alembic environment, repository, or sink.
+
+**Focused gate:** targeted Ruff/format/mypy/pytest. Stop for review.
+
+### Slice B2 — Alembic environment and empty bootstrap
+
+**Purpose:** Make migrations use the reviewed URL and connection policy without
+yet encoding the production schema.
+
+**Likely files:** `alembic.ini`, `alembic/env.py`, `alembic/script.py.mako`,
+`alembic/versions/`, a small migration helper if required, and focused tests.
+
+**Required work:**
+
+- create a non-interactive Alembic environment rooted in the repository;
+- obtain the URL from project configuration while allowing CLI/test override;
+- prevent logging configuration from overwriting application logging;
+- prove `upgrade head`, `downgrade base`, and repeated `upgrade head` work on a
+  temporary database; and
+- document that migration commands run from the repository root.
+
+**Non-goal:** no production tables beyond Alembic's own revision table.
+
+**Focused gate:** migration lifecycle test plus targeted quality checks. Stop.
+
+### Slice B3 — initial schema migration
+
+**Purpose:** Implement exactly the Gate D0-approved tables and indexes.
+
+**Likely files:** one Alembic revision, one centralized SQLAlchemy Core metadata
+module, and schema-focused tests.
+
+**Required work:**
+
+- define tables once in Core metadata and mirror them exactly in the revision;
+- include database-level checks for positive sequences/schema versions,
+  required identifiers, and valid cache timestamps where SQLite can enforce
+  them safely;
+- test table/index/constraint presence through inspection;
+- test upgrade from empty, downgrade to empty, and upgrade again; and
+- assert that unapproved Step 3.2–3.4/P2 tables do not appear.
+
+**Gate B:** Human compares D0 mapping, metadata, and migration before adapter
+work begins.
+
+### Slice C1 — SQLite trajectory writes
+
+**Purpose:** Add the smallest sink that persists each validated event atomically.
+
+**Likely files:** `src/core/telemetry/sinks/sqlite.py`, sink exports, and
+`tests/core/telemetry/test_sqlite_sink.py`.
+
+**Required work:**
+
+- satisfy `TrajectorySink.record`, `flush`, and `close` structurally;
+- preserve every `TrajectoryEvent` field and event order;
+- reject or idempotently handle duplicate event IDs according to D0;
+- make `close` idempotent and post-close writes explicit errors; and
+- keep telemetry failure behavior fail-open at the recorder boundary.
+
+**Non-goal:** read/query API or runtime configuration wiring.
+
+### Slice C2 — trajectory reconstruction and runtime selection
+
+**Purpose:** Prove JSONL/SQLite equivalence and make the sink selectable.
+
+**Likely files:** one trajectory readback helper/repository, telemetry
+composition/settings wiring, and focused integration tests.
+
+**Required work:**
+
+- reconstruct a run in ascending sequence with exact typed equality;
+- demonstrate representative JSONL and SQLite round trips yield the same event
+  sequence;
+- select JSONL or SQLite from typed settings without changing orchestration;
+- verify recorder fail-open behavior for SQLite operational failures; and
+- keep retention/purge policy out of this slice unless separately approved.
+
+**Gate C:** Human reviews the equivalence evidence and runtime default.
+
+### Slice D1 — scalar resolved-input cache
+
+**Purpose:** Implement `get`/`put` for complete scalar cache identities.
+
+**Likely files:** `src/data/repositories/resolved_input_cache.py`, exports, and
+one focused repository test file.
+
+**Required work:**
+
+- round-trip every `ResolvedInput` provenance field losslessly;
+- preserve current versus historical `as_of` identity;
+- implement deterministic replace/idempotency semantics from D0;
+- enforce timezone, finite-number, key/input-coherence, source-kind, and TTL
+  behavior through existing domain constructors; and
+- prove instances sharing one database observe durable writes.
+
+**Non-goal:** resolver or CLI composition.
+
+### Slice D2 — period-series cache queries
+
+**Purpose:** Add `ResolvedInputSeriesCacheProtocol.get_series` without changing
+scalar behavior.
+
+**Required work:**
+
+- match the existing query normalization and eligibility semantics;
+- return the same deterministic ordering as `InMemoryResolvedInputCache`;
+- cover provider, basis, period-bound, `as_of`, schema-version, and TTL edges;
+- add a contract test parametrized over in-memory and SQLite implementations;
+  and
+- demonstrate no silent zero/default substitution.
+
+**Gate D:** Run the focused resolver/cache suite against both implementations.
+
+### Slice E1 — historical-series schema adapter
+
+**Purpose:** Round-trip one `HistoricalMarketData` series without provider
+fetching or fallback.
+
+**Likely files:** one market-data repository module and one focused test file.
+
+**Required work:**
+
+- normalize ticker/provider/request bounds and persist OHLCV observations plus
+  `MarketDataContext` metadata;
+- preserve index timezone/date semantics, column names/order, numeric values,
+  observation count, adjustment basis, currency, interval, data `as_of`, and
+  retrieval metadata where available;
+- define overlap/upsert behavior from D0; and
+- reconstruct an equivalent DataFrame with deterministic ordering/dtypes.
+
+**Non-goal:** no live yfinance call and no `BaseDataClient` decorator.
+
+### Slice E2 — cache-backed historical client
+
+**Purpose:** Put durable caching behind `BaseDataClient` without pretending a
+historical observation is a current quote.
+
+**Required work:**
+
+- compose a narrow cache-backed client/decorator around an injected provider;
+- use a valid eligible cached range without an external refetch;
+- fetch on miss, persist only validated results, and preserve provider context;
+- specify partial-range behavior explicitly (initially a full refetch is safer
+  than silently stitching incompatible series); and
+- keep `fetch_current_price` delegated to the real quote boundary, never the
+  historical cache.
+
+**Gate E:** deterministic fake-provider tests prove hit, miss, provider error,
+empty/invalid data, and current-quote separation.
+
+### Slice F1 — production financial-cache composition
+
+**Purpose:** Select the durable resolved-input cache in production composition
+without changing resolver rules.
+
+**Required work:**
+
+- inject the SQLite cache at existing Graham and FCF resolver construction
+  seams;
+- retain explicit in-memory/test injection paths;
+- prove a first deterministic fake-provider analysis populates the cache and a
+  second process-equivalent composition reuses it without provider access; and
+- verify all result provenance and resolution traces remain truthful.
+
+### Slice F2 — production historical-cache composition
+
+**Purpose:** Select the cache-backed historical client for Momentum.
+
+**Required work:**
+
+- wire only the existing production construction seam;
+- keep direct custom/test client injection unchanged;
+- prove miss-then-hit behavior with deterministic fake data; and
+- confirm current-price and fundamental provider paths are unaffected.
+
+### Slice G — operator workflow, integration proof, and closeout
+
+**Purpose:** Complete the fresh-database workflow and Step 3.1 evidence.
+
+**Required work:**
+
+- document dependency synchronization, migration upgrade/downgrade, database
+  location override, backup implications of WAL sidecars, and recovery from a
+  failed local migration;
+- add a fresh-database smoke test covering migration, representative telemetry,
+  resolved financial input, and historical series round trips;
+- verify no network/LLM call occurs in tests and no database artifact is tracked;
+- run the complete managed-agent quality-gate wrapper; and
+- update the implementation plan/status only from reviewed evidence.
+
+**Gate G:** Human reviews the complete diff, migration lifecycle, smoke-test
+output, coverage, and full quality-gate output. Do not begin P2 or Step 3.2.
+
+## 6. Verification matrix
+
+| Concern | Minimum evidence |
+| :--- | :--- |
+| Migration lifecycle | Clean upgrade, repeated upgrade, downgrade, re-upgrade |
+| SQLite policy | Fresh file connection reports WAL, foreign keys on, configured busy timeout |
+| Atomicity | Forced write failure rolls back the whole operation |
+| Telemetry | Typed event equality and ordered JSONL/SQLite reconstruction |
+| Financial cache | Shared contract tests for scalar and series behavior, including TTL/as-of |
+| Historical cache | DataFrame/context round trip; hit avoids provider; miss persists |
+| Provenance | Provider, source kind, dates, lineage, cache schema, and notes preserved |
+| Isolation | Temporary file databases; no live provider, Ollama, or user database |
+| Repository health | Focused checks per slice and complete wrapper at Gate G |
+
+## 7. Local-model execution protocol
+
+The Step 2.5 experiment showed that Qwen3-Coder 30B could pass a tool smoke test
+yet still omit required artifacts and falsely report successful checks. For
+Step 3.1, local-model output is therefore treated as an untrusted draft until
+independently verified.
+
+For every slice:
+
+1. Start a fresh task in Plan mode and supply only the slice, named contracts,
+   file allowlist, and stop condition.
+2. Require a read-only plan listing exact files, tests, and assumptions. Approve
+   before Act mode.
+3. Enable automatic approval only for bounded read/search and explicitly named
+   non-mutating checks. Keep edits and commands that mutate dependencies,
+   migrations, Git, or external state under manual approval.
+4. Require post-edit read-back of every changed file and an explicit checklist
+   matching each requested artifact to a path and test.
+5. Independently inspect the diff and rerun the focused gate. Ignore prose claims
+   that are not supported by files and command output.
+6. Reject the slice if it changes files outside the allowlist, invents a
+   dependency, creates a second abstraction, weakens an assertion, or skips a
+   required test.
+7. Begin the next slice only after human approval; use a new task so stale
+   context cannot contaminate the next change.
+
+### 7.1 Current model recommendation review (2026-09-03)
+
+There is no evidence-based reason to promote a new local model directly into
+the Step 3.1 implementation role without a bakeoff:
+
+- Cline's current local-model guide still recommends Qwen3-Coder 30B, and
+  Ollama reports improved tool calling for that model. Repository evidence on
+  this host is nevertheless stronger for this workflow: the tested model
+  repeatedly produced incomplete work and false success reports. It is not the
+  default Step 3.1 implementer.
+- Qwen3-Coder-Next is a newer agentic-coding candidate with tool support and a
+  256K native context, but Ollama's Q4_K_M artifact is about 52 GB. It is not a
+  drop-in replacement for the previously documented 24–28 GB GPU target.
+- Ollama now lists `glm-4.7-flash`, Qwen3-Coder, and `gpt-oss:20b` among local
+  coding candidates and estimates about 23 GB VRAM for GLM-4.7-Flash at 64K.
+  These are candidates, not project recommendations, until they complete the
+  same repository-specific slice and verification protocol.
+
+If local-model implementation is desired, run a disposable bakeoff using Slice
+B1 or another comparably bounded, independently specified task. Test at most
+two candidates against the identical prompt, clean starting state, context,
+and checks. Score artifact completeness, forbidden-file changes, test accuracy,
+and truthfulness of the completion report—not prose quality. Promote a model
+only after two consecutive accepted micro-slices.
+
+Primary references:
+
+- [Cline local-model overview](https://docs.cline.bot/running-models-locally/overview)
+- [Ollama coding-tool recommendations](https://ollama.com/blog/launch)
+- [Ollama Qwen3-Coder-Next model record](https://ollama.com/library/qwen3-coder-next)
+- [Ollama context and K/V cache guidance](https://docs.ollama.com/faq)
+
+### 7.2 Current Cline recommendation
+
+- Use the native Ollama provider URL without `/v1` and match Cline's advertised
+  context exactly to the context Ollama actually allocates.
+- Use a fresh task per slice, Plan then Act, checkpoints enabled, web/MCP/hooks
+  disabled unless the slice explicitly requires them.
+- Enable compact prompts if the installed Cline version exposes a functioning
+  control. If it does not, do not chase a stale setting; fresh tasks and narrow
+  file reads remain the prompt-size control.
+- Do not auto-approve project edits, dependency changes, migrations, or Git
+  operations. Auto-approve may cover bounded reads/searches and named
+  non-mutating checks only.
+- A smoke task must include one edit, file read-back, and a deliberately failing
+  focused check whose failure the model must report accurately. Read/command
+  tool syntax alone does not establish implementation reliability.
+
+### 7.3 Current Ollama recommendation
+
+Keep the proven conservative operating shape for a coding-agent bakeoff:
+
+```text
+OLLAMA_CONTEXT_LENGTH=65536
+OLLAMA_FLASH_ATTENTION=1
+OLLAMA_KV_CACHE_TYPE=q8_0
+OLLAMA_NUM_PARALLEL=1
+OLLAMA_MAX_LOADED_MODELS=1
+OLLAMA_NO_CLOUD=1
+```
+
+`q8_0` remains Ollama's recommended lower-memory K/V cache alternative to
+`f16`. Do not configure numeric `CUDA_VISIBLE_DEVICES`, experimental Vulkan, or
+hard-coded `num_gpu` merely to force placement. First confirm that the current
+server discovers the intended GPU(s), then sample `ollama ps` while generation
+is active. Accept the preflight only when the allocated context matches Cline
+and the intended processor placement is shown. If 64K does not remain resident,
+reduce both sides together to 49,152 and then 32,768; do not let Cline advertise
+more context than the server supplies.
+
+## 8. Environment preparation (human-run)
+
+Do not run these commands until Step 2.6 Gate B is approved and dependency
+changes are explicitly authorized.
+
+From the repository root in PowerShell:
+
+```powershell
+git status --short
+uv add "sqlalchemy>=2.0,<3" "alembic>=1.13,<2"
+uv run alembic upgrade head
+uv run alembic current
+```
+
+Use `uv add` so `pyproject.toml` and `uv.lock` change together. Review both
+files before accepting the dependency slice. Never install with ad-hoc global
+`pip`, and never commit the generated SQLite database.
+
+For a temporary smoke database, set the eventual environment variable only for
+the current PowerShell process, using the exact variable name introduced in
+Slice A, then run the migration and smoke command documented by Slice G. Do not
+reuse the production database for migration tests.
+
+## 9. Completion criteria
+
+Step 3.1 is complete only when all slices and Gates D0–G are approved, the full
+quality gate passes, the fresh-database workflow is reproducible, JSONL and
+SQLite trajectory reconstruction are equivalent, cache hits preserve temporal
+and provenance semantics, and no later-step schema or behavior has leaked into
+the implementation.

@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-02 — Recorded Step 2.6 Slice B implementation and Gate B review stop.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → Slice B implemented, pending Gate B review
+**Revised:** 2026-09-03 — Recorded final Step 2.6 Gate C approval and added the detailed Step 3.1 SQLite slice plan.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → detailed planning complete, implementation not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1332,6 +1332,12 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 
 ### 4.7 Step 3.1 – SQLite DB & Migration Infrastructure
 
+**Status:** Detailed planning complete on 2026-09-03; production implementation
+has not started. Step 2.6 received final Gate C approval and is complete, so no
+Step 2.6 review gate blocks Step 3.1. The authoritative slice sequence, schema
+decisions, local-model execution protocol, review gates, and environment preparation are in
+[`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
+
 **Goal**
 Establish the production SQLite persistence foundation while implementing the SQLite telemetry sink and durable production data/cache access behind the contracts established in Steps 2.3–2.4.
 
@@ -1354,6 +1360,16 @@ Establish the production SQLite persistence foundation while implementing the SQ
 - [ ] A representative trajectory can be written to and reconstructed from SQLite.
 - [ ] Production data/cache implementations satisfy the historical-price and financial-fact contracts used by the approved strategies.
 - [ ] Valid cached inputs can be reused without unnecessary external refetch and without losing provenance or temporal semantics.
+
+**Approved planning sequence**
+
+Step 3.1 is divided into D0 (mapping freeze), A (authorized dependencies and
+settings), B1–B3 (connection policy, Alembic bootstrap, initial schema), C1–C2
+(SQLite trajectory persistence and reconstruction), D1–D2 (scalar and series
+financial-input cache), E1–E2 (historical-series storage and cache-backed
+client), F1–F2 (production composition), and G (operator workflow and closeout).
+Every slice is independently reviewed; no slice authorizes the next, Step 3.2,
+or P2.
 
 ### 4.7A P2 – Durable Instrument Profiles & ETF Aggregate FCF Growth (Post–Step 3.1)
 
@@ -1597,7 +1613,7 @@ All of the following must be true before declaring the milestone complete and op
 31. **Known-ETF applicability** — Live FLSW evidence exposed a concrete pre-Golden defect: unavailable company facts were conflated with ticker validity and provider-specific identity resolution produced inconsistent names. P1 is approved before Golden model/case work. Only affirmative provider-backed ETF evidence makes both Graham methods and company-level FCF Growth `not_applicable`; unknown kind remains fail-open, while Momentum remains applicable.
 32. **P1/P2 split** — P1 adds only the stable contract seam, request-scoped provider composition, native applicability outcomes, presentation/error corrections, and deterministic regression evidence. Durable instrument-profile caching and the distinct ETF aggregate FCF-growth strategy are P2, planned only after Step 3.1 and subject to a later provider/product-policy gate.
 33. **Step 2.6 reliability-plan approval** — The bounded reliability contract, defaults, timeout precedence, retry and schema-counter semantics, structured terminal outcome, deterministic verification matrix, and A–C slice gates in `step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md` were approved on 2026-09-02. Real local-model execution is not an acceptance requirement. Slice A begins only after the documentation-only checkpoint is created and pushed; this approval does not authorize later slices or Step 3.1.
-34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. Gate C awaits final approval; Step 3.1 is not authorized.
+34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. This remediation proceeded to the final Gate C approval recorded in Decision 35.
 35. **Step 2.6 final Gate C approval** — The complete reliability implementation, native Ollama remediation, deterministic verification, and optional LAN smoke evidence received explicit human approval on 2026-09-03. Step 2.6 is complete; its implementation checkpoint and PR workflow may proceed. Step 3.1 implementation remains a separate handoff.
 
 ### Explicitly deferred
