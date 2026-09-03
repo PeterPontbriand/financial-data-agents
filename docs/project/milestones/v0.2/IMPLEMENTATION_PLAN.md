@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-01 — Recorded final approval and completion of Step 2.5A.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → next, not started
+**Revised:** 2026-09-02 — Recorded Step 2.6 design/slice-plan approval.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, and 2.5A → complete and approved; Step 2.6 → plan approved, implementation not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1309,6 +1309,11 @@ weighted-average shares remain fail-closed. The complete repository gate passed
 
 ### 4.6 Step 2.6 – Circuit Breakers & Timeout Limits
 
+**Status:** The [Step 2.6 Reliability Limits Slice Plan](step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md)
+was approved on 2026-09-02. Slice A may begin after the approved
+documentation-only checkpoint is created and pushed; later slices retain their
+own review gates.
+
 **Goal**<br/>
 Hard execution caps, wall-clock bounds, and error thresholds that prevent unbounded loops or runaway token spend.
 
@@ -1591,6 +1596,7 @@ All of the following must be true before declaring the milestone complete and op
 30. **Slice G and Step 2.4 closeout approval** — Slice G documentation synchronization and the complete repository gate passed, and explicit human approval closed Step 2.4 on 2026-08-30. Step 2.5 is the current step and consumes the approved Steps 2.3–2.4 contracts.
 31. **Known-ETF applicability** — Live FLSW evidence exposed a concrete pre-Golden defect: unavailable company facts were conflated with ticker validity and provider-specific identity resolution produced inconsistent names. P1 is approved before Golden model/case work. Only affirmative provider-backed ETF evidence makes both Graham methods and company-level FCF Growth `not_applicable`; unknown kind remains fail-open, while Momentum remains applicable.
 32. **P1/P2 split** — P1 adds only the stable contract seam, request-scoped provider composition, native applicability outcomes, presentation/error corrections, and deterministic regression evidence. Durable instrument-profile caching and the distinct ETF aggregate FCF-growth strategy are P2, planned only after Step 3.1 and subject to a later provider/product-policy gate.
+33. **Step 2.6 reliability-plan approval** — The bounded reliability contract, defaults, timeout precedence, retry and schema-counter semantics, structured terminal outcome, deterministic verification matrix, and A–C slice gates in `step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md` were approved on 2026-09-02. Real local-model execution is not an acceptance requirement. Slice A begins only after the documentation-only checkpoint is created and pushed; this approval does not authorize later slices or Step 3.1.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1604,11 +1610,13 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.5A are complete and approved. Step 2.6 is the next planned
-step and has not started.
+Steps 2.3 through 2.5A are complete and approved. The Step 2.6 design/slice plan
+is approved; implementation has not started.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
-2. Implement Step 2.6 reliability limits and then Step
-   3.1 persistence. Review P2's exact placement only after Step 3.1 is approved.
+2. Create and push the Step 2.6 documentation-only checkpoint, then establish
+   the focused baseline and implement Slice A only.
+3. Continue through the Step 2.6 review gates before Step 3.1 persistence.
+   Review P2's exact placement only after Step 3.1 is approved.
