@@ -1,6 +1,6 @@
 # Step 2.6 Reliability Limits Slice Plan
 
-**Status:** approved on 2026-09-02; implementation not started; Slice A awaits the documentation-only checkpoint<br/>
+**Status:** Complete and approved at Gate C on 2026-09-03<br/>
 **Milestone owner:** [v0.2 Implementation Plan](../IMPLEMENTATION_PLAN.md)<br/>
 **Architecture:** [Financial Data Agents Architecture](../../../ARCHITECTURE.md#9-failure-and-reliability-boundary)<br/>
 **Master Plan:** [Financial Data Agents Master Plan](../../../MASTER_PLAN.md#6-failure-taxonomy--handling-strategy)
@@ -233,6 +233,16 @@ changing runtime behavior.
 **Gate A:** focused Ruff, formatting, strict mypy, and tests. Stop for human
 review of public contracts and defaults before enforcement work.
 
+**Gate A result:** Slice A is implemented and work is stopped for review. The
+typed policy, terminal-failure and circuit-state contracts, monotonic clock
+seam, settings integration, and bounded legacy-input normalization are in
+place. The focused reliability/orchestrator/configuration suite passed 57 tests.
+The final complete repository gate passed Ruff, formatting, strict mypy, and
+1,315 tests at 88% reported coverage. Slice B had not started at Gate A.
+
+**Gate A approval:** The human approved Slice A on 2026-09-02 and authorized
+Slice B. The approved contracts and defaults are now fixed for enforcement.
+
 ### Slice B — enforcement and telemetry
 
 **Objective:** enforce the approved policy throughout one orchestration run.
@@ -259,6 +269,21 @@ contracts:
 **Gate B:** focused gates plus the complete repository quality wrapper. Stop for
 human review of enforcement and failure evidence before CLI closeout.
 
+**Gate B result:** Slice B was implemented as the planned B1/B2 contract without
+an intermediate scope change. The request-scoped circuit now enforces earliest
+overall/step/LLM/tool deadlines, cooperative async cancellation, explicit
+unconfirmed cancellation for thread-backed synchronous tools, exact retry and
+schema-violation caps, and no-work-after-trip behavior. Classified LLM transport
+retries and schema repair emit `RECOVERY_ATTEMPTED`; telemetry retains only the
+configured number of sanitized event summaries and remains fail-open. Logical
+request/tool/step spans close through `finally` paths. The focused
+reliability/orchestrator/telemetry suite passed 78 tests. The complete repository
+gate passed Ruff, formatting, strict mypy, and 1,329 tests at 88% reported
+coverage.
+
+**Gate B approval:** The human approved Slice B on 2026-09-03 and authorized
+Slice C. The enforcement and telemetry behavior above is fixed for closeout.
+
 ### Slice C — terminal presentation and closeout
 
 **Objective:** expose reliability outcomes coherently and synchronize the
@@ -278,6 +303,45 @@ documentation.
 **Gate C:** stop for final human review. Do not mark Step 2.6 complete, commit,
 push, open/merge a PR, or begin Step 3.1 without the corresponding explicit
 human authorization.
+
+**Gate C result:** Slice C exposes `ReliabilityFailure` on the terminal
+`AgentStepResult`, and the empirical evaluation consumer uses that typed field
+without inspecting model prose. Failed command-line evaluations render concise
+case diagnostics containing the stable reason and `run_id`, write their report,
+and exit nonzero. Deterministic integration coverage proves reliability trips
+remain terminal results, and a settings test proves the documented nested
+environment override. The focused Slice C/reliability/evaluation checks passed
+85 tests. The complete repository wrapper passed Ruff, formatting, strict mypy
+over 191 source files, and 1,331 tests at 88% reported coverage. No real API,
+provider, or LLM endpoint was called. Work is stopped at Gate C pending final
+human review.
+
+**Gate C remediation decision:** The optional LAN smoke run on 2026-09-03
+reached Ollama 0.33.2 but received HTTP 404 because `LLMClient` posted a
+non-native payload to `/generate`. Gate C is reopened before final approval.
+Correct the client to use Ollama's native non-streaming `/api/chat` contract for
+message lists and `/api/generate` contract for plain prompts, update mocked wire
+tests so they no longer encode the invalid endpoint/payload, rerun the complete
+quality gate, and then ask the operator to repeat the optional smoke run. The
+observed report and exit status behaved correctly; the missing strategy/method
+results were downstream consequences of the transport failure.
+
+**Gate C remediation result:** `LLMClient` now sends message-list requests to
+native non-streaming `/api/chat` with `model`, `messages`, `options`, and
+`stream: false`; plain-string requests use `/api/generate` with `model`,
+`prompt`, `options`, and `stream: false`. Response extraction follows the
+matching native response shape, and the obsolete console `print()` error path
+was removed. Mock-transport tests now assert the exact native paths and payloads
+for both request forms. The focused transport/reliability/evaluation suite
+passed 37 tests. The complete repository wrapper passed Ruff, formatting,
+strict mypy over 191 source files, and 1,332 tests at 88% reported coverage. The
+operator was then asked to repeat Appendix A before final Gate C review.
+
+**Final Gate C approval:** The human approved the complete Step 2.6
+implementation, native Ollama remediation, deterministic verification, and
+optional LAN smoke evidence on 2026-09-03. Step 2.6 is complete. This approval
+permits the implementation checkpoint and PR workflow but does not itself begin
+Step 3.1 implementation.
 
 ## 6. Verification matrix
 
@@ -319,26 +383,237 @@ Step 2.2 follow-up and Step 3.5 exit criterion.
 
 ## 8. Step acceptance criteria
 
-- [ ] The fixed defaults are implemented and documented through one effective
+- [x] The fixed defaults are implemented and documented through one effective
   typed configuration path.
-- [ ] Maximum steps, all four timeout scopes, transient retries, and consecutive
+- [x] Maximum steps, all four timeout scopes, transient retries, and consecutive
   schema violations are bounded as specified.
-- [ ] Every breach returns a typed terminal failure with a clear `run_id`-linked
+- [x] Every breach returns a typed terminal failure with a clear `run_id`-linked
   diagnostic and never escapes as an unhandled reliability exception.
-- [ ] Every actual retry emits sanitized `RECOVERY_ATTEMPTED` telemetry.
-- [ ] Recent-event diagnostics remain bounded and telemetry failures remain
+- [x] Every actual retry emits sanitized `RECOVERY_ATTEMPTED` telemetry.
+- [x] Recent-event diagnostics remain bounded and telemetry failures remain
   fail-open.
-- [ ] Deterministic tests cover the full verification matrix without live API or
+- [x] Deterministic tests cover the full verification matrix without live API or
   LLM calls.
-- [ ] Focused checks and the complete repository quality gate pass.
-- [ ] Architecture, milestone, configuration, and user-facing documentation are
+- [x] Focused checks and the complete repository quality gate pass.
+- [x] Architecture, milestone, configuration, and user-facing documentation are
   synchronized to implemented behavior.
-- [ ] The final diff receives explicit human approval before Step 3.1 begins.
+- [x] The final diff receives explicit human approval before Step 3.1 begins.
 
 ## 9. Immediate next action
 
-The human approved this plan, including its timeout defaults, retry semantics,
-slice boundaries, and synchronous-tool limitation, on 2026-09-02. Create and
-push the documentation-only checkpoint, then establish the focused baseline and
-begin Slice A only. This approval does not authorize Slice B, a completion
-claim, or Step 3.1 work.
+Create the approved Step 2.6 implementation checkpoint and proceed through the
+PR workflow. Plan Step 3.1 separately; this closeout does not itself begin its
+implementation.
+
+## Appendix A — Optional post-Slice-C local-model smoke run
+
+### A.1 Purpose and status
+
+This optional operator check exercises the implemented orchestration,
+evaluation, terminal-diagnostic, report-writing, and process-status boundaries
+against a real Ollama endpoint on the workstation or a trusted LAN inference
+server. It is empirical evidence only. It is not a Step 2.6 acceptance
+criterion, does not replace the deterministic tests, and
+must not block closeout because model output and response time vary by model,
+hardware, server version, and current load.
+
+The nominal run checks that a bounded real-model request can traverse the
+production path. The timeout probe temporarily lowers the LLM-call limit to
+make the Step 2.6 terminal diagnostic observable. Neither run contacts a live
+financial-data provider: the empirical Golden runner supplies tracked fixtures
+to production tool dispatch.
+
+### A.2 Prerequisites
+
+1. Run from the repository root in PowerShell with the project environment
+   already synchronized.
+2. Ensure Ollama is running on either the workstation or a trusted LAN
+   inference server and that the intended model is already installed on that
+   server. The workstation does not need the Ollama executable when it is only
+   acting as the evaluation client. Do not pull or install a model merely to
+   satisfy Step 2.6.
+3. Use `financial-data-agents-step-2-5:latest`, the project-recommended
+   installed evaluation model, unless the operator is intentionally comparing
+   another installed model. Choose the HTTP endpoint reachable from the
+   workstation. Use `http://127.0.0.1:11434` only for workstation-local Ollama.
+   For a LAN server, use its trusted hostname or LAN address, for example
+   `http://inference-server:11434` or `http://192.168.1.19:11434`. The server
+   must listen on the LAN interface and its host firewall must permit the
+   workstation to reach the selected port. Do not expose an unauthenticated
+   Ollama endpoint to the public internet for this smoke run.
+4. Keep generated JSON reports and raw trajectory logs local. Do not commit
+   them; they are operational artifacts rather than reviewed fixtures.
+
+Confirm the CLI and Ollama endpoint before running the smoke cases:
+
+```powershell
+$smokeModel = "financial-data-agents-step-2-5:latest"
+# Use http://127.0.0.1:11434 only for workstation-local Ollama.
+$smokeEndpoint = "http://192.168.1.19:11434"
+uv run financial-agents evaluate --help
+$ollamaVersion = Invoke-RestMethod "$smokeEndpoint/api/version"
+$availableModels = (Invoke-RestMethod "$smokeEndpoint/api/tags").models.name
+$ollamaVersion
+$availableModels
+$availableModels -contains $smokeModel
+```
+
+Expected prerequisite result: the CLI displays its evaluation options, the
+version endpoint returns an Ollama version, the tags endpoint returns the models
+installed on that same server, and the final expression prints `True`. A local
+`ollama list` command is an optional equivalent check only when the Ollama CLI
+is installed on the workstation and targets the same server; it is neither
+required nor authoritative for a LAN-only setup. Stop and classify the check as
+**not run — environment unavailable** if the REST endpoints are unreachable or
+the selected model is absent; that is not a Step 2.6 defect.
+
+### A.3 Nominal bounded run
+
+Run one stable case once, with deterministic sampling and an explicit
+three-step cap:
+
+```powershell
+$nominalReport = "artifacts/evaluations/step-2.6-smoke-nominal.json"
+uv run financial-agents evaluate `
+    --mode ollama `
+    --case GRN-01 `
+    --model $smokeModel `
+    --ollama-endpoint $smokeEndpoint `
+    --temperature 0 `
+    --repetitions 1 `
+    --max-steps 3 `
+    --report $nominalReport `
+    --overwrite
+$nominalExit = $LASTEXITCODE
+$nominalExit
+```
+
+Expected result:
+
+- the process terminates without hanging and writes `$nominalReport`;
+- exit `0` means the case passed its empirical selection criteria;
+- exit `1` with a written report may instead mean the model chose an incorrect
+  tool/argument, ended before executing the expected tool, or reached a
+  reliability cap. Inspect `failure_reasons` before classifying it;
+- a model-selection failure alone is empirical model evidence, not a Step 2.6
+  defect; and
+- an unhandled traceback, missing report after completed evaluation, or work
+  continuing beyond the configured cap is a Step 2.6 investigation trigger.
+
+Inspect the concise result and retained configuration:
+
+```powershell
+Select-String -Path $nominalReport -SimpleMatch `
+    -Pattern 'execution_mode', 'model_id', 'max_steps', 'failure_reasons', 'trajectory_id'
+```
+
+### A.4 Deliberate LLM-timeout probe
+
+The following command launches a new process with a 1-millisecond LLM-call
+limit. This is intended to expire before a real local generation completes. The
+override applies only while the environment variable exists in the current
+PowerShell session.
+
+```powershell
+$timeoutReport = "artifacts/evaluations/step-2.6-smoke-llm-timeout.json"
+$env:reliability_limits__llm_call_timeout_seconds = "0.001"
+try {
+    uv run financial-agents evaluate `
+        --mode ollama `
+        --case GRN-01 `
+        --model $smokeModel `
+        --ollama-endpoint $smokeEndpoint `
+        --temperature 0 `
+        --repetitions 1 `
+        --max-steps 3 `
+        --report $timeoutReport `
+        --overwrite
+    $timeoutExit = $LASTEXITCODE
+} finally {
+    Remove-Item Env:\reliability_limits__llm_call_timeout_seconds `
+        -ErrorAction SilentlyContinue
+}
+```
+
+Expected result:
+
+- the command returns promptly with exit `1` and still writes `$timeoutReport`;
+- the console diagnostic and report `failure_reasons` contain `llm_timeout` and
+  a UUID-form `run_id`;
+- the failure is reported as an evaluation failure rather than an unhandled
+  Python exception; and
+- later planning or tool work does not begin after the timeout.
+
+Verify the retained diagnostic:
+
+```powershell
+Select-String -Path $timeoutReport -SimpleMatch `
+    -Pattern 'llm_timeout', 'run_id=', 'failure_reasons', 'trajectory_id'
+```
+
+If an unusually fast or mocked endpoint completes within one millisecond, the
+probe is **inconclusive**, not failed. Record that fact; do not progressively
+increase timing sensitivity or treat wall-clock behavior as deterministic
+proof. The automated fake-clock and cancellation tests remain authoritative.
+
+### A.5 Evidence record
+
+Record the following in the review discussion or an explicitly approved
+sanitized closeout note. Do not paste raw trajectory logs or secrets:
+
+| Field | Value to record |
+| :--- | :--- |
+| Date/time and operator environment | Local timestamp, OS, and relevant hardware summary |
+| Ollama version | Value returned by `/api/version` |
+| Model | Exact installed model tag |
+| Commands | Nominal and timeout-probe commands, noting any intentional changes |
+| Nominal result | Exit code, report path, case outcome, and classified failure if any |
+| Timeout result | Exit code, `llm_timeout` observed or inconclusive, and sanitized `run_id` |
+| Artifacts | Local report paths; confirmation that raw/generated artifacts were not committed |
+
+Possible conclusions are **passed as optional smoke evidence**, **inconclusive
+because timing/model behavior did not exercise the intended branch**, or **not
+run because the optional environment was unavailable**. Only a reproducible
+contract violation—such as an escaped reliability exception, absent typed
+diagnostic, incorrect exit status, missing completed report, or post-trip
+work—should be raised as a Step 2.6 defect.
+
+### A.6 Recorded smoke evidence — 2026-09-03
+
+The operator ran both smoke commands from Windows against trusted LAN endpoint
+`http://192.168.1.19:11434`, Ollama 0.33.2, using
+`financial-data-agents-step-2-5:latest`. Hardware details were not recorded.
+Generated reports remain local and untracked under `artifacts/evaluations/`.
+
+The first nominal attempt exposed the invalid pre-existing `/generate` wire
+contract and returned HTTP 404. That finding reopened Gate C and led to the
+native `/api/chat` and `/api/generate` remediation recorded above. After the
+remediation, the operator repeated the nominal run:
+
+- report: `artifacts/evaluations/step-2.6-smoke-nominal.json`;
+- exit: `1`, with a completed report rather than an escaped exception;
+- fixture, strategy-selection, and Graham-method-selection components passed;
+- the model issued the correct `analyze_graham_number` call three times rather
+  than terminating;
+- the configured three-step cap returned typed `max_steps_exceeded`; and
+- diagnostic `run_id` and `trajectory_id` both equal
+  `f30d79f9-dbaf-47ea-85cb-01c395a3c235`.
+
+The repeated correct tool call is empirical model loop behavior, not a Step 2.6
+defect. The circuit terminated it at the configured boundary.
+
+The deliberate 1-millisecond LLM-timeout probe then produced:
+
+- report: `artifacts/evaluations/step-2.6-smoke-llm-timeout.json`;
+- exit: `1`, with a completed report rather than an escaped exception;
+- typed `llm_timeout` in the console and report; and
+- diagnostic `run_id` and `trajectory_id` both equal
+  `30b15577-b0ef-4698-9919-5e6cddaf8e93`.
+
+The missing strategy and method outcomes in the timeout report are expected
+downstream consequences of timing out before the first model response. Together
+the reruns are classified as **passed optional smoke evidence** for the native
+LAN transport, bounded max-step termination, typed timeout termination,
+diagnostic identity, report preservation, and nonzero process status. They do
+not replace deterministic acceptance evidence or establish general model
+quality.
