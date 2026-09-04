@@ -2,7 +2,7 @@
 
 **Milestone:** v0.2 — Step 3.1  
 **Prepared:** 2026-09-03  
-**Status:** Planning complete; production implementation must not begin until the Step 2.6 Gate B review is approved  
+**Status:** D0 contract and schema mapping freeze in progress; production code has not started
 **Owning plan:** [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md), Section 4.7
 
 ## 1. Goal
@@ -15,10 +15,11 @@ eligibility, or orchestration policy into SQLite.
 
 ## 2. Entry gate and scope
 
-Documentation and environment preparation may proceed now. Production-code
-implementation starts only after the human approves Step 2.6 Gate B. Before
-each implementation slice, record a clean focused-test baseline and the current
-`git status --short`; unrelated user changes remain out of scope.
+Step 2.6 is complete and no longer blocks this work. Documentation and the
+explicitly authorized dependency preparation may proceed before production-code
+implementation. Before each implementation slice, record a clean focused-test
+baseline and the current `git status --short`; unrelated user changes remain
+out of scope.
 
 ### In scope
 
@@ -145,6 +146,10 @@ creating abstractions in anticipation of later steps.
 ## 5. Implementation slices
 
 ### Slice D0 — contract and schema mapping freeze
+
+**Status:** Started on 2026-09-03 after the Ollama allocation and Cline
+edit-and-report preflights passed. D0 remains documentation/design work; it does
+not authorize production code or migration creation.
 
 **Purpose:** Convert the approved domain objects into a field-level persistence
 mapping before migration code exists.
@@ -461,6 +466,15 @@ the Step 3.1 implementation role without a bakeoff:
   These are candidates, not project recommendations, until they complete the
   same repository-specific slice and verification protocol.
 
+**Step 3.1 primary bakeoff model:** Use the exact local Ollama model tag
+`glm-4.7-flash`. This is the intended model wherever this plan instructs the
+operator to pull, load, run, or configure the Step 3.1 local implementation
+model. It is a bakeoff candidate, not an approved implementation model. Do not
+substitute the historical `financial-data-agents-step-2-5` alias, the
+application runtime alias `financial-data-agents`, or a cloud model. Promote
+`glm-4.7-flash` only after it completes two consecutive independently verified
+micro-slices under Section 7.
+
 If local-model implementation is desired, run a disposable bakeoff using Slice
 B1 or another comparably bounded, independently specified task. Test at most
 two candidates against the identical prompt, clean starting state, context,
@@ -493,16 +507,115 @@ Primary references:
 
 ### 7.3 Current Ollama recommendation
 
-Keep the proven conservative operating shape for a coding-agent bakeoff:
+Keep the proven conservative operating shape for a coding-agent bakeoff. The
+names below describe environment variables; they are not commands that can be
+entered as `NAME=value` in PowerShell.
 
-```text
-OLLAMA_CONTEXT_LENGTH=65536
-OLLAMA_FLASH_ATTENTION=1
-OLLAMA_KV_CACHE_TYPE=q8_0
-OLLAMA_NUM_PARALLEL=1
-OLLAMA_MAX_LOADED_MODELS=1
-OLLAMA_NO_CLOUD=1
+For the normal Ollama Windows desktop installation, use this complete procedure
+on the machine that runs the Ollama server:
+
+```powershell
+[Environment]::SetEnvironmentVariable("OLLAMA_CONTEXT_LENGTH", "65536", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_FLASH_ATTENTION", "1", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_KV_CACHE_TYPE", "q8_0", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_NUM_PARALLEL", "1", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_MAX_LOADED_MODELS", "1", "User")
+[Environment]::SetEnvironmentVariable("OLLAMA_NO_CLOUD", "1", "User")
 ```
+
+Then:
+
+1. In the Windows notification area/system tray, right-click Ollama and choose
+   **Quit Ollama**. `ollama stop` is not a server-stop command; it requires a
+   model name and only unloads that model.
+2. Confirm that no process owns the Ollama port:
+
+```powershell
+Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue
+```
+
+3. If the command still returns a listener, inspect it before stopping anything:
+
+```powershell
+$ollamaListener = Get-NetTCPConnection -LocalPort 11434 -State Listen | Select-Object -First 1
+$ollamaProcess = Get-Process -Id $ollamaListener.OwningProcess
+$ollamaProcess | Format-List Id, ProcessName, Path
+```
+
+   Only if the displayed process is Ollama, stop that exact process and confirm
+   the port is free:
+
+```powershell
+Stop-Process -Id $ollamaProcess.Id
+Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue
+```
+
+4. Start Ollama from the Windows Start menu. This is the server; do not also run
+   `ollama serve`, because a second server cannot bind the same port.
+5. Open a new PowerShell window and verify that the API is available:
+
+```powershell
+Invoke-RestMethod http://localhost:11434/api/version
+ollama list
+```
+
+6. Pull and load the Step 3.1 primary bakeoff model, whose exact model tag is
+   `glm-4.7-flash`:
+
+```powershell
+ollama pull glm-4.7-flash
+ollama run glm-4.7-flash "Reply only with OK."
+```
+
+7. While `glm-4.7-flash` remains loaded, verify the effective context and
+   processor placement in another terminal:
+
+```powershell
+ollama ps
+```
+
+The `ollama ps` row for `glm-4.7-flash` must report a 65,536-token context and
+the intended GPU placement before the bakeoff begins. Configure Cline's Ollama
+provider with model ID `glm-4.7-flash`, context window `65536`, and the server's
+base URL without an OpenAI `/v1` suffix. Do not infer success from idle GPU
+memory or from `ollama list`; `ollama ps` must be sampled while this model is
+loaded.
+
+### 7.4 Step 3.1 local-model preflight record
+
+| Date | Model tag and ID | Allocation | Processor | Context | Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 2026-09-03 | `glm-4.7-flash:latest` / `4475827791a2` | 21 GB | 100% GPU | 65,536 | Ollama placement/context pass; Cline edit-and-report preflight passed; D0 authorized |
+
+This row proves only server allocation. Before D0 or Slice A is delegated, the
+same model must pass the Cline preflight below in a fresh task:
+
+1. Read `AGENTS.md` and report its first heading exactly.
+2. Create the ignored file `.tmp/cline-step-3-1-preflight/artifact.txt` with the
+   exact single line `step-3.1 preflight`.
+3. Read the file back and report its exact content.
+4. Run `git status --short` and report the result without claiming the ignored
+   preflight file is tracked.
+5. Run `git rev-parse --verify refs/heads/definitely-not-a-real-branch`, which
+   is intentionally expected to fail, and report the non-zero result as an
+   expected failure rather than claiming all commands passed.
+6. Stop without changing any tracked file, installing anything, committing, or
+   beginning a Step 3.1 slice.
+
+The human confirmed on 2026-09-03 that the Cline preflight passed: the ignored
+artifact was created and read back, tracked-file status remained accurate, and
+the intentionally failing Git command was reported truthfully. This permits D0
+planning only; it does not yet promote the model or authorize production code.
+
+For a temporary manual server instead of the desktop application, first quit
+the tray application and confirm port 11434 is free. Then set the same values
+with `$env:NAME = "value"` in one PowerShell window and run `ollama serve` in
+that window. Leave it open; closing it stops that manual server.
+
+Already-running processes do not receive changed environment values. If Cline
+connects to a different LAN machine, perform this procedure on that server,
+not on the Cline workstation. Omit `OLLAMA_NO_CLOUD` if that installation
+should retain access to Ollama cloud models.
 
 `q8_0` remains Ollama's recommended lower-memory K/V cache alternative to
 `f16`. Do not configure numeric `CUDA_VISIBLE_DEVICES`, experimental Vulkan, or
@@ -515,21 +628,29 @@ more context than the server supplies.
 
 ## 8. Environment preparation (human-run)
 
-Do not run these commands until Step 2.6 Gate B is approved and dependency
-changes are explicitly authorized.
+Dependency changes require explicit authorization. Installing the dependencies
+does not create an Alembic migration environment; `alembic upgrade head` and
+`alembic current` become valid only after Slice B2 has added and verified
+`alembic.ini` and the migration script directory.
 
 From the repository root in PowerShell:
 
 ```powershell
 git status --short
 uv add "sqlalchemy>=2.0,<3" "alembic>=1.13,<2"
-uv run alembic upgrade head
-uv run alembic current
 ```
 
 Use `uv add` so `pyproject.toml` and `uv.lock` change together. Review both
 files before accepting the dependency slice. Never install with ad-hoc global
 `pip`, and never commit the generated SQLite database.
+
+After Slice B2 is implemented and approved, initialize a temporary database
+through the repository's reviewed Alembic configuration:
+
+```powershell
+uv run alembic upgrade head
+uv run alembic current
+```
 
 For a temporary smoke database, set the eventual environment variable only for
 the current PowerShell process, using the exact variable name introduced in

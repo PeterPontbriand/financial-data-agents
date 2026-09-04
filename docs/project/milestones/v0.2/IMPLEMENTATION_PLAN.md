@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-03 — Recorded final Step 2.6 Gate C approval and added the detailed Step 3.1 SQLite slice plan.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → detailed planning complete, implementation not started
+**Revised:** 2026-09-03 — Recorded the successful Step 3.1 local-model preflight and start of D0 mapping.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → D0 contract/schema mapping in progress, production code not started
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1332,10 +1332,10 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 
 ### 4.7 Step 3.1 – SQLite DB & Migration Infrastructure
 
-**Status:** Detailed planning complete on 2026-09-03; production implementation
-has not started. Step 2.6 received final Gate C approval and is complete, so no
-Step 2.6 review gate blocks Step 3.1. The authoritative slice sequence, schema
-decisions, local-model execution protocol, review gates, and environment preparation are in
+**Status:** D0 contract and schema mapping started on 2026-09-03 after
+`glm-4.7-flash` passed the Ollama allocation and Cline edit-and-report
+preflights. Production code has not started. The authoritative slice sequence,
+schema decisions, local-model execution protocol, review gates, and environment preparation are in
 [`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
 
 **Goal**
@@ -1615,6 +1615,7 @@ All of the following must be true before declaring the milestone complete and op
 33. **Step 2.6 reliability-plan approval** — The bounded reliability contract, defaults, timeout precedence, retry and schema-counter semantics, structured terminal outcome, deterministic verification matrix, and A–C slice gates in `step-2.6/STEP_2_6_RELIABILITY_SLICE_PLAN.md` were approved on 2026-09-02. Real local-model execution is not an acceptance requirement. Slice A begins only after the documentation-only checkpoint is created and pushed; this approval does not authorize later slices or Step 3.1.
 34. **Step 2.6 Gate B approval and Gate C remediation** — Slice B enforcement and telemetry were approved on 2026-09-03. Slice C exposed typed terminal failures through the evaluation/CLI boundary, synchronized documentation, and passed the complete repository gate with 1,331 tests at 88% coverage. An optional LAN smoke then proved that the pre-existing `LLMClient` wire contract used invalid native Ollama endpoint/payload semantics. The corrected native `/api/chat` and `/api/generate` contracts passed focused tests and the complete repository gate with 1,332 tests at 88% coverage. Repeat LAN smoke evidence then confirmed bounded `max_steps_exceeded` and `llm_timeout` terminal outcomes with matching diagnostic/run identities and preserved reports. This remediation proceeded to the final Gate C approval recorded in Decision 35.
 35. **Step 2.6 final Gate C approval** — The complete reliability implementation, native Ollama remediation, deterministic verification, and optional LAN smoke evidence received explicit human approval on 2026-09-03. Step 2.6 is complete; its implementation checkpoint and PR workflow may proceed. Step 3.1 implementation remains a separate handoff.
+36. **Step 3.1 D0 start and local-model preflight** — The `glm-4.7-flash:latest` candidate (`4475827791a2`) was observed at 21 GB, 100% GPU, and 65,536 context. It then passed the bounded Cline edit/read-back/status/expected-failure preflight. Step 3.1 D0 contract and schema mapping is authorized and in progress; production code and migrations remain unstarted pending Gate D0.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1628,13 +1629,13 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6 are complete and approved. Step 3.1 is the next planned
-implementation step but has not started.
+Steps 2.3 through 2.6 are complete and approved. Step 3.1 has started with the
+D0 contract and schema mapping freeze; production implementation has not begun.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
 2. Create the approved Step 2.6 implementation checkpoint and complete its PR
    workflow.
-3. Plan Step 3.1 persistence as a separate handoff. Review P2's exact placement
-   only after Step 3.1 is approved.
+3. Complete and review Step 3.1 D0 before authorizing Slice A production work.
+   Review P2's exact placement only after Step 3.1 is approved.
