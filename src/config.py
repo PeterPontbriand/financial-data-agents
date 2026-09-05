@@ -12,7 +12,7 @@ from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
 from src.orchestrator.reliability import ReliabilityLimits
-from src.schema.config import SchemaConfig  # Step 2.2 import
+from src.schema.config import SchemaConfig
 
 # Ensure core environment variables are populated
 load_dotenv()
@@ -40,10 +40,10 @@ class ProjectSettings(BaseSettings):
     ollama_base_url: str = "http://192.168.1.19:11434"
     model_selection: str = "deepseek-r1:14b"
 
-    # Native Schema Enforcement Settings (Step 2.2)
+    # Native Schema Enforcement Settings
     schema_config: SchemaConfig = Field(default_factory=SchemaConfig.from_env)
 
-    # Orchestration reliability limits (Step 2.6)
+    # Orchestration reliability limits
     reliability_limits: ReliabilityLimits = Field(default_factory=ReliabilityLimits)
 
     # External data-provider settings
@@ -59,7 +59,7 @@ class ProjectSettings(BaseSettings):
     log_when: str = "D"  # Rotate daily
     log_interval: int = 1
 
-    # Structured trajectory telemetry (Step 2.1)
+    # Structured trajectory telemetry
     telemetry_sink: Literal["jsonl", "sqlite"] = "jsonl"
     telemetry_log_dir: Path = Path(__file__).resolve().parent.parent / "logs"
     telemetry_level: Literal["INFO", "DEBUG", "OFF"] = "INFO"
