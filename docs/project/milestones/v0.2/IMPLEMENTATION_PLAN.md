@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-03 — Recorded the successful Step 3.1 local-model preflight and start of D0 mapping.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → D0 contract/schema mapping in progress, production code not started
+**Revised:** 2026-09-05 — Recorded Slice B3 and Gate B approval; C1 awaits checkpoint commit and push.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → Gate D0, Slices A/B1/B2/B3, and Gate B approved; C1 awaits checkpoint commit and push
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1332,9 +1332,11 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 
 ### 4.7 Step 3.1 – SQLite DB & Migration Infrastructure
 
-**Status:** D0 contract and schema mapping started on 2026-09-03 after
-`glm-4.7-flash` passed the Ollama allocation and Cline edit-and-report
-preflights. Production code has not started. The authoritative slice sequence,
+**Status:** Gate D0 mapping and exact first-migration table list approved on
+2026-09-05. Slices A/B1/B2 were subsequently approved and B3 explicitly authorized.
+Slice B3 is implemented with a green complete gate (1,406 tests, 88% coverage).
+The human approved Slice B3 and Gate B on 2026-09-05. Slice C1 has not started
+and may begin once the checkpoint commit is pushed. The authoritative slice sequence,
 schema decisions, local-model execution protocol, review gates, and environment preparation are in
 [`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
 
@@ -1629,13 +1631,13 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6 are complete and approved. Step 3.1 has started with the
-D0 contract and schema mapping freeze; production implementation has not begun.
+Steps 2.3 through 2.6 are complete and approved. Step 3.1 Gate D0, Slices A/B1/B2/B3,
+and Gate B are approved; C1 awaits checkpoint commit and push.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
 2. Create the approved Step 2.6 implementation checkpoint and complete its PR
    workflow.
-3. Complete and review Step 3.1 D0 before authorizing Slice A production work.
+3. Commit and push the approved Step 3.1 checkpoint through B3/Gate B, then begin C1.
    Review P2's exact placement only after Step 3.1 is approved.

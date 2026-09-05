@@ -2,7 +2,7 @@
 
 **Milestone:** v0.2 — Step 3.1  
 **Prepared:** 2026-09-03  
-**Status:** D0 contract and schema mapping freeze in progress; production code has not started
+**Status:** Gate D0, Slices A/B1/B2/B3, and Gate B approved; C1 awaits checkpoint commit and push
 **Owning plan:** [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md), Section 4.7
 
 ## 1. Goal
@@ -147,15 +147,21 @@ creating abstractions in anticipation of later steps.
 
 ### Slice D0 — contract and schema mapping freeze
 
-**Status:** Started on 2026-09-03 after the Ollama allocation and Cline
-edit-and-report preflights passed. D0 remains documentation/design work; it does
-not authorize production code or migration creation.
+**Status:** Complete and approved on 2026-09-05. The human approved the mapping
+and exact five-table first migration, and separately authorized Slice A with
+permission to edit `pyproject.toml` and `uv.lock`. Migration creation remains a
+later slice.
 
 **Purpose:** Convert the approved domain objects into a field-level persistence
 mapping before migration code exists.
 
 **Artifacts:** This document plus, if useful, one adjacent mapping record. No
 production code, dependency, or lock-file changes.
+
+**Approved mapping:** [Field-level persistence mapping](STEP_3_1_D0_PERSISTENCE_MAPPING.md)
+was prepared and approved on 2026-09-05 from the current source contracts. It defines the
+exact first-migration table list, field encodings, cache identity and replacement
+rules, historical snapshot policy, and accepted contract-gap dispositions.
 
 **Required work:**
 
@@ -174,6 +180,51 @@ production code, dependency, or lock-file changes.
 **Gate D0:** Human approves the mapping and exact first-migration table list.
 
 ### Slice A — dependency and configuration boundary
+
+**Authorization:** Explicit human permission granted on 2026-09-05 to implement
+Slice A and edit `pyproject.toml` / `uv.lock`. No later slice is authorized.
+
+**Verification / review status:** Slice A approved by the human on 2026-09-05,
+with explicit authorization to proceed to B1. The complete managed wrapper passed: Ruff check and format,
+strict mypy, and 1,360 tests (including 30 configuration cases), 88% coverage.
+Artifacts: `.tmp/quality-runs/20260905083439184-19068-0fdc40eafed44e50bdd708f1e819aa76/`.
+Representative `.sqlite3`, WAL, SHM, and rollback-journal paths passed
+`git check-ignore`; no dependency-file diff was needed. No checkpoint commit was
+required before B1; the approved work remains in the working tree.
+
+**Baseline:** Complete managed wrapper passed before source edits: 1,332 tests,
+88% coverage, Ruff check/format, and strict mypy. Initial working changes were
+only the D0 mapping and slice-plan link from this task. The first sandboxed
+attempt could not access the existing interpreter; approved elevated execution
+passed with caches and temporary artifacts still isolated under `.tmp/quality-runs/`.
+
+**Dependency evidence:** The repository already declared `sqlalchemy>=2.0,<3`
+and `alembic>=1.13,<2`, locked to 2.0.52 and 1.19.1 respectively. Authorized
+`uv add --offline "sqlalchemy>=2.0,<3" "alembic>=1.13,<2"` resolved 76 packages
+and checked 61; both dependency files remained unchanged. Existing pins were
+preserved, with no unrelated upgrades. The API boundary uses SQLAlchemy's
+[documented URL helpers](https://docs.sqlalchemy.org/en/20/core/engines.html#database-urls);
+Alembic remains the [migration dependency](https://alembic.sqlalchemy.org/en/latest/front.html).
+
+**Settings delivered for review:** Environment variable names are case-sensitive,
+lowercase, matching the existing settings convention.
+
+| Setting | Default / contract |
+| :--- | :--- |
+| `database_url` | Absolute SQLite URL for `<data_dir>/financial-data-agents.sqlite3`; explicit relative database paths resolve against `base_dir` |
+| `base_dir` / `data_dir` | Relative base anchors to application root; data defaults to `<base_dir>/data`, with relative data overrides anchored to base |
+| `database_busy_timeout_ms` | 5,000 milliseconds; positive integer bounded by SQLite's signed 32-bit timeout parameter |
+| `historical_cache_ttl_seconds` | 3,600 seconds: conservative bounded reuse within an hour; finite nonnegative seconds, zero permits no positive age, Python None disables TTL |
+| `telemetry_sink` | Accept `jsonl` or `sqlite`; default remains `jsonl`; runtime SQLite selection is deferred to C2 |
+
+Only synchronous `sqlite` / `sqlite+pysqlite` URLs are accepted. Explicit memory
+URLs remain available for tests; URL credentials, host/port, query parameters,
+and SQLite file URIs are rejected to keep path and connection policy unambiguous.
+Constructing settings opens no connection and creates no database. Existing
+import-time data/log-directory creation remains unchanged in purpose. Database,
+WAL/SHM, and rollback-journal ignore patterns cover overridden locations.
+Busy timeout and historical TTL are configuration only until the owning adapters
+are implemented. No engine, migration environment, schema, or sink is created.
 
 **Prerequisite:** explicit permission to edit `pyproject.toml` and `uv.lock`.
 
@@ -199,6 +250,42 @@ focused configuration tests. Stop for review.
 
 ### Slice B1 — SQLite engine and transaction policy
 
+**Authorization:** Slice A approved and B1 explicitly authorized on 2026-09-05.
+Baseline complete wrapper: 1,360 tests, 88% coverage, Ruff/format and strict mypy
+passed before B1 edits. Existing working changes were the approved D0/A work;
+they are preserved without a checkpoint commit.
+
+**Verification:** Complete managed wrapper passed on 2026-09-05: 1,372 tests
+(12 new B1 cases), 88% coverage, Ruff/format and strict mypy. Artifacts:
+`.tmp/quality-runs/20260905085227957-30712-3c42b8c189bc4844b900b87a7269045e/`.
+Tests prove fresh-connection pragmas, FK enforcement, durable commit, DML/DDL
+rollback, snapshot reads during a committed write, rejected read-scope writes,
+writer contention, lifecycle guards, sequential memory reuse, lazy construction,
+and Windows file-handle release. Initial lint/format and typed Row comparison
+findings were corrected before this green run. The human approved B1 on
+2026-09-05 and explicitly authorized B2. No commit, migration, or dependency
+change was made in B1.
+
+**Implementation:** `SQLiteDatabase` in `src/data/repositories/sqlite.py`,
+exported by the package, owns a lazy SQLAlchemy engine. File operations use
+`NullPool` so each scope gets a fresh physical connection that is closed on exit.
+The connector applies and verifies busy timeout, foreign keys, and WAL before
+switching to Python 3.12+ modern transaction control. This follows the
+[SQLAlchemy SQLite transaction guidance](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#enabling-non-legacy-sqlite-transactional-modes-with-the-sqlite3-or-aiosqlite-driver).
+Parent directories are created on first connection, not construction.
+
+`transaction()` owns commit/rollback, including DDL; `read()` owns a query-only
+snapshot and rollback. Callers must not manually finish transactions or change
+connection policy. `close()` is idempotent, rejects active scopes, and prevents
+later reuse. File scopes may overlap; lock waiting is bounded by the typed
+timeout. No provider/financial fallback or retry policy is added here.
+
+Explicit in-memory URLs use `StaticPool`, report `memory` journal mode rather
+than WAL, and reject overlapping scopes. These are sequential test helpers;
+file-backed tests are the evidence for production concurrency. No application
+tables, migration environment, schema metadata, repository methods, or sink
+were added. Tables appearing in tests are disposable test-only fixtures.
+
 **Purpose:** Establish one small reusable SQLite connection boundary.
 
 **Likely files:** `src/data/repositories/sqlite.py`,
@@ -219,6 +306,36 @@ focused configuration tests. Stop for review.
 **Focused gate:** targeted Ruff/format/mypy/pytest. Stop for review.
 
 ### Slice B2 — Alembic environment and empty bootstrap
+
+**Authorization:** B1 approved and B2 explicitly authorized on 2026-09-05.
+The complete baseline gate passed before edits: 1,372 tests, 88% coverage,
+Ruff/format and strict mypy. Existing uncommitted D0/A/B1 changes were preserved.
+
+**Implementation:** Repository-rooted `alembic.ini`, thin `alembic/env.py`,
+revision template, documented empty `alembic/versions/`, and the typed
+`src/data/repositories/migrations.py` helper. Migration connections use B1's
+`SQLiteDatabase.transaction()` and its verified connection policy. No logging
+configuration is installed. URL precedence is CLI `-x database_url=...`,
+programmatic `sqlalchemy.url`, then `ProjectSettings`; all URLs undergo the
+approved settings validation. Offline SQL generation is explicitly rejected.
+
+**Verification:** Complete managed wrapper passed on 2026-09-05: 1,378 tests,
+88% coverage, Ruff/format and strict mypy. Artifacts:
+`.tmp/quality-runs/20260905085925456-11880-f62d7b7ba0804221a5b1e600037c448d/`.
+Six new tests cover real CLI upgrade/repeated-upgrade/downgrade/re-upgrade,
+environment/programmatic/CLI URL selection, percent-bearing paths and independent
+cwd, preserved logging, effective migration pragmas, rollback on failure, resource
+release, and offline-mode rejection. All databases are disposable test files.
+
+**Review status:** The human approved B2 on 2026-09-05 and explicitly authorized
+B3. At the B2 checkpoint there were no revision scripts or application tables;
+`head` equaled `base`. The bootstrap created only an empty Alembic revision
+table. Actual schema upgrade/downgrade belongs to B3 evidence. No commit or
+dependency edit was made in B2.
+
+Operator commands and restrictions are in the [migration README](../../../../../alembic/README.md).
+The environment follows Alembic's [tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html)
+and [connection-sharing guidance](https://alembic.sqlalchemy.org/en/latest/cookbook.html#sharing-a-connection-with-a-series-of-migration-commands-and-environments).
 
 **Purpose:** Make migrations use the reviewed URL and connection policy without
 yet encoding the production schema.
@@ -241,6 +358,49 @@ yet encoding the production schema.
 
 ### Slice B3 — initial schema migration
 
+**Authorization:** B2 approved and B3 explicitly authorized on 2026-09-05.
+Complete baseline before edits: 1,378 tests, 88% coverage, Ruff/format and strict
+mypy. Approved uncommitted D0/A/B1/B2 work is preserved.
+
+**Verification:** Complete managed wrapper passed on 2026-09-05: 1,406 tests
+(28 new schema cases), 88% coverage, Ruff check/format, and strict mypy. The
+Alembic environment and revision also passed an explicit strict mypy check
+outside the wrapper's `src`/`tests` roots. Artifacts:
+`.tmp/quality-runs/20260905093316616-33372-779748655c9941418bbcda80a24bfc07/`.
+Tests inspect metadata/migration equivalence (columns/types/nullability/defaults,
+PKs, unique/FK/check constraints, indexes), exact D0 column/table inventory, and
+the encoding seed. Actual CLI upgrade/repeated-upgrade/downgrade/re-upgrade
+is covered, along with invalid-row rejection, duplicate identities, current
+versus historical cache identities, snapshot isolation/cascade, exact integer
+volume binding, and full rollback of a failed initial revision.
+
+**Review status:** The human approved Slice B3 and Gate B on 2026-09-05,
+closing the review of the D0 mapping, Core metadata, and frozen revision.
+C1 has not started and may begin once the checkpoint commit is pushed.
+No commit, dependency edit, or migration against user data was performed in B3.
+
+**Implementation:** `src/data/repositories/schema.py` defines the five approved
+Core tables; `alembic/versions/0001_persistence.py` independently freezes the
+same columns, nullability, named constraints, and indexes. The revision never
+imports mutable application metadata. The migration environment now receives
+the Core metadata for schema comparison. Upgrade seeds only
+`persistence_encoding_version = 1`; downgrade drops child tables before parents
+and leaves Alembic's own empty version table at base.
+
+Database checks cover positive integer versions/sequences, nonnegative integer
+counts/positions, required nonempty identifiers, enum values, timestamp/date
+storage shape and SQLite-recognized dates, paired ordered cache periods, and
+request bounds. Full calendar/UTC validation, canonical JSON/key coherence,
+finite numeric validation, and domain reconstruction remain adapter work as
+approved in D0. No sink, cache implementation, or additional table is included.
+
+**E1 precision handoff:** SQLite's approved NUMERIC volume column preserves
+signed integers, but SQLAlchemy's default NUMERIC bind processor converts them
+through float. E1 must explicitly select BigInteger versus Float bind parameters
+from the retained frame dtype (and preserve native values on reads). B3 tests
+the BigInteger binding path using `2**60 + 1`; do not use untyped NUMERIC insert
+binding for integer volume. This is a binding requirement, not a schema change.
+
 **Purpose:** Implement exactly the Gate D0-approved tables and indexes.
 
 **Likely files:** one Alembic revision, one centralized SQLAlchemy Core metadata
@@ -258,6 +418,9 @@ module, and schema-focused tests.
 
 **Gate B:** Human compares D0 mapping, metadata, and migration before adapter
 work begins.
+
+**Gate B outcome:** Approved on 2026-09-05. Commit and push the reviewed
+checkpoint before starting C1; Step 3.1 remains in progress.
 
 ### Slice C1 — SQLite trajectory writes
 
