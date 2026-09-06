@@ -2,7 +2,7 @@
 
 **Milestone:** v0.2 — Step 3.1  
 **Prepared:** 2026-09-03  
-**Status:** Gate D0, Slices A/B1/B2/B3, and Gate B approved; C1 awaits checkpoint commit and push
+**Status:** Gate D0, Slices A/B1/B2/B3/C1/C2/D1/D2/E1/E2/F1/F2/G, and Gates B/C/D/E/G approved; Step 3.1 complete and approved
 **Owning plan:** [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md), Section 4.7
 
 ## 1. Goal
@@ -424,6 +424,33 @@ checkpoint before starting C1; Step 3.1 remains in progress.
 
 ### Slice C1 — SQLite trajectory writes
 
+**Authorization / baseline:** The human authorized C1 on 2026-09-05 after
+checkpoint `1a59399` and comment cleanup `1117054` were committed and pushed.
+The working tree was clean. The complete baseline passed with 1,406 tests,
+88% coverage, Ruff/format, and strict mypy. Managed interpreter access required
+elevated execution; caches and artifacts remained isolated in the repository.
+
+**Implementation:** Added `SQLiteTrajectorySink` and its sink-package export.
+The sink borrows an already-migrated `SQLiteDatabase`, commits each event
+atomically, stores canonical nested JSON and aware UTC timestamps, preserves
+every envelope field and sequence, and rejects unsupported/non-finite values.
+Identical encoded event-ID retries are no-ops; conflicting identities fail
+without modifying stored events. A write-first transaction handles concurrent
+retries. Close is idempotent, rejects subsequent writes, and leaves disposal of
+the shared database to its owner. Recorder sanitization and fail-open behavior
+remain unchanged.
+
+**Verification:** Complete managed wrapper passed on 2026-09-05: 1,420 tests
+(14 new C1 cases), 88% coverage, Ruff/format, and strict mypy. Tests cover all
+fields, UTC/canonical JSON encoding, sequence gaps, optional NULLs, immutable
+conflicts, concurrent retries, invalid values, lifecycle/ownership, missing
+schema failures, and recorder redaction/hash preservation and fail-open handling.
+Artifacts: `.tmp/quality-runs/20260905142157175-30008-613046c86e334af6b7e6ec0884a72b2b/`.
+
+**Review status:** The human approved C1 on 2026-09-05 and explicitly authorized
+C2. No runtime selection, read/query API, dependency change, commit, push, or
+migration against user data was performed in C1.
+
 **Purpose:** Add the smallest sink that persists each validated event atomically.
 
 **Likely files:** `src/core/telemetry/sinks/sqlite.py`, sink exports, and
@@ -440,6 +467,37 @@ checkpoint before starting C1; Step 3.1 remains in progress.
 **Non-goal:** read/query API or runtime configuration wiring.
 
 ### Slice C2 — trajectory reconstruction and runtime selection
+
+**Authorization / baseline:** The human approved C1 and authorized C2 on
+2026-09-05. Approved uncommitted C1 work was preserved. The complete managed
+baseline passed with 1,420 tests, 88% coverage, Ruff/format, and strict mypy.
+
+**Implementation:** Added `read_trajectory(database, run_id)` alongside the
+SQLite sink and exported it from the sink package. It uses a consistent read
+snapshot, checks persistence encoding version 1, reconstructs typed events in
+ascending sequence, preserves gaps and NULLs, and rejects malformed encodings
+instead of returning plausible partial results. The existing recorder
+`from_settings` now selects SQLite when `telemetry_sink="sqlite"`; JSONL remains
+the default. Runtime composition transfers ownership of its dedicated database
+to the sink for disposal on close; injected databases remain borrowed by default.
+SQLite construction is lazy, and the operator must migrate the database before
+use. No automatic migrations, fallback sink, or SQLite retention/purge policy
+was introduced. `telemetry_level="OFF"` creates no database file.
+
+**Verification:** The complete managed wrapper passed on 2026-09-05: 1,436
+tests (16 new C2 cases), 88% coverage, Ruff/format, and strict mypy. Equivalence
+tests cover all ten event types in both Light and Full modes, out-of-order
+arrival, sequence gaps, run isolation, and exact typed JSONL/SQLite equality.
+Additional tests cover optional fields, unknown/missing encoding versions,
+malformed JSON/UUIDs, non-finite values, default/runtime selection, resource
+ownership, and lazy/OFF behavior. A real SQLite write lock proves fail-open
+recording and successful subsequent persistence without renumbering the gap.
+Artifacts: `.tmp/quality-runs/20260905143102609-39412-fe3ac32e266441878060a9764b65ab29/`.
+
+**Review status:** The human approved C2 and explicitly authorized D1 on
+2026-09-05, closing Gate C with the equivalence evidence and retained JSONL
+default. No dependency edits, commit, push, or migration against user data was
+performed in C2.
 
 **Purpose:** Prove JSONL/SQLite equivalence and make the sink selectable.
 
@@ -459,6 +517,36 @@ composition/settings wiring, and focused integration tests.
 
 ### Slice D1 — scalar resolved-input cache
 
+**Authorization / baseline:** The human approved C2 and authorized D1 on
+2026-09-05. Approved uncommitted C1/C2 work was preserved. The complete managed
+baseline passed with 1,436 tests, 88% coverage, Ruff/format, and strict mypy.
+
+**Implementation:** Added `SQLiteResolvedInputCache` and its repository-package
+export. Scalar `get`/`put` use the complete nine-member normalized key and the
+approved relational mapping. Canonical lineage JSON preserves every component
+field recursively, including cache/override metadata, ordered notes, enums,
+and UTC timestamps. Existing domain constructors validate keys, inputs, and
+entries through typed Pydantic adapters before writes and after reads; canonical
+readback verification rejects corrupted or inconsistent encodings. Each put
+atomically replaces the full row and resets `cached_at`. Historical availability
+and injected-clock TTL eligibility match the in-memory implementation, including
+boundary equality, zero/disabled TTL, and future cached times. Reads neither
+delete stale rows nor relabel original provider/derived provenance. The database
+is borrowed and must be migrated by its owner; storage failures remain explicit.
+
+**Verification:** The complete managed wrapper passed on 2026-09-05: 1,478
+tests (42 new D1 cases), 88% coverage, Ruff/format, and strict mypy. Tests cover
+full provenance and recursive lineage, reopen durability, normalized identity
+dimensions, current/historical separation, period identity, macro case,
+replacement/NULL clearing, TTL and availability parity, rejected source kinds
+and incoherent inputs, invalid clocks and non-finite values, corrupt storage,
+encoding-version rejection, and rollback after a failing update trigger.
+Artifacts: `.tmp/quality-runs/20260905145606922-39584-22cba3ff33144706a51a5b4b672514c6/`.
+
+**Review status:** The human approved D1 and authorized D2 on 2026-09-05.
+No series query, resolver/CLI composition, dependency change, commit, push,
+or migration against user data was performed in D1.
+
 **Purpose:** Implement `get`/`put` for complete scalar cache identities.
 
 **Likely files:** `src/data/repositories/resolved_input_cache.py`, exports, and
@@ -477,6 +565,35 @@ one focused repository test file.
 
 ### Slice D2 — period-series cache queries
 
+**Authorization / baseline:** The human approved D1 and authorized D2 on
+2026-09-05. Approved uncommitted C1/C2/D1 work was preserved. The complete
+managed baseline passed with 1,478 tests, 88% coverage, Ruff/format, and strict
+mypy before the cache extension.
+
+**Implementation:** Added `SQLiteResolvedInputCache.get_series` using all seven
+normalized query fields, SQL NULL equality, and period-scoped rows only. Reads
+use a consistent database snapshot and the existing validated decoding path;
+results are tuples ordered by period end, period start, and provider fact ID
+(missing IDs sort as empty strings). Scalar and series reads share one
+historical-availability/TTL eligibility helper. Original provenance and zero
+values remain intact; empty/ineligible series return an empty tuple, and
+corrupted storage raises an explicit error without returning partial results.
+
+**Verification:** The complete managed wrapper passed on 2026-09-05: 1,528
+tests (50 new D2 cases), 88% coverage, Ruff/format, and strict mypy. The shared
+contract/resolver suite runs 24 cases against each of memory and SQLite,
+covering query identity, normalization/UTC offsets, macro case, NULLs, ordering,
+gaps, unscoped exclusion, replacement, scalar preservation, TTL boundaries,
+per-entry age, historical availability, and naive clocks. Deterministic annual
+resolver scenarios prove complete-cache hits avoid providers and partial/stale
+caches refresh all required fields. Two SQLite-specific tests reject corrupt
+series rows and unsupported encoding versions without partial results.
+Artifacts: `.tmp/quality-runs/20260905221445472-31604-b008f276cdf544d088c4d43e49a5697f/`.
+
+**Review status:** The human completed Gate D review, approved D2, and authorized
+E1 on 2026-09-05. No production resolver/CLI composition, dependency change,
+commit, push, or migration against user data was performed in D2.
+
 **Purpose:** Add `ResolvedInputSeriesCacheProtocol.get_series` without changing
 scalar behavior.
 
@@ -492,6 +609,42 @@ scalar behavior.
 **Gate D:** Run the focused resolver/cache suite against both implementations.
 
 ### Slice E1 — historical-series schema adapter
+
+**Authorization / baseline:** The human completed Gate D review, approved D2,
+and authorized E1 on 2026-09-05. Approved uncommitted C1/C2/D1/D2 work was
+preserved. The complete managed baseline passed with 1,528 tests, 88% coverage,
+Ruff/format, and strict mypy before implementation.
+
+**Implementation:** Added `MarketDataCacheKey`, `MarketDataCacheEntry`, and
+`SQLiteMarketDataRepository` with repository-package exports. Request identity
+normalizes ticker/provider, retains calendar bounds and explicit variant/version,
+and distinguishes open-ended and overlapping snapshots. Writes validate the
+approved finite OHLCV frame shape and its reconstruction before atomically
+replacing parent metadata and all child rows. Reads validate parent and children
+from one database snapshot. Context, cache/fetch timing, column order/dtypes,
+axis names, date/datetime index semantics, timezone, frequency, and datetime
+units are retained. Axis-name encoding supports finite JSON scalars or None;
+unsupported custom names raise explicitly. Optional columns remain absent,
+and absent fetch timing is not invented. Integer prices must survive REAL
+storage exactly; volume uses explicit BigInteger/Float binding so signed int64
+values are never routed through SQLAlchemy's default NUMERIC float conversion.
+Unsupported shapes raise `UnsupportedHistoricalDataError`; invalid observations
+and corrupted storage raise explicit errors. The database remains caller-owned.
+
+**Verification:** The complete managed wrapper passed on 2026-09-05: 1,580
+tests (52 new E1 cases), 88% coverage, Ruff/format, and strict mypy. Tests cover
+all context fields, reopen durability, signed int64 volume extrema and
+`2**60 + 1`, exact integer prices, float volume, optional columns, Python dates,
+naive/named-zone/fixed-offset datetime indexes in s/ms/us/ns, nanosecond/DST and
+frequency retention, request identity, replacement and overlap isolation,
+unsupported/invalid frames, corrupt metadata/rows, timing/version validation,
+and rollback after a child insert fails. A deterministic concurrent replacement
+between parent and child reads proves snapshot consistency.
+Artifacts: `.tmp/quality-runs/20260905224451744-40724-ccabc0246a16416ea51e40ebe77e6480/`.
+
+**Review status:** The human completed the E1 review, described as Gate E review,
+approved E1, and authorized E2 on 2026-09-05. E2 acceptance evidence is recorded
+below for review before F1.
 
 **Purpose:** Round-trip one `HistoricalMarketData` series without provider
 fetching or fallback.
@@ -512,6 +665,35 @@ fetching or fallback.
 
 ### Slice E2 — cache-backed historical client
 
+**Authorization and baseline:** E1 approved and E2 authorized on 2026-09-05.
+The complete baseline passed: 1,580 tests, 88% coverage, Ruff/format, and strict
+mypy. Approved uncommitted work was preserved.
+Baseline artifacts: `.tmp/quality-runs/20260905230027064-38288-18c4304619ef4f5d8ec009bd98269da5/`.
+
+**Implementation:** `CachedHistoricalDataClient` borrows an injected provider
+and repository. Exact normalized request keys reuse eligible snapshots with
+an explicitly injected TTL (equality eligible, zero valid, None disables expiry,
+future timestamps retained). Other ranges refetch in full. Provider context and
+local fetch-completion timing are preserved; failed refreshes leave prior
+snapshots untouched without stale fallback. Empty/non-finite/nonnumeric financial
+observations raise explicit errors, including for unsupported frames. Unknown
+provider/configuration identities and valid unsupported frames bypass storage
+with diagnostics. All historical entry points share caching; quotes delegate
+directly to the provider. Production composition remains for F1/F2.
+
+**Verification:** The complete managed gate passed on 2026-09-05: 1,599 tests
+(19 new E2 cases), 88% coverage, Ruff/format, and strict mypy. Deterministic
+fake-provider tests prove miss/hit across all historical boundaries, reopen
+reuse, context/timing retention, TTL equality/zero/disabled/future boundaries,
+range/provider/variant isolation, failed-refresh snapshot preservation,
+empty/missing/non-finite/nonnumeric rejection, diagnostic bypasses, independent
+quotes with closed storage, and invalid TTL/clock rejection.
+Artifacts: `.tmp/quality-runs/20260905230656847-35944-15fa5ebb82c645e592d6d4af952f85a2/`.
+
+**Review status:** The human reviewed and approved E2 on 2026-09-06, closing
+Gate E, and authorized F1. No dependency
+change, live provider call, commit, push, or migration against user data.
+
 **Purpose:** Put durable caching behind `BaseDataClient` without pretending a
 historical observation is a current quote.
 
@@ -530,6 +712,34 @@ empty/invalid data, and current-quote separation.
 
 ### Slice F1 — production financial-cache composition
 
+**Authorization and baseline:** E2 approved and F1 authorized on 2026-09-06,
+closing Gate E. The baseline passed: 1,599 tests, 89% coverage, Ruff/format,
+and strict mypy. Approved uncommitted work was preserved.
+Baseline artifacts: `.tmp/quality-runs/20260906070555410-28864-8d72d314061649f180135e58bf5f546f/`.
+
+**Implementation:** CLI Graham and FCF analyses inject a scoped
+`SQLiteResolvedInputCache` using configured database settings. The invocation
+owns and closes the database on success and exception. Financial cache TTL
+remains disabled, preserving the existing policy and resolver temporal checks.
+`--no-cache` bypasses reads/writes without opening SQLite. Explicit in-memory
+injection remains supported; deterministic CLI fixtures opt into that path.
+Schema upgrades remain explicit; production never creates or migrates tables.
+Provider selection, fact validation, lineage, and resolver rules are unchanged.
+
+**Verification:** The complete managed gate passed on 2026-09-06: 1,605 tests
+(six new F1 cases), 88% coverage, Ruff/format, and strict mypy. New deterministic
+tests exercise two fresh CLI compositions against a migrated temporary file
+database, reuse without provider fact access for Graham and FCF, preserved
+provenance and cache-hit traces, no-cache behavior without a database, explicit
+memory-cache injection, and ownership on success/error. Optional instrument-profile
+lookup is stubbed independently; fact-cache reuse does not claim that live
+profile enrichment is cached.
+Artifacts: `.tmp/quality-runs/20260906071108663-24392-7b30314dd06e47cdb9f7239fd2c2815a/`.
+
+**Review status:** The human reviewed and approved F1 on 2026-09-06 and
+authorized F2. No dependency changes, live provider calls, commit, push, or
+migrations against user data were performed.
+
 **Purpose:** Select the durable resolved-input cache in production composition
 without changing resolver rules.
 
@@ -544,6 +754,31 @@ without changing resolver rules.
 
 ### Slice F2 — production historical-cache composition
 
+**Authorization and baseline:** The human approved F1 and authorized F2 on
+2026-09-06. The complete baseline passed: 1,605 tests, 88% coverage,
+Ruff/format, and strict mypy. Approved uncommitted work was preserved.
+Baseline artifacts: `.tmp/quality-runs/20260906071818161-41780-a5d70acc0f8e41b4976c000e8535d779/`.
+
+**Implementation:** The Momentum CLI injects `CachedHistoricalDataClient`
+around its existing Yahoo client. A scoped database/repository closes after
+analysis on success or error. Request variant is the provider's daily adjusted
+configuration; TTL comes from `historical_cache_ttl_seconds` (default one hour,
+None disables expiry, zero permits no positive age). Profile enrichment retains
+the original Yahoo client. Direct analyzer/custom-provider injection and the
+financial-fact composition remain unchanged. Migrations remain explicit.
+
+**Verification:** The complete managed gate passed on 2026-09-06: 1,614 tests
+(nine new F2 cases), 88% coverage, Ruff/format, and strict mypy. Tests cover repeated CLI
+analysis with one historical fetch, equivalent results/context, original-client
+profile enrichment, configured TTL boundaries, direct quote delegation after
+storage closes, exception cleanup, and unchanged custom-client injection.
+
+Artifacts: `.tmp/quality-runs/20260906072116390-7072-dd7bccc7110a44cd98492b1312468e2e/`.
+
+**Review status:** The human approved F2 and authorized G on 2026-09-06.
+No dependency changes, live provider calls, commit, push, or migrations against
+user data were performed.
+
 **Purpose:** Select the cache-backed historical client for Momentum.
 
 **Required work:**
@@ -554,6 +789,41 @@ without changing resolver rules.
 - confirm current-price and fundamental provider paths are unaffected.
 
 ### Slice G — operator workflow, integration proof, and closeout
+
+**Authorization and baseline:** F2 approved and G authorized on 2026-09-06.
+The complete baseline passed: 1,614 tests, 88% coverage, Ruff/format, and
+strict mypy. Approved uncommitted work was preserved.
+Baseline artifacts: `.tmp/quality-runs/20260906072424398-33008-34ebfea7161543bba36eac9526b16068/`.
+
+**Implementation:** `docs/user/DATABASE.md` documents locked dependency sync,
+explicit migration upgrade/current/history and destructive downgrade, database
+URL precedence/overrides, historical and financial cache policy, telemetry
+selection, WAL-aware backup/restore, failed-migration recovery, and managed
+offline verification. Installation, quick-start, user index, and smoke-test
+instructions link the required workflow; FCF cache-option wording is corrected.
+No planning labels were added to user guides or test code.
+
+The integrated persistence smoke test creates a fresh temporary database,
+upgrades twice, writes representative telemetry, a resolved financial fact,
+and a historical frame, closes/reopens storage, proves exact context/provenance
+and frame readback, checks integrity/foreign keys, and downgrades/re-upgrades
+to empty stores. Socket connections are blocked during this smoke test.
+
+**Verification:** The complete managed gate passed on 2026-09-06: 1,615 tests
+(one new integrated smoke case), 88% coverage, Ruff/format, and strict mypy.
+Artifacts: `.tmp/quality-runs/20260906072749753-34980-3589043429f44d90bb4c82893bb0f00b/`.
+Existing migration tests also
+cover CLI upgrade/repeat/downgrade/re-upgrade and failed-DDL rollback. No live
+provider or LLM checks were performed; the deterministic tests use synthetic
+fixtures and mocks. Git's tracked-file audit found no databases, SQLite sidecars,
+JSONL logs, or environment files. Representative database/sidecar/log paths are
+ignored. Documentation and patch whitespace were inspected.
+
+**Review status:** The human approved Slice G on 2026-09-06, closing Gate G
+and completing Step 3.1. The subsequent shared-documentation generalization is
+included in the closeout. P2, Step 3.2, and all other subsequent planning work
+remain unstarted; this approval does not authorize starting them. No dependencies
+were installed, no user database was migrated, and no commit or push was made.
 
 **Purpose:** Complete the fresh-database workflow and Step 3.1 evidence.
 

@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-05 — Recorded Slice B3 and Gate B approval; C1 awaits checkpoint commit and push.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → Gate D0, Slices A/B1/B2/B3, and Gate B approved; C1 awaits checkpoint commit and push
+**Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; no subsequent work started.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; subsequent work remains unstarted
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1335,8 +1335,19 @@ Hard execution caps, wall-clock bounds, and error thresholds that prevent unboun
 **Status:** Gate D0 mapping and exact first-migration table list approved on
 2026-09-05. Slices A/B1/B2 were subsequently approved and B3 explicitly authorized.
 Slice B3 is implemented with a green complete gate (1,406 tests, 88% coverage).
-The human approved Slice B3 and Gate B on 2026-09-05. Slice C1 has not started
-and may begin once the checkpoint commit is pushed. The authoritative slice sequence,
+The human approved Slice B3 and Gate B on 2026-09-05. Following the pushed
+checkpoint, C1 was implemented, verified, and approved on 2026-09-05. Authorized
+C2 reconstruction and runtime selection passed the complete gate (1,436 tests,
+88% coverage) and received human approval on 2026-09-05, closing Gate C.
+D1 scalar caching and D2 series caching are approved; the human completed
+Gate D review on 2026-09-05. The human approved E1 and authorized E2 on
+2026-09-05. The human approved E2 on 2026-09-06, closing Gate E and authorizing
+F1. The human approved F1 and F2, then authorized G on 2026-09-06. Operator
+workflow and integrated persistence closeout passed the complete gate (1,615
+tests, 88% coverage). The human approved Slice G on 2026-09-06, closing Gate G
+and completing Step 3.1. JSONL remains the default. P2, Step 3.2, and all other
+subsequent planning work remain unstarted pending separate authorization.
+The authoritative slice sequence,
 schema decisions, local-model execution protocol, review gates, and environment preparation are in
 [`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
 
@@ -1631,13 +1642,14 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6 are complete and approved. Step 3.1 Gate D0, Slices A/B1/B2/B3,
-and Gate B are approved; C1 awaits checkpoint commit and push.
+Steps 2.3 through 2.6 and Step 3.1 are complete and approved. Slice G and Gate G
+were approved on 2026-09-06. No subsequent planning step has been started.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
 2. Create the approved Step 2.6 implementation checkpoint and complete its PR
    workflow.
-3. Commit and push the approved Step 3.1 checkpoint through B3/Gate B, then begin C1.
-   Review P2's exact placement only after Step 3.1 is approved.
+3. Prepare the approved Step 3.1 changes for commit and PR review. Await separate
+   human authorization before beginning P2, Step 3.2, or any other subsequent
+   planning work, including a review of P2's placement.
