@@ -10,14 +10,20 @@ Public exports for the pure calculation layer (Slice B):
 - ``compute_graham_growth_value`` — pure growth-value calculator.
 """
 
+from src.analysis.graham_value.analyzer_config import GrahamGrowthConfig, GrahamNumberConfig
+from src.analysis.graham_value.analyzers import GrahamGrowthAnalyzer, GrahamNumberAnalyzer
 from src.analysis.graham_value.calculators import compute_graham_growth_value, compute_graham_number
 from src.analysis.graham_value.models import GrahamGrowthValueResult, GrahamMethod, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
 
 __all__ = [
     "CalculationStatus",
+    "GrahamGrowthAnalyzer",
+    "GrahamGrowthConfig",
     "GrahamGrowthValueResult",
     "GrahamMethod",
+    "GrahamNumberAnalyzer",
+    "GrahamNumberConfig",
     "GrahamNumberResult",
     "compute_graham_growth_value",
     "compute_graham_number",

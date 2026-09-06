@@ -1,6 +1,6 @@
 # R1 Contract and Implementation Handoff
 
-**Status:** Gate R1-A approved on 2026-09-06; R1-B authorized, implementation unstarted pending the requested documentation checkpoint commit.
+**Status:** Gate R1-A approved on 2026-09-06; documentation checkpoint committed as b7625fd before implementation. R1-B implemented and verified; Gate R1-B approved on 2026-09-06. R1-C authorized and in progress.
 **Authority:** [Implementation Plan, R1](../IMPLEMENTATION_PLAN.md).
 **Approval effect:** Approval of this record and the amended implementation plan
 closes Gate R1-A and authorizes R1-B immediately. It does not authorize R1-C or
@@ -182,3 +182,61 @@ Pre-implementation checkpoint verification passed on 2026-09-06: Ruff,
 formatting, strict mypy, and the full deterministic pytest/coverage suite.
 Artifacts: .tmp/quality-runs/20260906133144108-40088-8eda8918aa094309954f6509d9b88164/.
 No production or test files were changed before this checkpoint.
+
+## 8. R1-B implementation evidence
+
+The documentation-only checkpoint was committed as `b7625fd` on
+`docs/next-phase-planning` before any production/test changes. The complete
+pre-implementation baseline passed 1,615 tests with 89% reported coverage.
+
+Added the two frozen method configs, the two typed BaseAnalyzer wrappers,
+package exports, and focused deterministic tests within the R1-B allowlist.
+Services, resolver, legacy analyzer/config, CLI, orchestration, dependencies,
+and persistence remain unchanged. Analyzers borrow the injected resolver,
+policy, and profile; composition retains resource and clock ownership.
+
+Verification covers the complete provider/EPS/default matrix, normalization,
+required/cross-method/invalid-type fields, timezone awareness, frozen config
+round trips, complete service evidence including resolution traces, explicit
+and default tickers, profile mismatch and ETF applicability, retained policy
+and profile, cache reuse/bypass, and ownership after execution exceptions.
+Zero, negative, and non-finite values are compared with the unchanged services.
+Growth's existing finite zero/negative EPS and growth semantics are retained;
+fully override-driven security analysis remains unavailable. Invalid required
+inputs do not become successful results; invalid optional quotes yield no margin.
+
+The complete managed gate passed Ruff, formatting, strict mypy, and pytest
+with 1,750 passing tests (135 new) and 89% reported coverage on 2026-09-06. The actual changed-file scope and patch whitespace
+were reviewed. Final artifacts:
+`.tmp/quality-runs/20260906133939615-1760-6e282d99d4eb4b6dab6ba06dc6567dc0/`.
+
+**Review status:** Ready for Gate R1-B stakeholder review. No R1-C work,
+implementation commit, push, or PR was performed. R1 completion and later work
+remain separately gated.
+
+
+## 9. R1-C authorization and affected-file inventory
+
+The project owner approved Gate R1-B and authorized R1-C on 2026-09-06.
+Approved R1-B changes remain uncommitted and will be preserved.
+
+Production edits: src/cli.py and new src/cli_support.py only.
+Affected existing tests identified from imports, patch targets, and invocations:
+- tests/test_cli.py
+- tests/test_cli_financial_cache.py
+- tests/test_cli_historical_cache.py
+- tests/test_cli_graham_nonpositive_growth.py
+- tests/test_cli_graham_slice_f_routing.py
+- tests/test_graham_growth_default_policy.py
+- tests/data/test_massive_cli_configuration.py
+
+New focused migration/support coverage: tests/test_cli_support.py and
+tests/test_cli_graham_commands.py. Existing tests/test_cli_fcf_earnings_growth.py
+and tests/evaluation/test_cli.py retain their imports and command entry point;
+run them to verify preserved behavior.
+
+Active documentation edits: README.md, docs/user/USAGE.md,
+docs/user/QUICKSTART.md, docs/user/INSTALLATION.md, docs/user/SMOKE_TESTING.md,
+docs/user/strategies/GRAHAM.md, and docs/user/GLOSSARY.md.
+No command or entry-point changes were found in .claude/ or .github/.
+Historical milestone command evidence remains unchanged.

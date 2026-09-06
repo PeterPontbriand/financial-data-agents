@@ -7,7 +7,7 @@
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; revised R1 contracts, review slices, and approved CLI-removal policy; retained pre–Step 3.4 placement as a sequencing choice; recorded Gate R1-A approval and the required documentation checkpoint before R1-B.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B authorized after the documentation checkpoint commit; R1 implementation unstarted; subsequent work remains unstarted
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B implemented and verified after checkpoint b7625fd; Gate R1-B review pending; R1-C unstarted; subsequent work remains unstarted
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1424,7 +1424,7 @@ speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
 
 ### 4.7B R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (Pre–Step 3.4)
 
-**Status:** Gate R1-A approved on 2026-09-06; R1-B authorized after the documentation checkpoint commit, implementation unstarted. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. The handoff approval closes Gate R1-A; Gate R1-B remains required before R1-C.
+**Status:** Gate R1-A approved on 2026-09-06; R1-B implemented and verified after checkpoint b7625fd; Gate R1-B stakeholder review pending. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. The handoff approval closes Gate R1-A; Gate R1-B remains required before R1-C.
 
 **Rationale:** The Graham methods already have distinct assembly types, result types, calculators, and execution services. Thin method-specific analyzers and configuration models can expose those existing boundaries more clearly to callers. The shared CLI helper functions already have single implementations; the repeated work is their invocation and command orchestration, not duplicate implementations of those helpers. Extracting applicable support functions can reduce the responsibilities of `cli.py` without imposing identical command flows.
 
@@ -1748,7 +1748,7 @@ All of the following must be true before declaring the milestone complete and op
 
 Steps 2.3 through 2.6 and Step 3.1 are complete and approved. Slice G and Gate G
 were approved on 2026-09-06. R1 (Graham analyzer separation and shared CLI
-plumbing extraction) has passed Gate R1-A; R1-B awaits the requested documentation checkpoint commit. No other
+plumbing extraction) has passed Gate R1-A; R1-B is implemented and verified after documentation checkpoint b7625fd; Gate R1-B review is pending. No other
 subsequent planning step has been started.
 
 1. Preserve classified unavailability so later representative live validation
@@ -1756,8 +1756,8 @@ subsequent planning step has been started.
    reviewed provider-mapping expansion is warranted.
 2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
    #27 and #28 respectively); no checkpoint or PR work remains for those steps.
-3. Commit the approved R1-A contract record and pending planning documentation.
-   Approval was granted on 2026-09-06; then implement R1-B. Stop for Gate R1-B
+3. Review the completed R1-B implementation and verification record.
+   Documentation checkpoint b7625fd preceded implementation. Stop for Gate R1-B
    before R1-C; no later step starts automatically.
 4. After R1 completion and separate authorization, reconcile Step 3.2 scope
    with Step 3.1, complete remaining repository work, then proceed through 3.3,
