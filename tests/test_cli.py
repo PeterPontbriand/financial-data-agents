@@ -10,9 +10,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from src.analysis.graham_value import GrahamGrowthConfig, GrahamNumberConfig
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumMetrics, MomentumRun
 from src.cli import _build_graham_resolver, app
 from src.config import settings
 from src.core.constants import TrendStatus
@@ -82,9 +84,9 @@ def mock_metrics() -> MomentumMetrics:
 
 
 @pytest.fixture
-def fixture_resolver() -> GrahamInputResolver:
+def fixture_resolver() -> GrahamNumberInputResolver:
     """Return the deterministic Slice-D resolver used by CLI tests."""
-    return GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+    return GrahamNumberInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
 
 def test_cli_help() -> None:
@@ -360,7 +362,7 @@ def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adap
     declared_identity = "financial-data-agents-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        _build_graham_resolver(data_provider=None)
+        _build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None)
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
@@ -370,12 +372,12 @@ def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: Ma
     declared_identity = "financial-data-agents-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        _build_graham_resolver(data_provider=None)
+        _build_graham_resolver(resolver_type=GrahamGrowthInputResolver, data_provider=None)
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
 
-def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
@@ -387,7 +389,7 @@ def test_cli_graham_number_is_default_ticker_analysis(fixture_resolver: GrahamIn
     assert "USER ASSUMPTION" not in result.output
 
 
-def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", "--ticker", SECURITY_ID, "--data-provider", PROVIDER_ID])
 
@@ -395,7 +397,7 @@ def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamIn
     assert f"{SECURITY_ID} — Graham Number" in result.output
 
 
-def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--json"])
 
@@ -422,7 +424,8 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
     ],
 )
 def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resolution(
-    fixture_resolver: GrahamInputResolver,
+    fixture_resolver: GrahamNumberInputResolver,
+    growth_fixture_resolver: GrahamGrowthInputResolver,
     method_arguments: list[str],
     method_label: str,
 ) -> None:
@@ -433,14 +436,19 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
         instrument_name="Franklin FTSE Switzerland ETF",
     )
     with (
-        patch("src.cli._build_graham_resolver", return_value=fixture_resolver),
+        patch(
+            "src.cli._build_graham_resolver",
+            return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
+        ),
         patch("src.cli._compose_analysis_profile", return_value=profile),
         patch.object(
             fixture_resolver,
             "assemble_graham_number",
             wraps=fixture_resolver.assemble_graham_number,
         ) as number,
-        patch.object(fixture_resolver, "assemble_growth_value", wraps=fixture_resolver.assemble_growth_value) as growth,
+        patch.object(
+            growth_fixture_resolver, "assemble_growth_value", wraps=growth_fixture_resolver.assemble_growth_value
+        ) as growth,
     ):
         result = runner.invoke(
             app,
@@ -462,7 +470,7 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
     growth.assert_not_called()
 
 
-def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(
             app,
@@ -477,7 +485,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
 
 
 def test_cli_graham_number_optional_quote_failure_preserves_value() -> None:
-    resolver = GrahamInputResolver(QuoteUnavailableProvider(), clock=lambda: NOW)
+    resolver = GrahamNumberInputResolver(QuoteUnavailableProvider(), clock=lambda: NOW)
 
     with patch("src.cli._build_graham_resolver", return_value=resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
@@ -530,8 +538,10 @@ def test_cli_graham_growth_rejects_bvps() -> None:
     assert "No such option: --bvps" in normalize_cli_output(result.output)
 
 
-def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(fixture_resolver: GrahamInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(
+    growth_fixture_resolver: GrahamGrowthInputResolver,
+) -> None:
+    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -557,8 +567,10 @@ def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(fixture_resolv
     assert "current_aaa_yield is a user override" not in result.output
 
 
-def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(fixture_resolver: GrahamInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(
+    growth_fixture_resolver: GrahamGrowthInputResolver,
+) -> None:
+    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -584,7 +596,9 @@ def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(fixture_
     assert "Graham Growth Value:" not in result.output
 
 
-def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
+    fixture_resolver: GrahamNumberInputResolver,
+) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SUBJECT_MISSING, "--data-provider", PROVIDER_ID])
 
@@ -598,7 +612,7 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(fixture_
     assert "pydantic.dev" not in result.output
 
 
-def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         concise = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID])
         diagnostics = runner.invoke(
@@ -614,7 +628,7 @@ def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolv
     assert "provider" in diagnostics.output.lower()
 
 
-def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamInputResolver) -> None:
+def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamNumberInputResolver) -> None:
     with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
         result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", PROVIDER_ID, "--details"])
 
@@ -642,7 +656,7 @@ def test_cli_graham_unsupported_provider_fails_before_network_setup() -> None:
 
 
 def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
-    resolver = MagicMock(spec=GrahamInputResolver)
+    resolver = MagicMock(spec=GrahamNumberInputResolver)
     resolver.assemble_graham_number.side_effect = RuntimeError("secret provider implementation detail")
 
     with patch("src.cli._build_graham_resolver", return_value=resolver):
@@ -654,8 +668,10 @@ def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
     assert "Traceback" not in result.output
 
 
-def test_cli_graham_transitional_growth_flag_aliases_remain_supported(fixture_resolver: GrahamInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+def test_cli_graham_transitional_growth_flag_aliases_remain_supported(
+    growth_fixture_resolver: GrahamGrowthInputResolver,
+) -> None:
+    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -674,8 +690,8 @@ def test_cli_graham_transitional_growth_flag_aliases_remain_supported(fixture_re
     assert "Graham Growth Value" in result.output
 
 
-def test_cli_graham_growth_eps_override_inherits_ttm_basis(fixture_resolver: GrahamInputResolver) -> None:
-    with patch("src.cli._build_graham_resolver", return_value=fixture_resolver):
+def test_cli_graham_growth_eps_override_inherits_ttm_basis(growth_fixture_resolver: GrahamGrowthInputResolver) -> None:
+    with patch("src.cli._build_graham_resolver", return_value=growth_fixture_resolver):
         result = runner.invoke(
             app,
             [
@@ -714,3 +730,9 @@ def test_graham_quote_provider_routing_is_method_aware() -> None:
         == "yfinance"
     )
     assert GrahamNumberConfig(security_provider_id=PROVIDER_ID).quote_provider_id == PROVIDER_ID
+
+
+@pytest.fixture
+def growth_fixture_resolver() -> GrahamGrowthInputResolver:
+    """Return the deterministic Slice-D resolver used by CLI tests."""
+    return GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)

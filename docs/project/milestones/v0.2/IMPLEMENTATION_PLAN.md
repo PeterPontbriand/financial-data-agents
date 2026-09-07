@@ -7,7 +7,7 @@
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved at pushed checkpoint 685221d; R2 plan/resolver design and retirements accepted, Gates R2-A/R2-B approved; R2-C verified, Gate R2-C review pending; subsequent implementation remains unstarted
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved at pushed checkpoint 685221d; R2 plan/resolver design and retirements accepted, Gates R2-A/R2-B/R2-C approved; R2-D verified, Gate R2-D review pending; R2-E remains unstarted
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -20,7 +20,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
-- R2 – Analysis Strategy Package Split (accepted plan after R1; Gate R2-B review pending; before Step 3.2)
+- R2 – Analysis Strategy Package Split (accepted plan after R1; Gate R2-D review pending; before Step 3.2)
 - Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
 
 **Out of scope (explicit)**
@@ -1492,9 +1492,9 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 
 ### 4.7b R2 – Analysis Strategy Package Split
 
-**Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence completed on 2026-09-07: reconciled R1 scope, exact migration inventory, and fresh managed gate (1,809 tests, 89% reported coverage, Ruff, formatting, strict mypy). Gate R2-A approved on 2026-09-07; R2-B verified with 1,765 tests, 89% coverage, and the complete managed gate. Gate R2-B approved and R2-C implemented/verified on 2026-09-07: 1,811 tests, 89% coverage, Ruff, formatting, strict mypy. Gate R2-C review is pending; R2-D remains unauthorized. R1 is complete at pushed checkpoint `685221d832e431f3b310e9eccbc26982761f9960`, as confirmed by the project owner on 2026-09-06.
+**Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence completed on 2026-09-07: reconciled R1 scope, exact migration inventory, and fresh managed gate (1,809 tests, 89% reported coverage, Ruff, formatting, strict mypy). Gate R2-A approved on 2026-09-07; R2-B verified with 1,765 tests, 89% coverage, and the complete managed gate. Gate R2-B approved and R2-C implemented/verified on 2026-09-07: 1,811 tests, 89% coverage, Ruff, formatting, strict mypy. Gate R2-C was approved and checkpointed at `fa6c2c9`; R2-D was authorized and verified on 2026-09-07 (1,811 tests, 89% coverage, complete managed gate). Gate R2-D review is pending; R2-E remains unauthorized. R1 is complete at pushed checkpoint `685221d832e431f3b310e9eccbc26982761f9960`, as confirmed by the project owner on 2026-09-06.
 
-**Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence is complete in the [R2 migration inventory](r2/R2_MIGRATION_INVENTORY.md), accepted at Gate R2-A; R2-B and R2-C evidence is recorded in handoff sections 10 and 11. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
+**Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence is complete in the [R2 migration inventory](r2/R2_MIGRATION_INVENTORY.md), accepted at Gate R2-A; R2-B, R2-C, and R2-D evidence is recorded in handoff sections 10–12. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
 
 **Selected ordering:** R1 → R2 → Step 3.2 → Step 3.3 → P2-Profiles → Step 3.4 → Step 3.5. R2's placement is a scheduling choice, not a technical prerequisite. P2-ETF remains separately deferred beyond Step 3.5.
 
@@ -1675,7 +1675,7 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.1 SQLite + durable cache/data/telemetry
   ├─ R1 Graham analyzer split + shared CLI plumbing extraction
   │    (chosen sequencing before Phase H; no recognized technical dependency)
-  ├─ R2 analysis strategy package split (accepted; Gate R2-B review pending)
+  ├─ R2 analysis strategy package split (accepted; Gate R2-D review pending)
   │    (independent slice gates; no production implementation authorized)
   ├─ 3.2 scope reconciliation + remaining typed repository work
   ├─ 3.3 data quality / invalidation
@@ -1787,9 +1787,9 @@ No later implementation is authorized by this approval.
    reviewed provider-mapping expansion is warranted.
 2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
    #27 and #28 respectively); no checkpoint or PR work remains for those steps.
-3. Gates R2-A and R2-B are approved; R2-C shared-helper extraction is verified.
+3. Gates R2-A, R2-B, and R2-C are approved; R2-D package migration is verified.
    Review its bounded diff and passing managed gate (1,811 tests, 89% coverage)
-   at Gate R2-C before authorizing R2-D. No package relocation has started.
+   at Gate R2-D before authorizing R2-E documentation reconciliation.
 4. After R2 completion and separate authorization, reconcile Step 3.2 scope
    with Step 3.1, complete remaining repository work, then proceed through 3.3,
    P2-Profiles, 3.4, and 3.5 under their own planning/review gates.

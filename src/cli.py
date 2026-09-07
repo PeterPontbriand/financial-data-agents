@@ -11,7 +11,7 @@ from typing import Annotated
 
 import typer
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
@@ -19,14 +19,17 @@ from src.analysis.fcf_earnings_growth import (
     HistoricalHorizon,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.graham_value import GrahamGrowthAnalyzer, GrahamGrowthConfig, GrahamNumberAnalyzer, GrahamNumberConfig
-from src.analysis.graham_value.input_resolver import (
-    GrahamInputResolver,
-    GrahamNumberInputAssembly,
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.analysis.strategy.graham_growth.calculation import (
+    GrahamGrowthCalculationPolicy,
+    GrahamGrowthInputResolver,
     GrowthValueInputAssembly,
 )
-from src.analysis.graham_value.service import GrahamGrowthCalculationPolicy
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.cli_support import (
     _canonical_provider_id,
     _parse_as_of,
@@ -252,7 +255,9 @@ def graham_number(  # noqa: PLR0913
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
-            resolver = _build_graham_resolver(data_provider=config.security_provider_id, cache=cache)
+            resolver = _build_graham_resolver(
+                resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
+            )
         output, exit_code = _run_graham_number(
             resolver=resolver,
             ticker=target_ticker,
@@ -346,7 +351,9 @@ def graham_growth(  # noqa: PLR0913
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
-            resolver = _build_graham_resolver(data_provider=config.security_provider_id, cache=cache)
+            resolver = _build_graham_resolver(
+                resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
+            )
         output, exit_code = _run_graham_growth(
             resolver=resolver,
             ticker=target_ticker,
@@ -693,9 +700,9 @@ def _compose_analysis_profile(
     )
 
 
-def _build_graham_resolver(
-    *, data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
-) -> GrahamInputResolver:
+def _build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
+    *, resolver_type: type[ResolverT], data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
+) -> ResolverT:
     """Build only the production provider capabilities needed by this invocation."""
     provider: FinancialFactsProvider
     if data_provider == MASSIVE_PROVIDER_ID:
@@ -710,12 +717,12 @@ def _build_graham_resolver(
     else:
         provider = _build_sec_production_provider()
 
-    return GrahamInputResolver(provider, cache=cache if cache is not None else InMemoryResolvedInputCache())
+    return resolver_type(provider, cache=cache if cache is not None else InMemoryResolvedInputCache())
 
 
 def _run_graham_number(  # noqa: PLR0913
     *,
-    resolver: GrahamInputResolver,
+    resolver: GrahamNumberInputResolver,
     ticker: str,
     config: GrahamNumberConfig,
     mode: PresentationMode,
@@ -769,7 +776,7 @@ def _run_graham_number(  # noqa: PLR0913
 
 def _run_graham_growth(  # noqa: PLR0913
     *,
-    resolver: GrahamInputResolver,
+    resolver: GrahamGrowthInputResolver,
     ticker: str,
     config: GrahamGrowthConfig,
     mode: PresentationMode,

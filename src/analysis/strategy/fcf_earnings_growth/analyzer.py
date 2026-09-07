@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from src.analysis.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
-from src.analysis.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from src.analysis.fcf_earnings_growth.models import (
+from src.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
+from src.analysis.strategy.fcf_earnings_growth.calculators import classify_fcf_earnings_growth
+from src.analysis.strategy.fcf_earnings_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
+from src.analysis.strategy.fcf_earnings_growth.models import (
     Classification,
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
@@ -17,7 +18,6 @@ from src.analysis.fcf_earnings_growth.models import (
     ReasonCode,
     TrendClassification,
 )
-from src.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput
 from src.data.instrument_profile import InstrumentProfile

@@ -1,9 +1,9 @@
 # R2 Contract and Implementation Handoff — Analysis Strategy Package Split
 
-**Status:** Gates R2-A and R2-B approved on 2026-09-07. R2-C implemented and verified; Gate R2-C stakeholder review pending. R2-D and R2-E remain unstarted and separately gated.
+**Status:** Gates R2-A, R2-B, and R2-C approved on 2026-09-07. R2-D implemented and verified; Gate R2-D stakeholder review pending. R2-E remains unstarted and separately gated.
 **Authority:** [Implementation Plan, R2](../IMPLEMENTATION_PLAN.md#47b-r2--analysis-strategy-package-split). This accepted record owns R2's detailed contracts and gates.
 **Baseline:** R1 is complete and approved. The project owner reports commit `685221d832e431f3b310e9eccbc26982761f9960` created and pushed. [R1 final approval](../r1/R1_CONTRACT_AND_SLICE_PLAN.md#11-final-approval-and-r1-completion) records 1,809 passing tests, 89% reported coverage, Ruff, formatting, and strict mypy. This is recorded evidence, not a fresh R2 verification run; a merge is not an additional prerequisite.
-**Approval effect:** Gate R2-B review is complete and R2-C execution is explicitly authorized. Stop for Gate R2-C review after its complete managed gate; R2-D requires separate authorization. No commit, push, PR, or later milestone implementation is implied.
+**Approval effect:** Gate R2-C review is complete and R2-D execution was explicitly authorized from pushed checkpoint `fa6c2c9`. Stop for Gate R2-D review; R2-E requires separate authorization. No commit, push, PR, or later milestone implementation is implied.
 
 ## 1. Scope and ordering
 
@@ -167,12 +167,12 @@ Relocate Momentum/FCF with `git mv` when implementation is authorized. Decompose
 
 The [completed migration inventory](R2_MIGRATION_INVENTORY.md) enumerates the exact production/test consumers, including CLI, orchestration, evaluation, and reporting. Inspection found no moved imports in `src/cli_support.py`; do not edit it without an actual affected reference. Refresh the inventory before implementation edits and reconcile newly demonstrated consumers first.
 
-- [ ] All symbols have reviewed destinations; old strategy directories are removed.
-- [ ] All executable imports, patches, resolver construction sites, and exports migrate together within the approved inventory.
-- [ ] Consumer edits are restricted to imports, method-resolver selection/construction, and corresponding typing; financial, presentation, routing, and resource behavior is preserved.
-- [ ] Tests retain every surviving behavioral case. Resolver fixture construction may change as specified; assertions cannot be weakened to accommodate regressions.
-- [ ] Full managed gate passes with all consumers working, including CLI, reporting, orchestration, evaluation/Golden cases, and cache/composition tests.
-- [ ] Actual diff and section 7 evidence reviewed before authorizing R2-E.
+- [x] All symbols have reviewed destinations; old strategy directories are removed.
+- [x] All executable imports, patches, resolver construction sites, and exports migrate together within the approved inventory.
+- [x] Consumer edits are restricted to imports, method-resolver selection/construction, and corresponding typing; financial, presentation, routing, and resource behavior is preserved.
+- [x] Tests retain every surviving behavioral case. Resolver fixture construction may change as specified; assertions cannot be weakened to accommodate regressions.
+- [x] Full managed gate passes with all consumers working, including CLI, reporting, orchestration, evaluation/Golden cases, and cache/composition tests.
+- [x] Actual diff and section 7 evidence reviewed and approved on 2026-09-07. R2-E is authorized pending checkpoint commit.
 
 ## 6. R2-E — Documentation reconciliation and final sweep
 
@@ -260,3 +260,15 @@ The 46 added cases comprise 39 direct shared-helper cases, 3 complete-result FCF
 Final complete managed gate passed on 2026-09-07: Ruff; formatting (277 files); strict mypy (217 source files); and 1,811 tests in 28.99 seconds. Coverage remains 89% reported: 9,317 statements, 775 missing, 8,542 covered (approximately 91.7% statement coverage), 2,964 branches, 497 partial branches. The new shared module has all 39 statements and all branches covered. No other retained module gained missing statements/branches; FCF analyzer and Graham service each improved by one missing statement and one missing branch. Artifact directory: `.tmp/quality-runs/20260907093014278-31416-5509ab07c8b04649b7681d441668cc65/`.
 
 Final scope and whitespace checks passed. Shared production code has no Graham/FCF/Momentum-specific text or imports; removed private implementations are absent. The working-tree R2-B deletions predate this slice; R2-C adds only its inventoried shared module/tests and edits the three authorized production consumers and three authorized existing test files. No commit, push, PR, live provider/model call, or R2-D work occurred. Ready for Gate R2-C stakeholder review; R2-D remains unauthorized.
+
+## 12. Gate R2-C approval and R2-D implementation evidence
+
+On 2026-09-07 the project owner approved Gate R2-C, pushed checkpoint `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`, and explicitly authorized R2-D. The refreshed inventory and fresh full baseline are recorded in inventory section 11. Baseline: 1,811 tests in 27.54 seconds; 89% combined coverage; 9,317 statements, 775 missing (8,542 covered), 2,964 branches, 497 partial branches.
+
+Implemented the approved Number/Growth packages with separate inherited-constructor resolvers and shared Graham contracts. Relocated all Momentum/FCF source with Git moves, retaining their filenames and behavior. Removed all three old source directories without shims. Migrated the inventoried CLI, reporting, orchestration, evaluation, and test consumers atomically. CLI construction selects the concrete resolver type; evaluation shares provider/cache/clock dependencies across the two wrappers. Strategy services continue owning their public messages; shared trace helpers accept caller-supplied text. `base_analyzer.py` and the R2-C financial-resolution helper implementation are unchanged.
+
+The final managed gate passed Ruff, formatting (282 files), strict mypy (222 source files), and all 1,811 tests in 28.72 seconds. Artifacts: `.tmp/quality-runs/20260907094917827-8304-ac5a5a68cc78411ca6d7d2a23afee9dc/`. Coverage remains 89% combined: 9,376 statements, 776 missing (8,600 covered; approximately 91.7% statement coverage), 2,964 branches, 497 partial branches. The 59 additional statements are from package decomposition/imports and explicit dependency wiring: 49 within Graham packages/contracts, three in CLI, three in evaluation composition, one in evaluation runner, and three in orchestration. The one additional missing statement is the Number service's now-local `_unverified_ticker_reason` return: its Number branch was already unexercised, while the former shared function was covered through Growth. Retained branch totals and partial counts are unchanged, and every corresponding non-Graham module retains its missing statement/branch counts.
+
+All existing test functions and the 1,811-case total are retained; no test files or behavioral cases were removed. Existing resolver, analyzer, CLI builder/provider-routing, and dependency fixtures now exercise the method-specific wiring. Source AST comparison confirms both pure Graham calculators and all Momentum/FCF non-import code are unchanged. The first post-migration gate exposed two stale CLI builder mock expectations; they now require the Growth resolver explicitly, preserving all provider assertions. A subsequent formatting check caught mixed line endings in that test edit; normalization and the final full gate resolved it.
+
+The executable source/test reference audit has zero old package paths or `GrahamInputResolver` references. Test fixture namespaces remain intentionally unchanged. Diff scope and whitespace checks passed. Active architecture/discovery directory-tree reconciliation remains R2-E work. R2-D is ready for stakeholder review; Gate R2-D is not yet approved and R2-E remains unauthorized/unstarted. No commit, push, PR, dependency change, live provider/model call, or user-data migration was performed.

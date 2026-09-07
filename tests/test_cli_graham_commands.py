@@ -8,8 +8,10 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from src.analysis.graham_value import GrahamGrowthConfig, GrahamNumberConfig
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.cli import app
 from src.evaluation.fixtures.graham import NOW, PROVIDER_ID, SECURITY_ID, FixtureFinancialFactsProvider
 from tests._cli_helpers import normalize_cli_output
@@ -92,7 +94,8 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
 @pytest.mark.parametrize("mode", [[], ["--details"], ["--diagnostics"], ["--json"]])
 def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str, mode: list[str]) -> None:
-    resolver = GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
+    resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
     with (
         patch("src.cli._build_graham_resolver", return_value=resolver),
         patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),
@@ -142,7 +145,8 @@ def test_usage_validation_precedes_resources(command: str, options: list[str]) -
 @pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
 @pytest.mark.parametrize("option", ["--eps", "--current-price"])
 def test_nonfinite_inputs_keep_typed_financial_outcomes(command: str, value: str, option: str) -> None:
-    resolver = GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+    resolver_type = GrahamGrowthInputResolver if command == "graham-growth" else GrahamNumberInputResolver
+    resolver = resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
     with (
         patch("src.cli._build_graham_resolver", return_value=resolver),
         patch("src.cli.YFinanceClient.resolve_security_identity", return_value=None),

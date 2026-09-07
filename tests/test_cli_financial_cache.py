@@ -12,6 +12,7 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.cli import _build_graham_resolver, app
 from src.cli_support import _production_financial_cache
 from src.config import ProjectSettings
@@ -174,5 +175,5 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 def test_explicit_memory_cache_is_retained() -> None:
     cache = InMemoryResolvedInputCache()
     with patch("src.cli._build_sec_production_provider", return_value=GrahamProvider()):
-        resolver = _build_graham_resolver(data_provider=None, cache=cache)
+        resolver = _build_graham_resolver(resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache)
     assert resolver._cache is cache

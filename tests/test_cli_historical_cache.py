@@ -11,7 +11,7 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
-from src.analysis.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.cli import app
 from src.cli_support import _production_historical_client
 from src.config import ProjectSettings

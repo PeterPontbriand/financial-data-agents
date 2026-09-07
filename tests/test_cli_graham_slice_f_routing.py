@@ -3,7 +3,7 @@
 import pytest
 import typer
 
-from src.analysis.graham_value import GrahamNumberConfig
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.cli_support import config_usage_errors
 from src.data.massive.constants import MASSIVE_PROVIDER_ID
 

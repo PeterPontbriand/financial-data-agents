@@ -6,7 +6,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from src.analysis.graham_value import GrahamGrowthConfig, GrahamNumberConfig
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 
 
 @pytest.mark.parametrize("growth", [False, True])

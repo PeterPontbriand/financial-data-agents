@@ -1,8 +1,20 @@
-"""Method-specific Graham configuration without presentation or resource ownership."""
+"""Shared Graham configuration and method contracts."""
 
-from typing import Literal, Self
+from __future__ import annotations
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, StrictFloat, field_validator, model_validator
+from enum import StrEnum
+from typing import Literal
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, StrictFloat, field_validator
+
+from src.data.financial.resolution_trace import ResolutionEvent, ResolutionOutcome, ResolutionStage, ResolutionTrace
+
+
+class GrahamMethod(StrEnum):
+    """Explicit method discriminator for Graham valuation calculations."""
+
+    NUMBER = "graham_number"
+    GROWTH_VALUE = "graham_growth_value"
 
 
 class _GrahamConfig(BaseModel):
@@ -48,28 +60,28 @@ class _GrahamConfig(BaseModel):
         object.__setattr__(self, "quote_provider_id", quote_provider)
 
 
-class GrahamNumberConfig(_GrahamConfig):
-    """Graham Number request, defaulting to three-year-average fiscal EPS."""
-
-    bvps_override: StrictFloat | None = None
-
-    @model_validator(mode="after")
-    def validate_method(self) -> Self:
-        """Resolve defaults and enforce the provider-specific book-value contract."""
-        self._resolve_defaults("three_year_average")
-        if self.security_provider_id == "massive" and self.bvps_override is None:
-            raise ValueError("Massive Graham Number requires bvps_override.")
-        return self
+def _resolve_ticker(ticker: str | None, default_ticker: str | None) -> str:
+    selected = ticker if ticker is not None else default_ticker
+    if selected is None or not selected.strip():
+        raise ValueError("A nonblank ticker is required.")
+    return selected.strip().upper()
 
 
-class GrahamGrowthConfig(_GrahamConfig):
-    """Growth-value request with explicit growth and AAA yield in percent units."""
+def _event(
+    field_name: str,
+    stage: ResolutionStage,
+    outcome: ResolutionOutcome,
+    message: str,
+) -> ResolutionEvent:
+    """Construct an assembly trace event from caller-supplied text."""
+    return ResolutionEvent(field_name=field_name, stage=stage, outcome=outcome, message=message)
 
-    expected_growth: StrictFloat
-    aaa_yield_override: StrictFloat
 
-    @model_validator(mode="after")
-    def validate_method(self) -> Self:
-        """Resolve the provider-dependent EPS basis and quote provider."""
-        self._resolve_defaults("three_year_average" if self.security_provider_id == "sec_edgar" else "ttm")
-        return self
+def _trace_event(
+    field_name: str,
+    stage: ResolutionStage,
+    outcome: ResolutionOutcome,
+    message: str,
+) -> ResolutionTrace:
+    """Construct a one-event assembly trace from caller-supplied text."""
+    return ResolutionTrace(events=(_event(field_name, stage, outcome, message),))

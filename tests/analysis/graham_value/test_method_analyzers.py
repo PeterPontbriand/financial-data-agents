@@ -1,19 +1,20 @@
 """Deterministic service equivalence and resource ownership for Graham wrappers."""
 
 from dataclasses import asdict
-from typing import Any
+from typing import Any, Literal, overload
 from unittest.mock import patch
 
 import pytest
 
 from src.analysis.base_analyzer import BaseAnalyzer
-from src.analysis.graham_value import GrahamGrowthAnalyzer, GrahamGrowthConfig, GrahamNumberAnalyzer, GrahamNumberConfig
-from src.analysis.graham_value.input_resolver import GrahamInputResolver
-from src.analysis.graham_value.service import (
-    GrahamGrowthCalculationPolicy,
-    run_graham_growth_analysis,
-    run_graham_number_analysis,
-)
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
+from src.analysis.strategy.graham_growth.service import run_graham_growth_analysis
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
+from src.analysis.strategy.graham_number.config import GrahamNumberConfig
+from src.analysis.strategy.graham_number.service import run_graham_number_analysis
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.cache import InMemoryResolvedInputCache
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -55,8 +56,21 @@ class OwnedCache(InMemoryResolvedInputCache):
         self.closed = True
 
 
-def _resolver() -> GrahamInputResolver:
-    return GrahamInputResolver(FixtureFinancialFactsProvider(), clock=lambda: NOW)
+@overload
+def _resolver(growth: Literal[True]) -> GrahamGrowthInputResolver: ...
+
+
+@overload
+def _resolver(growth: Literal[False]) -> GrahamNumberInputResolver: ...
+
+
+@overload
+def _resolver(growth: bool) -> GrahamNumberInputResolver | GrahamGrowthInputResolver: ...
+
+
+def _resolver(growth: bool) -> GrahamNumberInputResolver | GrahamGrowthInputResolver:
+    resolver_type = GrahamGrowthInputResolver if growth else GrahamNumberInputResolver
+    return resolver_type(FixtureFinancialFactsProvider(), clock=lambda: NOW)
 
 
 def _config(growth: bool, **values: Any) -> GrahamNumberConfig | GrahamGrowthConfig:
@@ -66,9 +80,11 @@ def _config(growth: bool, **values: Any) -> GrahamNumberConfig | GrahamGrowthCon
     return GrahamNumberConfig.model_validate(fields)
 
 
-def _analyzer(growth: bool, resolver: GrahamInputResolver, **kwargs: Any) -> Any:
+def _analyzer(growth: bool, resolver: GrahamNumberInputResolver | GrahamGrowthInputResolver, **kwargs: Any) -> Any:
     if growth:
+        assert isinstance(resolver, GrahamGrowthInputResolver)
         return GrahamGrowthAnalyzer(resolver, policy=POLICY, **kwargs)
+    assert isinstance(resolver, GrahamNumberInputResolver)
     return GrahamNumberAnalyzer(resolver, **kwargs)
 
 
@@ -77,12 +93,15 @@ def _analyzer(growth: bool, resolver: GrahamInputResolver, **kwargs: Any) -> Any
 @pytest.mark.parametrize("values", [{}, {"eps_override": 4.0, "quote_override": 20.0, "use_cache": False}])
 def test_complete_service_equivalence(growth: bool, ticker: str, values: dict[str, Any]) -> None:
     config = _config(growth, **values)
-    analyzer = _analyzer(growth, _resolver(), default_ticker=f" {ticker.lower()} ")
-    service = run_graham_growth_analysis if growth else run_graham_number_analysis
+    analyzer = _analyzer(growth, _resolver(growth), default_ticker=f" {ticker.lower()} ")
     kwargs = config.model_dump()
     if growth:
         kwargs["policy"] = POLICY
-    expected = service(resolver=_resolver(), ticker=ticker, **kwargs)
+    expected = (
+        run_graham_growth_analysis(resolver=_resolver(True), ticker=ticker, **kwargs)
+        if growth
+        else run_graham_number_analysis(resolver=_resolver(False), ticker=ticker, **kwargs)
+    )
     actual = analyzer.run_analysis(config)
     assert asdict(actual) == asdict(expected)
     assert isinstance(analyzer, BaseAnalyzer)
@@ -102,7 +121,7 @@ def test_complete_service_equivalence(growth: bool, ticker: str, values: dict[st
     [(None, " synth ", SECURITY_ID), ("other", "synth", SECURITY_ID), (" synth ", None, SECURITY_ID)],
 )
 def test_ticker_selection(growth: bool, default: str | None, ticker: str | None, expected: str) -> None:
-    result = _analyzer(growth, _resolver(), default_ticker=default).run_analysis(_config(growth), ticker)
+    result = _analyzer(growth, _resolver(growth), default_ticker=default).run_analysis(_config(growth), ticker)
     assert result.ticker == expected
 
 
@@ -110,7 +129,7 @@ def test_ticker_selection(growth: bool, default: str | None, ticker: str | None,
 @pytest.mark.parametrize(("default", "ticker"), [(None, None), (" ", None), (SECURITY_ID, ""), (SECURITY_ID, " ")])
 def test_missing_ticker_rejected(growth: bool, default: str | None, ticker: str | None) -> None:
     with pytest.raises(ValueError, match="ticker"):
-        _analyzer(growth, _resolver(), default_ticker=default).run_analysis(_config(growth), ticker)
+        _analyzer(growth, _resolver(growth), default_ticker=default).run_analysis(_config(growth), ticker)
 
 
 @pytest.mark.parametrize("growth", [False, True])
@@ -119,7 +138,8 @@ def test_profile_retention_and_mismatch(growth: bool, etf: bool) -> None:
     evidence = InstrumentKindEvidence(SECURITY_ID, InstrumentKind.ETF, "ETF", "yfinance", NOW) if etf else None
     profile = InstrumentProfile(SECURITY_ID, None, evidence, ())
     provider = OwnedProvider()
-    analyzer = _analyzer(growth, GrahamInputResolver(provider, clock=lambda: NOW), instrument_profile=profile)
+    resolver_type = GrahamGrowthInputResolver if growth else GrahamNumberInputResolver
+    analyzer = _analyzer(growth, resolver_type(provider, clock=lambda: NOW), instrument_profile=profile)
     result = analyzer.run_analysis(_config(growth), SECURITY_ID)
     assert result.instrument_profile is profile
     if etf:
@@ -135,7 +155,8 @@ def test_profile_retention_and_mismatch(growth: bool, etf: bool) -> None:
 @pytest.mark.parametrize("growth", [False, True])
 def test_borrowed_resources_cache_reuse_and_bypass(growth: bool) -> None:
     provider, cache = OwnedProvider(), OwnedCache()
-    resolver = GrahamInputResolver(provider, cache=cache, clock=lambda: NOW)
+    resolver_type = GrahamGrowthInputResolver if growth else GrahamNumberInputResolver
+    resolver = resolver_type(provider, cache=cache, clock=lambda: NOW)
     analyzer = _analyzer(growth, resolver)
     assert provider.calls == 0
     analyzer.run_analysis(_config(growth), SECURITY_ID)
@@ -173,12 +194,15 @@ def test_borrowed_resources_cache_reuse_and_bypass(growth: bool) -> None:
 @pytest.mark.parametrize("value", [0.0, -1.0, float("nan"), float("inf"), float("-inf")])
 def test_numeric_edge_cases_match_service(growth: bool, field: str, value: float) -> None:
     config = _config(growth, **{field: value})
-    service = run_graham_growth_analysis if growth else run_graham_number_analysis
     kwargs = config.model_dump()
     if growth:
         kwargs["policy"] = POLICY
-    expected = service(resolver=_resolver(), ticker=SECURITY_ID, **kwargs)
-    actual = _analyzer(growth, _resolver()).run_analysis(config, SECURITY_ID)
+    expected = (
+        run_graham_growth_analysis(resolver=_resolver(True), ticker=SECURITY_ID, **kwargs)
+        if growth
+        else run_graham_number_analysis(resolver=_resolver(False), ticker=SECURITY_ID, **kwargs)
+    )
+    actual = _analyzer(growth, _resolver(growth)).run_analysis(config, SECURITY_ID)
     assert asdict(actual) == asdict(expected)
     # Optional quote failures may leave a valid calculation, but never a margin.
     if field == "quote_override":

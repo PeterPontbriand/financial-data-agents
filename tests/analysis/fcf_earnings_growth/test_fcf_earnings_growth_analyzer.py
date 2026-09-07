@@ -7,13 +7,13 @@ from dataclasses import replace
 
 import pytest
 
-from src.analysis.fcf_earnings_growth import (
+from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.fcf_earnings_growth.models import Classification, MetricStatus, ReasonCode
+from src.analysis.strategy.fcf_earnings_growth.models import Classification, MetricStatus, ReasonCode
 from src.data.financial.production import ProductionFinancialFactsProvider
 from src.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from src.data.sec_edgar import SEC_PROVIDER_ID

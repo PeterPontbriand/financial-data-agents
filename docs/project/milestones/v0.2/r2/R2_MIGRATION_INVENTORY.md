@@ -1,7 +1,7 @@
 # R2 migration inventory and R2-A checkpoint evidence
 
 **Prepared:** 2026-09-07. **Source revision:** `fb1821965a846b61417bb22e905385aae9ca64c9` (clean working tree before this documentation work).
-**Status:** Inventory and baseline complete; ready for Gate R2-A stakeholder review. No R2 implementation, deletion, commit, or push performed by this work.
+**Current status:** Gates R2-A/R2-B/R2-C approved; R2-D implemented and verified from checkpoint `fa6c2c9`, awaiting Gate R2-D review. Sections 1–8 preserve the original R2-A inventory/evidence; sections 9–12 record subsequent dispositions. R2-E remains unstarted.
 **Contract:** [R2 handoff](R2_CONTRACT_AND_SLICE_PLAN.md). Inventory entries authorize no execution independently of its slice gates. Refresh the audit against the actual starting revision before each slice; reconcile new necessary files before editing.
 
 ## 1. Discovery and scope
@@ -229,3 +229,13 @@ Gate R2-A review completed and R2-B execution was explicitly authorized. The two
 ## 10. R2-C disposition (2026-09-07)
 
 Gate R2-B was approved and R2-C explicitly authorized. Every section 4 production/test edit is implemented, including the direct margin-helper import/name migration. No other production/test file was edited by this slice. The 46 new cases and pre/post managed gate evidence are recorded in [handoff section 11](R2_CONTRACT_AND_SLICE_PLAN.md#11-gate-r2-b-approval-and-r2-c-implementation-evidence). Final gate: 1,811 tests, 89% reported coverage, all shared-module statements/branches covered, Ruff/formatting/strict mypy passed. Gate R2-C review remains pending; section 5 package relocation has not started.
+
+## 11. R2-D refreshed inventory (2026-09-07)
+
+The clean pushed checkpoint is `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`. R2-D execution is explicitly authorized. The source/test consumer list remains applicable after R2-C. CLI `_build_graham_resolver` must accept the requested resolver type, so both command call sites and the existing builder tests migrate together. Mixed-method fixtures select the corresponding concrete resolver without retaining a combined class. Existing test paths stay fixed. No new production file outside the approved packages/consumer list is needed. The fresh full baseline passed 1,811 tests at 89% reported coverage; artifacts: `.tmp/quality-runs/20260907093925994-28964-9e4c6bff4eb747b59b1106ad32d6e35c/`.
+
+## 12. R2-D disposition (2026-09-07)
+
+All section 5 production package/consumer migrations are complete within the refreshed scope. The old Graham, Momentum, and FCF source directories are removed; every new strategy package is importable. Existing test locations and fixture namespaces remain unchanged. `tests/analysis/graham_value/test_security_unit_compatibility.py` needed no further edit because R2-C already migrated its only affected import; all other inventoried affected test consumers were updated. No executable documentation/configuration consumer was discovered. Section 6 active architecture/discovery tree updates remain pending R2-E.
+
+The complete managed gate passed 1,811 tests, Ruff/formatting, and strict mypy at 89% reported coverage. See [handoff section 12](R2_CONTRACT_AND_SLICE_PLAN.md#12-gate-r2-c-approval-and-r2-d-implementation-evidence) for final artifact paths, retained-case audit, exact coverage reconciliation, and scope review. Gates R2-A/R2-B/R2-C are approved; R2-D implementation is verified and awaits Gate R2-D review. R2-E is not authorized.

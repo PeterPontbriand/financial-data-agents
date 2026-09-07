@@ -7,13 +7,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.analysis.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, FCFEarningsGrowthPolicy
-from src.analysis.graham_value.input_resolver import GrahamNumberInputAssembly
-from src.analysis.graham_value.service import (
-    GrahamGrowthCalculationPolicy,
-    run_graham_growth_analysis,
-    run_graham_number_analysis,
-)
+from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, FCFEarningsGrowthPolicy
+from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy
+from src.analysis.strategy.graham_growth.service import run_graham_growth_analysis
+from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly
+from src.analysis.strategy.graham_number.service import run_graham_number_analysis
 from src.core.analysis_status import CalculationStatus
 from src.core.metric_result import MetricStatus, ReasonCode
 from src.data.instrument_profile import (
