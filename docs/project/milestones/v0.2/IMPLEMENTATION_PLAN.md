@@ -7,7 +7,7 @@
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved at pushed checkpoint 685221d; R2 plan/resolver design and retirements accepted, Gates R2-A/R2-B/R2-C approved; R2-D verified, Gate R2-D review pending; R2-E remains unstarted
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -20,7 +20,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
-- R2 – Analysis Strategy Package Split (accepted plan after R1; Gate R2-D review pending; before Step 3.2)
+- R2 – Analysis Strategy Package Split (accepted plan after R1; complete and approved on 2026-09-07; before Step 3.2)
 - Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
 
 **Out of scope (explicit)**
@@ -1425,7 +1425,7 @@ speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
 
 ### 4.7B R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (Pre–Step 3.4)
 
-**Status:** Gate R1-A approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. Gates R1-A, R1-B, and R1-C are approved. Later work requires separate authorization.
+**Status:** Gate R1-A approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. Gates R1-A, R1-B, and R1-C are approved. Later work requires separate authorization.
 
 **Rationale:** The Graham methods already have distinct assembly types, result types, calculators, and execution services. Thin method-specific analyzers and configuration models can expose those existing boundaries more clearly to callers. The shared CLI helper functions already have single implementations; the repeated work is their invocation and command orchestration, not duplicate implementations of those helpers. Extracting applicable support functions can reduce the responsibilities of `cli.py` without imposing identical command flows.
 
@@ -1462,7 +1462,7 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 2. Add separate Pydantic configuration models with `extra="forbid"`. Reject fields belonging to the other method, preserve provider-dependent EPS defaults and normalization, and reject every invalid combination currently rejected by `_validate_graham_options`. Defaults are part of the contract, not merely validation details.
 3. Keep `GrahamInputResolver` and shared service helpers unchanged. Preserve numerical validation, provenance, applicability, typed result schemas, and the legacy public analyzer interfaces.
 4. Add direct tests for each analyzer/config contract using injected deterministic dependencies, including full typed execution evidence and invalid/default option matrices. Existing CLI and orchestration paths remain intact in this slice.
-- **Gate R1-B:** Approved on 2026-09-06 after the managed repository quality gate; checkpoint 36b8dbf.
+- **Gate R1-B:** Approved on 2026-09-06 after the managed repository quality gate.
 
 **R1-C — CLI separation, support extraction, and migration**
 1. Replace the old Graham command with the reviewed direct commands. CLI execution uses the new analyzers' `run_analysis` methods; presentation continues consuming the same typed service results. Remove `_validate_graham_options` and `GrahamCliMethod` after the replacement validation paths are in place.
@@ -1492,9 +1492,9 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 
 ### 4.7b R2 – Analysis Strategy Package Split
 
-**Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence completed on 2026-09-07: reconciled R1 scope, exact migration inventory, and fresh managed gate (1,809 tests, 89% reported coverage, Ruff, formatting, strict mypy). Gate R2-A approved on 2026-09-07; R2-B verified with 1,765 tests, 89% coverage, and the complete managed gate. Gate R2-B approved and R2-C implemented/verified on 2026-09-07: 1,811 tests, 89% coverage, Ruff, formatting, strict mypy. Gate R2-C was approved and checkpointed at `fa6c2c9`; R2-D was authorized and verified on 2026-09-07 (1,811 tests, 89% coverage, complete managed gate). Gate R2-D review is pending; R2-E remains unauthorized. R1 is complete at pushed checkpoint `685221d832e431f3b310e9eccbc26982761f9960`, as confirmed by the project owner on 2026-09-06.
+**Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence completed on 2026-09-07: reconciled R1 scope, exact migration inventory, and fresh managed gate (1,809 tests, 89% reported coverage, Ruff, formatting, strict mypy). Gate R2-A approved on 2026-09-07; R2-B verified with 1,765 tests, 89% coverage, and the complete managed gate. Gate R2-B approved and R2-C implemented/verified on 2026-09-07: 1,811 tests, 89% coverage, Ruff, formatting, strict mypy. Gate R2-C was approved; R2-D was authorized and verified on 2026-09-07 (1,811 tests, 89% coverage, complete managed gate). Gate R2-D was approved. R2-E documentation reconciliation and final managed verification passed (1,811 tests, 89% reported coverage); Gate R2-E and final R2 approval were granted on 2026-09-07. R1 is complete and approved, as confirmed by the project owner on 2026-09-06.
 
-**Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence is complete in the [R2 migration inventory](r2/R2_MIGRATION_INVENTORY.md), accepted at Gate R2-A; R2-B, R2-C, and R2-D evidence is recorded in handoff sections 10–12. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
+**Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence is complete in the [R2 migration inventory](r2/R2_MIGRATION_INVENTORY.md), accepted at Gate R2-A; R2-B through R2-E evidence is recorded in handoff sections 10–13. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
 
 **Selected ordering:** R1 → R2 → Step 3.2 → Step 3.3 → P2-Profiles → Step 3.4 → Step 3.5. R2's placement is a scheduling choice, not a technical prerequisite. P2-ETF remains separately deferred beyond Step 3.5.
 
@@ -1675,7 +1675,7 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.1 SQLite + durable cache/data/telemetry
   ├─ R1 Graham analyzer split + shared CLI plumbing extraction
   │    (chosen sequencing before Phase H; no recognized technical dependency)
-  ├─ R2 analysis strategy package split (accepted; Gate R2-D review pending)
+  ├─ R2 analysis strategy package split (accepted; complete and approved on 2026-09-07)
   │    (independent slice gates; no production implementation authorized)
   ├─ 3.2 scope reconciliation + remaining typed repository work
   ├─ 3.3 data quality / invalidation
@@ -1787,9 +1787,9 @@ No later implementation is authorized by this approval.
    reviewed provider-mapping expansion is warranted.
 2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
    #27 and #28 respectively); no checkpoint or PR work remains for those steps.
-3. Gates R2-A, R2-B, and R2-C are approved; R2-D package migration is verified.
-   Review its bounded diff and passing managed gate (1,811 tests, 89% coverage)
-   at Gate R2-D before authorizing R2-E documentation reconciliation.
+3. Gates R2-A through R2-D are approved; R2-E documentation reconciliation is verified.
+   Review the final documentation diff, reference dispositions, and managed gate
+   at Gate R2-E before marking R2 complete.
 4. After R2 completion and separate authorization, reconcile Step 3.2 scope
    with Step 3.1, complete remaining repository work, then proceed through 3.3,
    P2-Profiles, 3.4, and 3.5 under their own planning/review gates.

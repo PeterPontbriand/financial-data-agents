@@ -1,9 +1,9 @@
 # R2 Contract and Implementation Handoff — Analysis Strategy Package Split
 
-**Status:** Gates R2-A, R2-B, and R2-C approved on 2026-09-07. R2-D implemented and verified; Gate R2-D stakeholder review pending. R2-E remains unstarted and separately gated.
+**Status:** R2 complete and approved on 2026-09-07. All gates, including final Gate R2-E, are approved.
 **Authority:** [Implementation Plan, R2](../IMPLEMENTATION_PLAN.md#47b-r2--analysis-strategy-package-split). This accepted record owns R2's detailed contracts and gates.
 **Baseline:** R1 is complete and approved. The project owner reports commit `685221d832e431f3b310e9eccbc26982761f9960` created and pushed. [R1 final approval](../r1/R1_CONTRACT_AND_SLICE_PLAN.md#11-final-approval-and-r1-completion) records 1,809 passing tests, 89% reported coverage, Ruff, formatting, and strict mypy. This is recorded evidence, not a fresh R2 verification run; a merge is not an additional prerequisite.
-**Approval effect:** Gate R2-C review is complete and R2-D execution was explicitly authorized from pushed checkpoint `fa6c2c9`. Stop for Gate R2-D review; R2-E requires separate authorization. No commit, push, PR, or later milestone implementation is implied.
+**Approval effect:** Final approval closes R2. Commit and PR text are requested as drafts; no commit, push, PR creation, or later milestone implementation is authorized by this closeout.
 
 ## 1. Scope and ordering
 
@@ -180,11 +180,11 @@ Update remaining active architecture/user/developer guidance from the approved i
 
 Require zero executable references and zero obsolete active guidance to old dotted or filesystem paths and removed symbols. Allow historical approvals, archived implementation evidence, and explicit old-to-new migration explanations; record exact retained files/reasons in the inventory. This document itself necessarily contains old names. A repository-wide zero-hit rule is not an acceptance criterion.
 
-- [ ] Active guidance, examples, exports, and the destination map agree.
-- [ ] Every reference-inventory entry is migrated, removed under approval, or explicitly retained with a reason.
-- [ ] Any newly discovered executable consumer is remediated under a reviewed R2-D scope amendment, not hidden in a documentation-only slice.
-- [ ] Final managed gate passes; test and coverage changes are reconciled under section 7.
-- [ ] Final actual diff and evidence receive Gate R2-E approval before R2 is marked complete. Later milestone work remains separately authorized.
+- [x] Active guidance, examples, exports, and the destination map agree.
+- [x] Every reference-inventory entry is migrated, removed under approval, or explicitly retained with a reason.
+- [x] Any newly discovered executable consumer is remediated under a reviewed R2-D scope amendment, not hidden in a documentation-only slice.
+- [x] Final managed gate passes; test and coverage changes are reconciled under section 7.
+- [x] Final actual diff and evidence receive Gate R2-E approval before R2 is marked complete. Later milestone work remains separately authorized.
 
 ## 7. Write boundaries and verification
 
@@ -272,3 +272,17 @@ The final managed gate passed Ruff, formatting (282 files), strict mypy (222 sou
 All existing test functions and the 1,811-case total are retained; no test files or behavioral cases were removed. Existing resolver, analyzer, CLI builder/provider-routing, and dependency fixtures now exercise the method-specific wiring. Source AST comparison confirms both pure Graham calculators and all Momentum/FCF non-import code are unchanged. The first post-migration gate exposed two stale CLI builder mock expectations; they now require the Growth resolver explicitly, preserving all provider assertions. A subsequent formatting check caught mixed line endings in that test edit; normalization and the final full gate resolved it.
 
 The executable source/test reference audit has zero old package paths or `GrahamInputResolver` references. Test fixture namespaces remain intentionally unchanged. Diff scope and whitespace checks passed. Active architecture/discovery directory-tree reconciliation remains R2-E work. R2-D is ready for stakeholder review; Gate R2-D is not yet approved and R2-E remains unauthorized/unstarted. No commit, push, PR, dependency change, live provider/model call, or user-data migration was performed.
+
+## 13. Gate R2-D approval and R2-E final reconciliation
+
+The project owner approved Gate R2-D, pushed checkpoint `9e42867d1fb1dc4ebdbc8daa4559640c5cdda6f3`, and explicitly authorized R2-E. Execution started from that clean revision on 2026-09-07. Updated the six inventoried documentation/planning files, including the additional active resolver references reconciled before edits in inventory section 13. Final reference dispositions are recorded in inventory section 14. Active package trees, resolver terminology, dependency ownership, exports, and shared caller-message policy agree with the implementation. Historical design/approval evidence remains intact.
+
+Fresh baseline: Ruff, formatting (282 files), strict mypy (222 source files), and 1,811 tests passed in 27.90 seconds. Artifacts: `.tmp/quality-runs/20260907111845372-25472-5e96817a79544456851e744b5811db07/`.
+
+Final managed gate: Ruff, formatting (282 files), strict mypy (222 source files), and 1,811 tests passed in 26.14 seconds. Artifacts: `.tmp/quality-runs/20260907112056976-33320-b8dad7a8f5754c63b8ef2449f6e2f866/`. Both runs report 89% combined coverage: 9,376 statements, 776 missing, 8,600 covered (approximately 91.7% statement coverage), 2,964 branches, 497 partial branches. R2-E changes no source/tests, so its test count and coverage are unchanged. Across R2, the initial 1,809 cases minus 44 explicitly retired cases plus 46 shared-helper/applicability cases equals the final 1,811. R2-B/C/D sections preserve the per-slice denominator and retained-coverage reconciliation; no behavioral case loss is unexplained.
+
+Final diff/whitespace and old-reference checks passed. No production, test, dependency, persisted-data, or runtime-contract changes are included in R2-E. No commit, push, PR, live provider/model call, or later milestone execution occurred. R2-E is ready for stakeholder review; final Gate R2-E approval is still required before R2 is marked complete. Later milestone work remains separately authorized.
+
+## 14. Final approval and R2 completion
+
+On 2026-09-07 the project owner granted final approval for R2. Gate R2-E is approved and R2 is complete. The reviewed documentation reconciliation, reference dispositions, and final managed gate in section 13 are accepted: 1,811 passing tests, Ruff, formatting, strict mypy, and 89% reported coverage. Earlier pending-gate entries remain historical snapshots superseded by this approval. Commit SHAs remain in slice evidence; master and milestone plans retain status and evidence links without SHAs. Later milestone work requires separate authorization.

@@ -1,7 +1,7 @@
 # R2 migration inventory and R2-A checkpoint evidence
 
 **Prepared:** 2026-09-07. **Source revision:** `fb1821965a846b61417bb22e905385aae9ca64c9` (clean working tree before this documentation work).
-**Current status:** Gates R2-A/R2-B/R2-C approved; R2-D implemented and verified from checkpoint `fa6c2c9`, awaiting Gate R2-D review. Sections 1–8 preserve the original R2-A inventory/evidence; sections 9–12 record subsequent dispositions. R2-E remains unstarted.
+**Current status:** R2 complete and approved on 2026-09-07, including final Gate R2-E. Earlier sections preserve chronological evidence; final approval in handoff section 14 supersedes pending-gate snapshots.
 **Contract:** [R2 handoff](R2_CONTRACT_AND_SLICE_PLAN.md). Inventory entries authorize no execution independently of its slice gates. Refresh the audit against the actual starting revision before each slice; reconcile new necessary files before editing.
 
 ## 1. Discovery and scope
@@ -239,3 +239,21 @@ The clean pushed checkpoint is `fa6c2c9addbda4c36c1dd133f1b404eb00f4e9b6`. R2-D 
 All section 5 production package/consumer migrations are complete within the refreshed scope. The old Graham, Momentum, and FCF source directories are removed; every new strategy package is importable. Existing test locations and fixture namespaces remain unchanged. `tests/analysis/graham_value/test_security_unit_compatibility.py` needed no further edit because R2-C already migrated its only affected import; all other inventoried affected test consumers were updated. No executable documentation/configuration consumer was discovered. Section 6 active architecture/discovery tree updates remain pending R2-E.
 
 The complete managed gate passed 1,811 tests, Ruff/formatting, and strict mypy at 89% reported coverage. See [handoff section 12](R2_CONTRACT_AND_SLICE_PLAN.md#12-gate-r2-c-approval-and-r2-d-implementation-evidence) for final artifact paths, retained-case audit, exact coverage reconciliation, and scope review. Gates R2-A/R2-B/R2-C are approved; R2-D implementation is verified and awaits Gate R2-D review. R2-E is not authorized.
+
+## 13. R2-E refreshed scope (2026-09-07)
+
+Gate R2-D is approved and R2-E is explicitly authorized from clean pushed checkpoint `9e42867d1fb1dc4ebdbc8daa4559640c5cdda6f3`. Refreshing section 6 found additional obsolete active references within its already inventoried documents: ARCHITECTURE section 3 input-resolution heading and section 6 data-flow diagram, plus DISCOVERY_WORKBOOK section 8 flow diagram and section 24 glossary entry. These need the two method-resolver names in addition to the directory-tree updates. This documentation scope reconciliation precedes those edits; no executable consumer was discovered.
+
+Additional retained historical reference: `docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`, section 9.2, records the original combined resolver design. Retain its original wording as historical implementation evidence, like the other completed milestone designs in section 7; current resolver ownership is defined by the active architecture and R2 handoff. No new file outside the six inventoried active/planning documents requires editing.
+
+## 14. Final reference and scope disposition
+
+All active documentation entries in section 6 and the section 13 additions are reconciled. Architecture and discovery now match the implemented strategy directories and method-specific resolver ownership. Package exports and source paths were checked against the actual files; the combined resolver and old source directories are absent. The executable source/test/script/configuration sweep found no old dotted paths, filesystem paths, or retired symbols. No production/test repair or R2-D scope amendment is required.
+
+Remaining old-name references occur only in the eight historical/migration files classified in section 7 and the original Graham design added in section 13. These are retained as historical evidence or explicit migration instructions, not active import guidance. Existing `tests.analysis.graham_value` fixture imports and stable serialized strategy/tool identifiers are preserved. Historical gate snapshots in this record remain chronological evidence; the current-status header and final disposition supersede their pending-gate wording.
+
+Only six files changed in R2-E: ARCHITECTURE, DISCOVERY_WORKBOOK, MASTER_PLAN, the v0.2 IMPLEMENTATION_PLAN, this inventory, and the R2 handoff. The full baseline and final managed gates passed with unchanged test counts and coverage. See handoff section 13 for exact artifacts and reconciliation. Gate R2-E review remains pending; R2 is not yet marked complete.
+
+## 15. Final approval
+
+Final R2 approval was granted on 2026-09-07. All reference dispositions and verification evidence are accepted; Gate R2-E is closed and R2 is complete. See [handoff section 14](R2_CONTRACT_AND_SLICE_PLAN.md#14-final-approval-and-r2-completion).
