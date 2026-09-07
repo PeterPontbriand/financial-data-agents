@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from src.analysis.graham_value.models import GrahamMethod
+from src.analysis.shared.financial_resolution import resolve_normalized_eps, resolve_optional_quote
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -133,7 +134,8 @@ class GrahamInputResolver(InputResolver):
                 ),
             )
 
-        eps_result = self._resolve_eps(
+        eps_result = resolve_normalized_eps(
+            self,
             security_subject_id=security_subject_id,
             security_provider_id=security_provider_id,
             eps_basis=eps_basis,
@@ -170,7 +172,8 @@ class GrahamInputResolver(InputResolver):
         assert bvps_input is not None
         bvps_input = _with_semantic_bvps_basis(bvps_input)
 
-        quote_result = self._resolve_optional_quote(
+        quote_result = resolve_optional_quote(
+            self,
             security_subject_id=security_subject_id,
             security_provider_id=quote_provider_id or security_provider_id,
             quote_override=quote_override,
@@ -234,7 +237,8 @@ class GrahamInputResolver(InputResolver):
                 ),
             )
 
-        eps_result = self._resolve_eps(
+        eps_result = resolve_normalized_eps(
+            self,
             security_subject_id=security_subject_id,
             security_provider_id=security_provider_id,
             eps_basis=eps_basis,
@@ -281,7 +285,8 @@ class GrahamInputResolver(InputResolver):
             )
         aaa_input = aaa_result.resolved_input
 
-        quote_result = self._resolve_optional_quote(
+        quote_result = resolve_optional_quote(
+            self,
             security_subject_id=security_subject_id,
             security_provider_id=quote_provider_id or security_provider_id,
             quote_override=quote_override,
@@ -317,58 +322,6 @@ class GrahamInputResolver(InputResolver):
             current_price=quote_result.resolved_input,
             resolution_trace=trace,
         )
-
-    def _resolve_eps(  # noqa: PLR0913
-        self,
-        *,
-        security_subject_id: str,
-        security_provider_id: str,
-        eps_basis: str,
-        eps_override: float | None,
-        as_of: datetime | None,
-        use_cache: bool,
-    ) -> InputResolutionResult:
-        """Resolve EPS using the appropriate C2C entry point.
-
-        Delegates to ``resolve_three_year_average_eps`` for the
-        ``three_year_average`` basis, or the single-fact ``resolve`` for
-        ``ttm`` and any other single-observation basis.  An explicit
-        override always bypasses cache/provider.
-        """
-        if eps_override is not None:
-            # Override bypasses cache/provider; retain the selected basis.
-            request = FinancialFactRequest(
-                subject_kind=FinancialSubjectKind.SECURITY,
-                subject_id=security_subject_id,
-                field_name=FinancialField.EPS,
-                provider_id=security_provider_id,
-                basis=eps_basis,
-                as_of=as_of,
-            )
-            return self.resolve(request, override=eps_override, use_cache=use_cache)
-
-        if eps_basis == "three_year_average":
-            request = FinancialFactRequest(
-                subject_kind=FinancialSubjectKind.SECURITY,
-                subject_id=security_subject_id,
-                field_name=FinancialField.EPS,
-                provider_id=security_provider_id,
-                basis="fiscal_year",
-                as_of=as_of,
-                observation_count=3,
-            )
-            return self.resolve_three_year_average_eps(request, use_cache=use_cache)
-
-        # Single-observation basis (ttm, etc.)
-        request = FinancialFactRequest(
-            subject_kind=FinancialSubjectKind.SECURITY,
-            subject_id=security_subject_id,
-            field_name=FinancialField.EPS,
-            provider_id=security_provider_id,
-            basis=eps_basis,
-            as_of=as_of,
-        )
-        return self.resolve(request, use_cache=use_cache)
 
     def _resolve_expected_growth(self, value: float | None, *, as_of: datetime | None = None) -> InputResolutionResult:
         """Validate and construct an OVERRIDE ResolvedInput for expected growth."""
@@ -415,35 +368,6 @@ class GrahamInputResolver(InputResolver):
                 "Explicit expected-growth assumption was accepted.",
             ),
         )
-
-    def _resolve_optional_quote(
-        self,
-        *,
-        security_subject_id: str,
-        security_provider_id: str,
-        quote_override: float | None,
-        as_of: datetime | None,
-        use_cache: bool,
-    ) -> InputResolutionResult:
-        """Resolve the optional current price.
-
-        This method is only called after all required inputs succeed.
-        Returns an ``InputResolutionResult`` whose status determines the
-        caller's behavior:
-            - OK: include the resolved input.
-            - INPUT_UNAVAILABLE / PROVIDER_ERROR: non-fatal degradation.
-            - INVALID_INPUT: fatal — fail the assembly.
-
-        Note: this method is only called after all required inputs succeed.
-        """
-        request = FinancialFactRequest(
-            subject_kind=FinancialSubjectKind.SECURITY,
-            subject_id=security_subject_id,
-            field_name=FinancialField.CURRENT_PRICE,
-            provider_id=security_provider_id,
-            as_of=as_of,
-        )
-        return self.resolve(request, override=quote_override, use_cache=use_cache)
 
 
 def _with_semantic_bvps_basis(value: ResolvedInput) -> ResolvedInput:
