@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; revised R1 contracts, review slices, and approved CLI-removal policy; retained pre–Step 3.4 placement as a sequencing choice; recorded all R1 gate approvals and R1 completion after the passing final quality gate.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved; subsequent work remains unstarted
+**Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved at pushed checkpoint 685221d; R2 plan/resolver design and retirements accepted, R2-A evidence preparation in progress; subsequent implementation remains unstarted
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -20,6 +20,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
+- R2 – Analysis Strategy Package Split (accepted plan after R1; R2-A evidence pending; before Step 3.2)
 - Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
 
 **Out of scope (explicit)**
@@ -1489,6 +1490,33 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 - [x] `GrahamInputResolver` and shared `service.py` helpers remain unmodified.
 - [x] Complete managed repository gates (Ruff, formatting, strict mypy, pytest/coverage) pass for implementation slices, followed by their explicit stakeholder review gates.
 
+### 4.7b R2 – Analysis Strategy Package Split
+
+**Status:** Plan accepted on 2026-09-06, including the separate-resolver design and explicit retirement approval. R2-A evidence remains outstanding; R2-B execution awaits Gate R2-A review. R1 is complete at pushed checkpoint `685221d832e431f3b310e9eccbc26982761f9960`, as confirmed by the project owner on 2026-09-06.
+
+**Contract:** [R2 Contract and Implementation Handoff](r2/R2_CONTRACT_AND_SLICE_PLAN.md) defines the proposed symbol destinations, dependency migration, file boundaries, verification, and approval record. Sections 9.1/9.2 are accepted; section 9.3 evidence must be completed before Gate R2-A. Historical R1 preservation requirements remain the record of R1's approved scope; only explicit R2 authorization supersedes the specific interfaces named for removal.
+
+**Selected ordering:** R1 → R2 → Step 3.2 → Step 3.3 → P2-Profiles → Step 3.4 → Step 3.5. R2's placement is a scheduling choice, not a technical prerequisite. P2-ETF remains separately deferred beyond Step 3.5.
+
+**Slices and approval boundaries**
+
+1. **R2-A — documentation checkpoint:** reconcile the R1 checkpoint, record a fresh managed baseline and exact migration inventory, freeze resolver/symbol contracts, and review compatibility/deletion decisions. Plan/resolver and retirement decisions are approved; complete section 9.3 evidence for Gate R2-A review before R2-B execution. Do not request the retirement decision again.
+2. **R2-B — legacy retirement:** delete the unused legacy Graham wrapper and dedicated tests after explicit approval. Reconcile removed cases and pass the managed gate; stop for review before R2-C.
+3. **R2-C — shared helper extraction:** update both Graham resolver and service consumers, and adopt the equivalent profile/ticker and affirmative-ETF checks in FCF Growth, without relocating existing files. Strategy callers own their complete messages and native results. Preserve current financial/provenance/quote semantics and add focused direct and FCF applicability tests; pass the managed gate and stop before R2-D.
+4. **R2-D — decomposition and atomic migration:** introduce method packages, perform the approved resolver dependency change, relocate Momentum/FCF, and migrate all executable consumers, exports, construction sites, and tests together. No broken imports may be deferred to R2-E. Pass the managed gate and stop for review.
+5. **R2-E — documentation and final reconciliation:** synchronize remaining active guidance, classify legitimate historical/migration references, reconcile test/coverage changes, and run the final managed gate. Explicit Gate R2-E approval completes R2; later work requires separate authorization.
+
+The existing-strategy review in R2's contract found two equivalent FCF helper consumers and no justified Momentum adoption of the proposed financial-resolution helpers. R2-D relocates all Momentum source (`__init__.py`, `momentum_analyzer.py`) and FCF source (`__init__.py`, `analyzer.py`, `input_resolver.py`, `calculators.py`, `models.py`) into `src/analysis/strategy/`, retaining their filenames and package interfaces at the new paths. Momentum historical prices and FCF annual-series resolution remain distinct from Graham scalar EPS/quote resolution; no new applicability rule, data fetch, or financial algorithm is introduced.
+
+**Preservation and acceptance**
+
+- [ ] Approved inventory and symbol/dependency map account for all consumers and intentional public-interface changes.
+- [ ] Each implementation slice passes the managed repository gate and receives its separate diff/evidence review.
+- [ ] Financial math, provenance/traces, clocks, request scope, cache/resource ownership, tool identifiers, serialized results, and CLI behavior remain unchanged.
+- [ ] Momentum/FCF retain heterogeneous interfaces; no new inheritance, discovery, registration, persistence, or dependency work is introduced.
+- [ ] All surviving behavioral tests remain covered; authorized legacy-test deletion and coverage-denominator changes are explicitly reconciled.
+- [ ] Old executable references and obsolete active guidance are removed; historical approvals and migration explanations are preserved with recorded reasons.
+
 ### 4.8 Step 3.2 – DAO & Repository Layer
 
 **Goal**<br/>
@@ -1647,6 +1675,8 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.1 SQLite + durable cache/data/telemetry
   ├─ R1 Graham analyzer split + shared CLI plumbing extraction
   │    (chosen sequencing before Phase H; no recognized technical dependency)
+  ├─ R2 analysis strategy package split (accepted; R2-A evidence pending)
+  │    (independent slice gates; no production implementation authorized)
   ├─ 3.2 scope reconciliation + remaining typed repository work
   ├─ 3.3 data quality / invalidation
   └─ P2-Profiles durable instrument profiles (no ETF aggregation)
@@ -1757,9 +1787,11 @@ No later implementation is authorized by this approval.
    reviewed provider-mapping expansion is warranted.
 2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
    #27 and #28 respectively); no checkpoint or PR work remains for those steps.
-3. Prepare the approved R1-C completion checkpoint. Gates R1-A, R1-B, and
-   R1-C are closed; R1 is complete. Commit/push remains a separate action.
-4. After R1 completion and separate authorization, reconcile Step 3.2 scope
+3. R1 checkpoint `685221d832e431f3b310e9eccbc26982761f9960` is created and
+   pushed, as confirmed by the project owner. Complete the accepted R2 plan's section 9.3 evidence and
+   complete its documentation-only R2-A prerequisites; no R2 implementation
+   or deletion starts before explicit authorization.
+4. After R2 completion and separate authorization, reconcile Step 3.2 scope
    with Step 3.1, complete remaining repository work, then proceed through 3.3,
    P2-Profiles, 3.4, and 3.5 under their own planning/review gates.
 5. Reconsider P2-ETF only after 3.5 when prioritized; retain its independent
