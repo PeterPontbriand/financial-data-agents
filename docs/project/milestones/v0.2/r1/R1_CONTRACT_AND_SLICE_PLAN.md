@@ -1,10 +1,10 @@
 # R1 Contract and Implementation Handoff
 
-**Status:** Gate R1-A approved on 2026-09-06; documentation checkpoint committed as b7625fd before implementation. R1-B implemented and verified; Gate R1-B approved on 2026-09-06. R1-C authorized and in progress.
+**Status:** Gates R1-A and R1-B approved on 2026-09-06; documentation checkpoint b7625fd preceded R1-B checkpoint 36b8dbf. Gate R1-C approved on 2026-09-06; R1 complete and approved.
 **Authority:** [Implementation Plan, R1](../IMPLEMENTATION_PLAN.md).
 **Approval effect:** Approval of this record and the amended implementation plan
-closes Gate R1-A and authorizes R1-B immediately. It does not authorize R1-C or
-any later work. Stop for review after R1-B's complete quality gate.
+closed Gate R1-A and authorized R1-B. Subsequent Gate R1-B approval authorized
+R1-C. Gate R1-C approval on 2026-09-06 closes R1; no later work is authorized.
 
 ## 1. Scope and ordering
 
@@ -175,8 +175,8 @@ is included in this authorization.
 
 On 2026-09-06, the project owner approved this handoff and authorized R1-B.
 The subsequent instruction requires a checkpoint commit of all pending planning
-documentation changes before any R1-B implementation edits. Gate R1-C remains
-unauthorized pending completion and stakeholder approval of Gate R1-B.
+documentation changes before any R1-B implementation edits. At that time R1-C
+remained unauthorized pending Gate R1-B; the subsequent approval is recorded below.
 
 Pre-implementation checkpoint verification passed on 2026-09-06: Ruff,
 formatting, strict mypy, and the full deterministic pytest/coverage suite.
@@ -218,7 +218,7 @@ remain separately gated.
 ## 9. R1-C authorization and affected-file inventory
 
 The project owner approved Gate R1-B and authorized R1-C on 2026-09-06.
-Approved R1-B changes remain uncommitted and will be preserved.
+A checkpoint commit containing the approved R1-B changes has been created and pushed.
 
 Production edits: src/cli.py and new src/cli_support.py only.
 Affected existing tests identified from imports, patch targets, and invocations:
@@ -240,3 +240,55 @@ docs/user/QUICKSTART.md, docs/user/INSTALLATION.md, docs/user/SMOKE_TESTING.md,
 docs/user/strategies/GRAHAM.md, and docs/user/GLOSSARY.md.
 No command or entry-point changes were found in .claude/ or .github/.
 Historical milestone command evidence remains unchanged.
+
+## 10. R1-C implementation evidence
+
+On 2026-09-06 the project owner authorized Codex to replace the unfinished
+Cline implementation and approved a targeted rollback. Before rollback, the
+affected CLI and scratch files were copied to
+`.tmp/r1-c-recovery-20260906194623/`. The approved CLI baseline was restored
+from `36b8dbf`; R1-B analyzer/config code and unrelated R2 planning were preserved.
+No dependencies, database schema, services, or orchestration code changed.
+
+The restored full managed baseline passed 1,750 tests at 89% reported coverage:
+`.tmp/quality-runs/20260906194623719-44816-09021b39ea3741689294087b03c2bd44/`.
+
+The two replacement commands construct the approved typed configs before
+resource creation and call their corresponding analyzer. Removed the combined
+command, method selector, `GrahamCliMethod`, and duplicated config validation.
+Extracted ticker/presentation/date/provider parsing and both cache context
+managers to `src/cli_support.py`. Shared exception mechanics retain explicit
+command messages, intentional usage exits, typed statuses, and stream selection.
+Updated the enumerated active guides and published the invocation migration table.
+
+The existing test inventory was migrated without dropping test functions.
+New regressions cover removed invocations, applicable help/options, short aliases,
+normalized configs, both analyzers in every presentation mode, validation before
+resource construction, exception cleanup, non-finite inputs, and ticker diagnostics.
+Financial-cache reuse and bypass now exercise both Graham commands as well as FCF
+Growth. Non-finite explicit quotes retain the existing `invalid_input` result;
+unavailable provider quotes retain their existing optional-quote behavior.
+
+Planning evidence also updates `../IMPLEMENTATION_PLAN.md` to reflect Gate R1-B
+approval and the pending Gate R1-C review. This is status synchronization only.
+
+Final managed gate passed on 2026-09-06: Ruff, formatting, strict mypy, and
+1,809 deterministic tests (59 more than the restored baseline), with 89%
+reported coverage. Artifacts:
+`.tmp/quality-runs/20260906195900845-46700-7d90a4b6397e4f00abc9c6a5ea5f5b15/`.
+The final diff and active command references were reviewed; `git diff --check`
+passed. No live provider/model calls, commit, push, or PR were performed.
+Ready for Gate R1-C stakeholder review; R1 is not marked complete and no later
+implementation has been started by this work.
+
+## 11. Final approval and R1 completion
+
+On 2026-09-06, the project owner reviewed and explicitly approved the R1-C
+implementation. This closes Gate R1-C and completes R1, including all three
+review gates and the acceptance criteria in the implementation plan. The final
+verification evidence in section 10 remains authoritative: 1,809 passing tests,
+89% reported coverage, Ruff, formatting, and strict mypy.
+
+The approval supersedes the historical pending-review status above. This update
+records completion only; no commit, push, PR, or subsequent implementation is
+authorized or performed by this record.

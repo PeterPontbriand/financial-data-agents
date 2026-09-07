@@ -23,10 +23,8 @@ def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> No
         result = runner.invoke(
             app,
             [
-                "graham",
+                "graham-growth",
                 SECURITY_ID,
-                "--method",
-                "growth",
                 "--data-provider",
                 PROVIDER_ID,
                 "--eps",

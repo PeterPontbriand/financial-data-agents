@@ -6,8 +6,8 @@
 **Source of truth:** Current `docs/project/MASTER_PLAN.md` (Milestone v0.2 section)<br/>
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
-**Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; revised R1 contracts, review slices, and approved CLI-removal policy; retained pre–Step 3.4 placement as a sequencing choice; recorded Gate R1-A approval and the required documentation checkpoint before R1-B.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B implemented and verified after checkpoint b7625fd; Gate R1-B review pending; R1-C unstarted; subsequent work remains unstarted
+**Revised:** 2026-09-06 — Recorded Slice G/Gate G approval and Step 3.1 completion; revised R1 contracts, review slices, and approved CLI-removal policy; retained pre–Step 3.4 placement as a sequencing choice; recorded all R1 gate approvals and R1 completion after the passing final quality gate.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved; subsequent work remains unstarted
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1424,7 +1424,7 @@ speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
 
 ### 4.7B R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (Pre–Step 3.4)
 
-**Status:** Gate R1-A approved on 2026-09-06; R1-B implemented and verified after checkpoint b7625fd; Gate R1-B stakeholder review pending. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. The handoff approval closes Gate R1-A; Gate R1-B remains required before R1-C.
+**Status:** Gate R1-A approved on 2026-09-06; R1-B approved and checkpointed as 36b8dbf after documentation checkpoint b7625fd; R1-C approved on 2026-09-06; R1 complete and approved. R1 remains scheduled ahead of Step 3.4 by explicit sequencing choice, not because of a recognized technical dependency. It does not require P2, Step 3.2, or Step 3.3 to begin or complete first. Gates R1-A, R1-B, and R1-C are approved. Later work requires separate authorization.
 
 **Rationale:** The Graham methods already have distinct assembly types, result types, calculators, and execution services. Thin method-specific analyzers and configuration models can expose those existing boundaries more clearly to callers. The shared CLI helper functions already have single implementations; the repeated work is their invocation and command orchestration, not duplicate implementations of those helpers. Extracting applicable support functions can reduce the responsibilities of `cli.py` without imposing identical command flows.
 
@@ -1461,7 +1461,7 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 2. Add separate Pydantic configuration models with `extra="forbid"`. Reject fields belonging to the other method, preserve provider-dependent EPS defaults and normalization, and reject every invalid combination currently rejected by `_validate_graham_options`. Defaults are part of the contract, not merely validation details.
 3. Keep `GrahamInputResolver` and shared service helpers unchanged. Preserve numerical validation, provenance, applicability, typed result schemas, and the legacy public analyzer interfaces.
 4. Add direct tests for each analyzer/config contract using injected deterministic dependencies, including full typed execution evidence and invalid/default option matrices. Existing CLI and orchestration paths remain intact in this slice.
-- **Gate R1-B:** Complete the managed repository quality gate and obtain stakeholder review before R1-C.
+- **Gate R1-B:** Approved on 2026-09-06 after the managed repository quality gate; checkpoint 36b8dbf.
 
 **R1-C — CLI separation, support extraction, and migration**
 1. Replace the old Graham command with the reviewed direct commands. CLI execution uses the new analyzers' `run_analysis` methods; presentation continues consuming the same typed service results. Remove `_validate_graham_options` and `GrahamCliMethod` after the replacement validation paths are in place.
@@ -1469,7 +1469,7 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 3. Each command reuses only applicable helpers. Preserve existing options, defaults, provider selection, and resource lifetimes. In particular, do not add a Momentum CLI `--as-of` option or force historical and financial caching through an identical flow as part of extraction.
 4. Share error-handling mechanics only where equivalent, allowing command-specific messages. Translate config validation failures into usage errors (exit 2), preserve execution failures (exit 1), successful/typed-result status mappings, stdout/stderr selection, and `--details`/`--diagnostics`/`--json` behavior. Intentional Typer exits must propagate without being caught and relabeled as execution failures. Do not expose raw Pydantic diagnostics in place of existing investor-facing messages.
 5. Update active documentation, help, command examples, and regression tests together. Test that removed invocations are rejected and replacement invocations preserve their intended results. Tests no longer construct `GrahamCliMethod`; retain coverage of every prior validation rule rather than deleting incompatible tests wholesale.
-- **Gate R1-C:** The project owner reviews the command migration, regression evidence, and complete managed repository gate before R1 is marked complete. No subsequent work starts automatically.
+- **Gate R1-C:** Approved by the project owner on 2026-09-06 after review of the command migration and passing managed gate: 1,809 tests, 89% coverage, Ruff, formatting, and strict mypy. R1 is complete. No subsequent work starts automatically.
 
 **Non-goals**
 - No self-registering per-package Typer sub-apps, `register(app)` convention, or analysis-package auto-discovery. These registration/discovery features are explicitly deferred under item 7 below.
@@ -1479,15 +1479,15 @@ planning-only step is required. R1-C still requires Gate R1-B approval.
 - No database migration or changes to persistence internals.
 
 **Acceptance criteria**
-- [ ] Both new analyzers expose the reviewed config schema, typed return value, and borrowed-dependency contract; delegate to unchanged execution services; and are exercised independently.
-- [ ] Configs forbid extra fields and preserve the complete validation/default/provider matrix, including rejected cross-method fields and provider-dependent EPS defaults.
-- [ ] The legacy public analyzer/config interfaces and existing orchestration tool contracts retain their behavior.
-- [ ] The approved old CLI surface is removed; new commands, help, active documentation, and an explicit invocation migration mapping agree.
-- [ ] Outputs, exit codes (including usage errors), streams, typed-status handling, presentation modes, and intentional Typer exits are regression-tested.
-- [ ] Shared helpers live in `src/cli_support.py`; each command uses applicable helpers without new options, duplicate helper implementations, or resource-lifetime changes.
-- [ ] `_validate_graham_options` and `GrahamCliMethod` are removed; their behavioral coverage is retained through the replacement paths.
-- [ ] `GrahamInputResolver` and shared `service.py` helpers remain unmodified.
-- [ ] Complete managed repository gates (Ruff, formatting, strict mypy, pytest/coverage) pass for implementation slices, followed by their explicit stakeholder review gates.
+- [x] Both new analyzers expose the reviewed config schema, typed return value, and borrowed-dependency contract; delegate to unchanged execution services; and are exercised independently.
+- [x] Configs forbid extra fields and preserve the complete validation/default/provider matrix, including rejected cross-method fields and provider-dependent EPS defaults.
+- [x] The legacy public analyzer/config interfaces and existing orchestration tool contracts retain their behavior.
+- [x] The approved old CLI surface is removed; new commands, help, active documentation, and an explicit invocation migration mapping agree.
+- [x] Outputs, exit codes (including usage errors), streams, typed-status handling, presentation modes, and intentional Typer exits are regression-tested.
+- [x] Shared helpers live in `src/cli_support.py`; each command uses applicable helpers without new options, duplicate helper implementations, or resource-lifetime changes.
+- [x] `_validate_graham_options` and `GrahamCliMethod` are removed; their behavioral coverage is retained through the replacement paths.
+- [x] `GrahamInputResolver` and shared `service.py` helpers remain unmodified.
+- [x] Complete managed repository gates (Ruff, formatting, strict mypy, pytest/coverage) pass for implementation slices, followed by their explicit stakeholder review gates.
 
 ### 4.8 Step 3.2 – DAO & Repository Layer
 
@@ -1748,17 +1748,17 @@ All of the following must be true before declaring the milestone complete and op
 
 Steps 2.3 through 2.6 and Step 3.1 are complete and approved. Slice G and Gate G
 were approved on 2026-09-06. R1 (Graham analyzer separation and shared CLI
-plumbing extraction) has passed Gate R1-A; R1-B is implemented and verified after documentation checkpoint b7625fd; Gate R1-B review is pending. No other
-subsequent planning step has been started.
+plumbing extraction) is complete and approved. Gate R1-C was approved on
+2026-09-06 after the final managed quality gate; see the R1 handoff for evidence.
+No later implementation is authorized by this approval.
 
 1. Preserve classified unavailability so later representative live validation
    can measure the useful-result ratio and identify whether a separately
    reviewed provider-mapping expansion is warranted.
 2. Step 2.6 and Step 3.1 implementation/PR workflows are complete (merged PRs
    #27 and #28 respectively); no checkpoint or PR work remains for those steps.
-3. Review the completed R1-B implementation and verification record.
-   Documentation checkpoint b7625fd preceded implementation. Stop for Gate R1-B
-   before R1-C; no later step starts automatically.
+3. Prepare the approved R1-C completion checkpoint. Gates R1-A, R1-B, and
+   R1-C are closed; R1 is complete. Commit/push remains a separate action.
 4. After R1 completion and separate authorization, reconcile Step 3.2 scope
    with Step 3.1, complete remaining repository work, then proceed through 3.3,
    P2-Profiles, 3.4, and 3.5 under their own planning/review gates.
