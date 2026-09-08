@@ -110,32 +110,4 @@ Local draft only; not posted. Use after final acceptance and merge, with the act
 >
 > Verification: 35 focused tests and the complete managed gate passed, including 1,870 tests, 89% reported coverage, Ruff, formatting, and strict mypy.
 
-## 8. Recommended commit and PR particulars
-
-Recommendations only; no Git or GitHub mutation is authorized by the request for particulars.
-
-**Branch:** `codex/issue-17-telemetry-closeout`, based on updated `main`. GitHub confirms that [PR #30](https://github.com/PeterPontbriand/financial-data-agents/pull/30) merged Step 3.2 as `f3ef25701cac3fbee3a2caa295f102f4d389d51b` on 2026-09-08 at 00:11 UTC (2026-09-07 in America/Toronto). The local checkout is still `docs/step-3.2-repositories` at `d07a709`. Preserve the pending closeout changes when moving them onto updated `main`; verify the resulting PR contains only this closeout, not Step 3.2's already-merged commits. No branch switch, fetch, or change transfer has been performed here.
-
-**Commit title:** `test(telemetry): complete recovery and payload hash coverage (#17)`
-
-**Commit scope:** One cohesive commit containing the two changed test files, this closeout record, synchronized milestone/master-plan approval and Step 3.3 authorization, and the corrected Step 3.2 publication status. Exclude ignored test artifacts and the existing unrelated `.github/.pr_draft.md` for Step 3.2. Re-run the managed gate if transferring changes to updated `main` changes the tested source tree.
-
-**PR title:** `test(telemetry): verify recovery trajectories and sanitized payload hashes`
-
-**Base:** `main`. Recommend a ready-for-review PR and squash merge after GitHub checks and repository review requirements pass; local final acceptance does not replace those checks.
-
-### Proposed PR body
-
-Recovery events and payload hashing were already implemented, but their regression coverage did not fully establish ordering, causal linkage, redaction, or failure isolation. This change adds 17 collected test cases and strengthens existing tests to verify transport and native/prompt schema recovery, retry boundaries, fail-open sink writes, and canonical hashes of sanitized retained payloads. Production code is unchanged.
-
-The accepted context contract keeps detailed sanitized errors in preceding span-linked `ERROR` events; recovery events carry failure category and attempt metadata. Planning records capture final approval and authorization to begin Step 3.3.
-
-Validation: 35 focused tests passed. The complete managed gate passed 1,870 tests with 89% reported coverage, clean Ruff/formatting, and strict mypy. No tests were removed; no dependencies or migrations changed.
-
-Closes #17.
-
-### Optional PR comment
-
-A separate comment is useful only to preserve the stakeholder acceptance record on GitHub; the PR body already explains the technical change. Suggested text, not posted:
-
-> Final stakeholder review approved this closeout on 2026-09-07, including the linked-error-context interpretation and the full verification evidence. Step 3.3 is authorized to begin. Issue #17 should close when this accepted change merges; approval here does not assert that the PR is already merged.
+Final stakeholder review approved this closeout on 2026-09-07, including the linked-error-context interpretation and the full verification evidence. Step 3.3 is authorized to begin. Issue #17 should close when this accepted change merges; approval here does not assert that the PR is already merged.
