@@ -1,12 +1,12 @@
 # Step 3.2 Contract and Slice Plan — DAO & Repository Layer
 
-**Status:** Gate 3.2-A approved and Slice 3.2-B explicitly authorized on 2026-09-07. Production implementation remains unstarted pending the documents-only checkpoint.
+**Status:** Step 3.2 complete and approved on 2026-09-07. All Gates 3.2-A/B/C/D are closed; implementation commit/PR workflow remains outstanding.
 
 **Authority:** [Implementation Plan, Step 3.2](../IMPLEMENTATION_PLAN.md#48-step-32--dao--repository-layer) owns scope, sequencing, and acceptance criteria. This companion supplies the concrete handoff. If they conflict, amend this handoff to match the Implementation Plan before execution.
 
 **Predecessors:** Step 3.1, R1, and R2 are complete and approved. [PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29) merged R1/R2 into `main` on 2026-09-07 at 17:55:41 UTC, merge commit `ca914b73281aaf5e618684098bb4f115c90972c5`. Its tree is identical to reviewed R2 tip `c4316425c52488c6574c93027235b9ac980e0803`.
 
-**Authorization:** On 2026-09-07 the project owner confirmed that the documents were reviewed and approved and explicitly authorized Slice 3.2-B. This closes Gate 3.2-A and accepts the inventory, gap dispositions, implementation contract, file scope, and verification requirements below. Create the requested documents-only checkpoint before production edits. No additional planning approval is required for B within this contract; C and D retain their separate review and authorization gates.
+**Authorization:** On 2026-09-07 the project owner confirmed that the documents were reviewed and approved and explicitly authorized Slice 3.2-B. This closes Gate 3.2-A and accepts the inventory, gap dispositions, implementation contract, file scope, and verification requirements below. The requested documents-only checkpoint was committed and pushed as `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; the project owner then instructed execution of B. No additional planning approval is required for B within this contract; C and D retain their separate review and authorization gates.
 
 ## 1. Scope and preservation
 
@@ -21,7 +21,7 @@ Complete only demonstrated gaps in typed access for cache inspection, audit logg
 
 ## 2. Slice 3.2-A — Source reconciliation and contract review
 
-The inventory below was prepared from current source and tests, not inferred solely from Step 3.1 completion. Paths are repository-relative. The [Step 3.1 contract](../step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md) and [approved persistence mapping](../step-3.1/STEP_3_1_D0_PERSISTENCE_MAPPING.md) remain the storage authority.
+The inventory below preserves the pre-implementation source snapshot reviewed at Gate 3.2-A, not the final repository state. Sections 7–9 record implementation and disposition of its gaps. It was prepared from source and tests, not inferred solely from Step 3.1 completion. Paths are repository-relative. The [Step 3.1 contract](../step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md) and [approved persistence mapping](../step-3.1/STEP_3_1_D0_PERSISTENCE_MAPPING.md) remain the storage authority.
 
 ### Existing public surface
 
@@ -62,11 +62,11 @@ The run started on `c4316425c52488c6574c93027235b9ac980e0803` with documentation
 
 ### Gate 3.2-A
 
-Approved by the project owner on 2026-09-07 following document review. Approval covers the inventory, G2 inspection interpretation, G3/G4 extraction, section 3's interface/behavior contract, file scope, and recorded green baseline. Slice 3.2-B was explicitly authorized in the same instruction. The documents-only checkpoint is the remaining preparation before coding; no second planning-only slice is needed.
+Approved by the project owner on 2026-09-07 following document review. Approval covers the inventory, G2 inspection interpretation, G3/G4 extraction, section 3's interface/behavior contract, file scope, and recorded green baseline. Slice 3.2-B was explicitly authorized in the same instruction. The documents-only checkpoint requirement was subsequently satisfied by pushed commit `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; no second planning-only slice was needed.
 
 ## 3. Slice 3.2-B — Demonstrated gaps with focused tests
 
-**Status:** Explicitly authorized on 2026-09-07 following Gate 3.2-A approval; unstarted pending the documents-only checkpoint.
+**Status:** Implemented, verified, and approved at Gate 3.2-B on 2026-09-07. Evidence is recorded in section 7; approval and C execution are recorded in section 8.
 
 ### Bounded implementation contract
 
@@ -84,7 +84,7 @@ Approved by the project owner on 2026-09-07 following document review. Approval 
 
 ## 4. Slice 3.2-C — Integration and acceptance verification
 
-**Status:** Unstarted; requires Gate 3.2-B approval and explicit authorization.
+**Status:** Verified and approved at Gate 3.2-C on 2026-09-07. Acceptance evidence is recorded in section 8; the project owner explicitly authorized D.
 
 Verify the combined repository/sink/cache lifecycle against a fresh migrated temporary database and a reopened database. Extend integration tests only for demonstrated coverage gaps; do not duplicate B's tests. Demonstrate exact typed round trips, original provenance/timestamps, unchanged cache eligibility, and preserved telemetry failure handling. Audit production SQL placement, public imports, connection ownership, and the three Step 3.2 acceptance criteria. A defect receives a bounded fix and regression test within the approved contract; wider changes return to review.
 
@@ -94,7 +94,7 @@ Run the complete managed gate and record count/coverage changes relative to A/B,
 
 ## 5. Slice 3.2-D — Documentation and closeout
 
-**Status:** Unstarted; requires Gate 3.2-C approval and explicit authorization.
+**Status:** Documentation reconciliation and final managed verification completed on 2026-09-07 after explicit authorization. Evidence is in section 9; final Gate 3.2-D approval was granted on 2026-09-07, as recorded in section 10.
 
 Synchronize this record, the Implementation Plan, Master Plan, and affected durable architecture guidance with actual implemented contracts. Reconcile Discovery Workbook references only where affected; preserve historical design and approval snapshots. Record the final full managed gate, whitespace/link checks, and documents/source scope review. Mark Step 3.2 complete only after explicit Gate 3.2-D approval. Step 3.3 and later work retain their own authorization and planning gates.
 
@@ -105,7 +105,210 @@ Synchronize this record, the Implementation Plan, Master Plan, and affected dura
 | R1/R2 approvals and merge | Complete; PR #29 merged on 2026-09-07. Historical pending entries in predecessor records are superseded by their final approvals and merge closeout. |
 | 3.2-A inventory, gap matrix, approved contract, baseline | Reviewed and approved on 2026-09-07. |
 | Gate 3.2-A / authorization for B | Explicitly approved / authorized by the project owner on 2026-09-07. |
-| Documents-only checkpoint | Pending; no commit or push performed by this task. Include only the five changed planning documents, including this new file. |
-| B / C / D | B authorized, awaiting documentation checkpoint; C and D unstarted and not yet authorized. |
+| Documents-only checkpoint | Committed and pushed as `ee4db024bb10c061b2b17ccad41e35544ccd94e3`; local HEAD and its remote-tracking ref matched at execution start. |
+| B / C / D | All approved on 2026-09-07; final Gate 3.2-D approval completes Step 3.2. |
 
-Gate 3.2-A approval and B authorization are recorded. Once the documentation checkpoint is committed, begin B directly from this handoff. Preserve a clean source/test baseline, add focused tests with each implementation change, and stop at Gate 3.2-B.
+Gate 3.2-A approval, B authorization, and the pushed documentation checkpoint are recorded. B execution is complete and approved. The project owner subsequently approved C and explicitly authorized D. Final Gate 3.2-D approval was granted on 2026-09-07, completing Step 3.2.
+
+## 7. Slice 3.2-B implementation and verification — 2026-09-07
+
+Execution started from clean pushed checkpoint
+`ee4db024bb10c061b2b17ccad41e35544ccd94e3` on
+`docs/step-3.2-repositories`, after the project owner explicitly instructed
+3.2-B implementation. The local HEAD and remote-tracking ref both matched that
+checkpoint. No further planning decision or scope amendment was needed.
+
+### Delivered scope
+
+- Added and exported `SQLiteTrajectoryRepository`. Moved the existing event
+  codec, immutable insertion/conflict comparison, and ordered readback into
+  `src/data/repositories/trajectory.py`. The existing sink and public readback
+  function delegate to it; sink locking, flush/close behavior, database
+  ownership, recorder sanitization, and fail-open handling remain intact.
+- Added bounded `list_keys(limit=..., offset=...)` methods to the two concrete
+  SQLite cache repositories. They select only key columns, order by canonical
+  stored identity, validate bounds/encoding/selected keys, and return typed
+  tuples. They do not load financial/frame payloads or apply freshness policy.
+- Added `SQLiteResolvedInputCache.inspect(key)` for validated stored entries,
+  including stale and historically ineligible facts. Existing `get` shares
+  that decoding path and still applies its original eligibility policy;
+  `get_series` and both cache protocols are unchanged.
+- Added 42 deterministic cases: 14 historical key-inspection cases, 19
+  financial-cache inspection cases, 5 direct trajectory-repository cases,
+  and 4 fresh-process import-order cases. All 49 pre-existing test functions
+  in the three modified test modules retain identical ASTs, including their
+  decorators and assertions; no existing cases were removed or weakened.
+
+The sink imports the trajectory module rather than eagerly importing its class,
+so the existing package-level telemetry exports can finish initialization before
+repository construction. Fresh-process checks cover repository package/module
+and telemetry package/sink entry points. No telemetry package/recorder redesign
+or delayed function-local import was introduced.
+
+### Verification evidence
+
+| Check | Result |
+| :--- | :--- |
+| Fresh pre-refactor managed gate | Ruff clean; 283 files formatted; strict mypy clean (222 source files); 1,811 tests passed in 26.54 seconds; 89% reported coverage. |
+| Initial focused test run | All 33 new cache-inspection cases failed because the new public methods were absent, before production edits. |
+| Focused post-implementation suite | All 272 persistence and telemetry cases passed in 19.17 seconds, including fresh-process imports. |
+| Final managed gate | Ruff clean; 285 files formatted; strict mypy clean (224 source files); 1,853 tests passed in 31.80 seconds; 89% reported coverage. |
+| Preservation audit | Event codec and immutable-write ASTs unchanged; executable readback AST unchanged apart from using the borrowed instance database. Existing test functions unchanged. |
+| Scope / whitespace | `git --no-pager diff --check` passed; only the approved five production files, four test files, and this handoff changed. No SQL remains in the trajectory adapter. |
+
+Baseline artifacts:
+`.tmp/quality-runs/20260907144856403-37660-01e75ea911064b20aafeffbf9378de61/`.
+Final artifacts:
+`.tmp/quality-runs/20260907145451159-31164-6b796ff39ee64bbbb3012c2ff7ff4edf/`.
+Both runs used the complete non-mutating managed PowerShell wrapper against the
+existing environment. Artifacts remain ignored and must not be committed.
+
+Coverage reconciliation: baseline 9,376 statements / 776 missing and 2,964
+branches / 497 partial; final 9,422 statements / 776 missing and 2,980 branches /
+497 partial. The test count increased by exactly 42 (1,811 → 1,853). Final
+statement coverage is approximately 91.8%; combined reported coverage remains
+89%. No removed test or reduced statement denominator explains the result.
+
+The first lint pass identified parameterization style and overly broad exception
+assertions in the new tests; these were corrected before the final gate. An
+auxiliary AST comparison initially included changed docstring indentation from
+moving readback into a class; comparing the executable body confirmed that its
+logic is preserved. No production defect or widened contract resulted from
+these verification corrections.
+
+Gate 3.2-B is ready for stakeholder review, not yet approved. Step 3.2 remains
+in progress; C/D and later milestone implementation have not started. No commit,
+push, PR, dependency/schema change, real provider/model call, or user-data
+migration was performed during this implementation task.
+
+## 8. Gate 3.2-B approval and Slice 3.2-C acceptance — 2026-09-07
+
+The project owner reviewed and approved the delivered B implementation and
+instructed proceeding. In the context of the pending Gate 3.2-B review, this
+closes Gate 3.2-B and authorizes the next slice, 3.2-C. It does not declare the
+whole step complete or approve unreviewed D closeout work. Section 7's pending
+approval statement is retained as the historical pre-review snapshot.
+
+C started from the approved, uncommitted B working tree over checkpoint
+`ee4db024bb10c061b2b17ccad41e35544ccd94e3`. B's final managed gate is the accepted
+baseline: 1,853 passing tests and 89% reported coverage. No production refactor
+or defect correction was necessary in C.
+
+### Integration coverage and scope
+
+Extended `tests/data/repositories/test_persistence_smoke.py` because the existing
+combined lifecycle test did not yet exercise the new inspection interfaces
+across close/reopen. It now verifies direct trajectory readback and both key
+listings in the fresh migrated database; after reopening, it checks stored-fact
+inspection, pagination exhaustion, original timestamps/provenance, and continued
+ineligibility through normal TTL-aware reads. It also verifies empty inspection
+results after the existing disposable-database downgrade/recreation lifecycle.
+Existing frame equality, event equality, database integrity, foreign-key checks,
+and network prohibition remain in place.
+
+The expanded assertions exceeded Ruff's statement limit in the existing test,
+so reopened-store assertions were moved into a narrowly typed helper without
+weakening them. No new test case was needed: this extends the existing lifecycle
+case rather than duplicating B's focused tests. Only that test module and this
+handoff changed during C; all B production changes remain as approved.
+
+### Acceptance reconciliation
+
+| Step 3.2 criterion / boundary | Verified evidence |
+| :--- | :--- |
+| Public repository methods fully typed and mypy-clean | Complete strict mypy passed across `src` and `tests` (224 source files). Public APIs retain explicit annotations and domain return types. |
+| Core entity round trips | Full cache/trajectory suites and expanded offline lifecycle test pass against migrated temporary files and reopened databases; frame precision/context, facts/provenance/timestamps, and event ordering are retained. |
+| WAL / single-writer connection policy | `SQLiteDatabase` remains unchanged. Existing policy tests pass for WAL/foreign keys/timeout on new connections, reader snapshots, competing writers, rollback, query-only reads, sequential in-memory scopes, and close guards. |
+| SQL placement | Production source audit found application database execution confined to `src/data/repositories/`. Remaining SQLAlchemy references in `src/config.py` are URL parsing/validation, not SQL execution. Migration DDL and test assertion/setup SQL retain their established owners. |
+| Public imports and ownership | Fresh-process import-order tests and existing sink ownership tests pass. Original sink/readback exports remain; repositories borrow the migrated database; default sink close does not close the shared database. |
+| Cache eligibility and telemetry failure handling | Inspection exposes stored facts without changing normal `get/get_series` eligibility. Existing sanitization, recorder fail-open, missing-schema, and locked-database recovery tests pass unchanged. |
+
+### Final verification and handoff
+
+The complete managed PowerShell wrapper passed on 2026-09-07:
+Ruff clean, formatting clean (285 files), strict mypy clean (224 source files),
+and **1,853 tests in 31.67 seconds**. Coverage remains **89% reported**:
+9,422 statements, 776 missing, 2,980 branches, 497 partial branches.
+Counts and coverage denominators are identical to B; no cases were removed.
+Relative to A, the suite still contains B's 42 additional cases.
+
+Artifacts:
+`.tmp/quality-runs/20260907151840521-36700-f15ebceb4f544d4abc7518b9303d88a2/`.
+The artifacts remain ignored. Final whitespace and scope review passed.
+No real provider/model calls, dependency changes, schema changes, or user-data
+migrations were needed; the lifecycle migration operates only on a temporary
+test database. No commit, push, or PR was performed.
+
+Gate 3.2-C is ready for stakeholder review. D requires Gate 3.2-C approval and
+explicit authorization; Step 3.2 is not yet marked complete. Final cross-document
+synchronization and closeout remain D work.
+
+## 9. Gate 3.2-C approval and Slice 3.2-D closeout — 2026-09-07
+
+The project owner explicitly approved Gate 3.2-C and authorized Slice 3.2-D.
+This accepts section 8's integration/acceptance evidence and supersedes its
+historical pending-review status. D began from the approved B/C working tree
+over pushed checkpoint `ee4db024bb10c061b2b17ccad41e35544ccd94e3`.
+No source or test change was made during D.
+
+### Documentation reconciliation and final dispositions
+
+| Artifact / requirement | Final disposition |
+| :--- | :--- |
+| Master Plan | Records implemented repository scope and approved A/B/C gates; checkpoint prerequisite satisfied; final D approval remains pending and later work remains separately authorized. |
+| Implementation Plan | Synchronizes status, selected sequence, decision record, technical acceptance checklist, and immediate actions. The three technical criteria are satisfied; Step 3.2 is not declared complete before final review. |
+| Architecture | Documents current repository APIs, bounded key enumeration, stored-input inspection versus eligible cache reads, trajectory delegation, explicit errors, and borrowed connection ownership. Repository package layout and formerly planned persistence references now reflect implementation. |
+| Discovery Workbook | Updates the repository layout/ownership statements and links to the durable architecture contract; historical decisions and unrelated research remain intact. |
+| This handoff | Preserves the approved pre-implementation inventory as a labeled historical snapshot and records actual implementation, approval, verification, and gap dispositions. |
+| G2 inspection | Satisfied by both bounded key-listing methods and financial `inspect`; no refresh or eligibility policy change. |
+| G3/G4 audit storage and SQL placement | Satisfied by the trajectory repository and retained public sink/readback delegates; no second audit system or changed event contract. |
+| G1/G5/G6/G7 existing foundations | Retained typed representations, round trips, connection policy, and analytical evidence access; no duplicate infrastructure or deferred product feature was added. |
+
+### Final managed gate
+
+The complete managed PowerShell wrapper passed on 2026-09-07: Ruff clean,
+formatting clean (285 files), strict mypy clean (224 source files), and
+**1,853 tests passed in 33.96 seconds**. Coverage remains **89% reported**:
+9,422 statements, 776 missing, 2,980 branches, 497 partial branches.
+Counts and coverage denominators are unchanged from approved C and B; the
+42-case increase from A remains fully explained by B's regression additions.
+
+Artifacts:
+`.tmp/quality-runs/20260907152641011-37860-9f5323ced488480e8ed02f8ec3580468/`.
+These local verification artifacts remain ignored and are not commit content.
+
+All 23 relative Markdown link targets across the five changed documents resolve.
+The new architecture section anchor matches the Discovery Workbook link.
+Final whitespace and documentation scope checks passed. Active repository
+status no longer describes storage as merely planned or B as awaiting its
+already-pushed checkpoint. Earlier milestone design and per-slice execution
+snapshots retain their original historical meaning.
+
+D changed only the five documentation files listed above. All source and test
+changes in the working tree belong to approved B/C. No commit, push, PR,
+dependency/schema change, live provider/model call, or user-data migration was
+performed in D.
+
+**Final review:** Gate 3.2-D is ready for stakeholder approval. That approval is
+required to mark Step 3.2 complete; no later milestone implementation is
+implicitly authorized. Implementation checkpoint/PR work remains subject to
+explicit authorization.
+
+## 10. Final approval and Step 3.2 completion — 2026-09-07
+
+The project owner granted final Gate 3.2-D approval and instructed recording
+Step 3.2 as complete. All A–D gates are closed. The repository implementation,
+integration acceptance evidence, and documentation reconciliation are accepted,
+including the final managed gate in section 9: 1,853 passing tests, 89% reported
+coverage, clean Ruff/formatting, and strict mypy.
+
+Earlier pending-review statements in sections 7–9 remain historical execution
+snapshots superseded by their subsequent approvals and this final decision.
+The Master Plan and Implementation Plan now record Step 3.2 as complete and
+approved. Step 3.3 and later implementation remain separately authorized.
+
+The project owner requested commit, PR, and PR-comment drafts. This record does
+not claim that the implementation has been committed, pushed, or merged, or
+that a PR/comment has been published. Those workflow actions remain outstanding.
+Approval recording changes documentation only; the accepted source/test state
+and verification evidence are unchanged.

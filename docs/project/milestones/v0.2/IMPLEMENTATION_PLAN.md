@@ -7,8 +7,8 @@
 **Companion rationale:** Current `docs/project/DISCOVERY_WORKBOOK.md`<br/>
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
-**Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gate 3.2-A approved and 3.2-B explicitly authorized on 2026-09-07, pending the documents-only checkpoint.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gate 3.2-A approved and Slice 3.2-B explicitly authorized; production implementation unstarted pending the documents-only checkpoint
+**Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1350,8 +1350,8 @@ Gate D review on 2026-09-05. The project owner approved E1 and authorized E2 on
 F1. The project owner approved F1 and F2, then authorized G on 2026-09-06. Operator
 workflow and integrated persistence closeout passed the complete gate (1,615
 tests, 88% coverage). The project owner approved Slice G on 2026-09-06, closing Gate G
-and completing Step 3.1. JSONL remains the default. P2, Step 3.2, and all other
-subsequent planning work remain unstarted pending separate authorization.
+and completing Step 3.1. JSONL remains the default. Later work follows the
+selected sequence and current Step 3.2 status below.
 The authoritative slice sequence,
 schema decisions, local-model execution protocol, review gates, and environment preparation are in
 [`step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md`](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md).
@@ -1523,7 +1523,7 @@ The existing-strategy review in R2's contract found two equivalent FCF helper co
 
 ### 4.8 Step 3.2 – DAO & Repository Layer
 
-**Status:** Planning started on 2026-09-07 following merged PR #29. The project owner approved Slice 3.2-A source reconciliation, gap matrix, concrete implementation contract, and fresh managed baseline on 2026-09-07, closing Gate 3.2-A and explicitly authorizing 3.2-B. Create the requested documents-only checkpoint before production edits. Slice 3.2-B is authorized but unstarted; C and D retain their preceding review gates and explicit authorization requirements.
+**Status:** Planning started on 2026-09-07 following merged PR #29. The project owner approved Slice 3.2-A source reconciliation, gap matrix, concrete implementation contract, and fresh managed baseline on 2026-09-07, closing Gate 3.2-A and explicitly authorizing 3.2-B. The documents-only checkpoint was pushed before B implementation. B and C subsequently passed review; Gates 3.2-B/C are approved on 2026-09-07. Slice D documentation reconciliation and final managed verification passed (1,853 tests, 89% reported coverage); final Gate 3.2-D approval was granted on 2026-09-07, completing Step 3.2.
 
 **Contract:** [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) defines the slice sequence, the gap-matrix deliverable, and the approval gates between reconciliation, implementation, verification, and documentation.
 
@@ -1537,9 +1537,9 @@ Strongly-typed Python data-access objects for cache inspection, audit logging, a
 4. Add focused unit tests with each implementation change using an in-memory or temporary-file SQLite DB; use file-backed databases for WAL/concurrency checks. Follow with integration/acceptance verification and final documentation reconciliation under the companion slice gates.
 
 **Acceptance criteria**
-- [ ] Public repository methods are fully typed and mypy-clean.
-- [ ] Round-trip tests pass for core entities.
-- [ ] Connection management is consistent with WAL / single-writer guidance.
+- [x] Public repository methods are fully typed and mypy-clean.
+- [x] Round-trip tests pass for core entities.
+- [x] Connection management is consistent with WAL / single-writer guidance.
 
 ---
 
@@ -1685,7 +1685,7 @@ Phase G — Step 3 production persistence/data quality
   │    (chosen sequencing before Phase H; no recognized technical dependency)
   ├─ R2 analysis strategy package split (accepted; complete and approved on 2026-09-07)
   │    (all gates closed; R1/R2 merged in PR #29)
-  ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gate 3.2-A approved; 3.2-B authorized pending documentation checkpoint)
+  ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gates 3.2-A/B/C approved; Gate 3.2-D approved; complete on 2026-09-07)
   ├─ 3.3 data quality / invalidation
   └─ P2-Profiles durable instrument profiles (no ETF aggregation)
         │
@@ -1771,7 +1771,7 @@ All of the following must be true before declaring the milestone complete and op
 
 38. **R1-A handoff approval** — The project owner approved the R1 Contract and Implementation Handoff on 2026-09-06 and authorized R1-B. A subsequent instruction requires a checkpoint commit of all pending planning documentation before implementation edits. R1-C remains subject to Gate R1-B approval.
 
-39. **R1/R2 merge and Step 3.2 handoff** — PR #29 merged R1/R2 on 2026-09-07, closing their implementation/PR workflows. The project owner requested completion of Step 3.2 planning for a documents-only checkpoint. Source reconciliation confirms that typed cache storage, round trips, and connection policy already exist. The approved remaining scope is bounded cache inspection plus extraction of existing trajectory SQL behind a repository, preserving public telemetry behavior. The companion contract includes the gap matrix, concrete interfaces, file scope, and a fresh green baseline. The project owner approved the reviewed documents and explicitly authorized 3.2-B on 2026-09-07, closing Gate 3.2-A. The documents-only checkpoint remains required before production implementation; later slice gates remain in force.
+39. **R1/R2 merge and Step 3.2 handoff** — PR #29 merged R1/R2 on 2026-09-07, closing their implementation/PR workflows. The project owner requested completion of Step 3.2 planning for a documents-only checkpoint. Source reconciliation confirms that typed cache storage, round trips, and connection policy already exist. The approved remaining scope is bounded cache inspection plus extraction of existing trajectory SQL behind a repository, preserving public telemetry behavior. The companion contract includes the gap matrix, concrete interfaces, file scope, and a fresh green baseline. The project owner approved the reviewed documents and explicitly authorized 3.2-B on 2026-09-07, closing Gate 3.2-A. The documents-only checkpoint was pushed before implementation. Gates 3.2-B/C were subsequently approved, with explicit authorization for D. Implementation and acceptance evidence are recorded in the companion handoff. The project owner granted final Gate 3.2-D approval on 2026-09-07, completing Step 3.2; later implementation remains separately authorized.
 
 ### Explicitly deferred
 1. **Ollama schema/model support matrix** — Empirical validation remains outstanding for the actual Light Mode model configuration. Record the tested Ollama version, model identifier, schema-constrained request, observed response behaviour, and pass/fail result when completed. This is non-blocking for the Step 2.2 implementation/merge.
@@ -1791,8 +1791,8 @@ Step 2.6 and Step 3.1 were merged in PRs #27 and #28; R1/R2 were merged in
 [PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29)
 on 2026-09-07. Their checkpoint/PR workflows are closed.
 
-1. Gate 3.2-A is approved and 3.2-B explicitly authorized on 2026-09-07. The reviewed [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) fixes the source inventory, gap matrix, inspection/trajectory interfaces, bounded file scope, and accepted baseline (1,811 tests, 89% reported coverage; Ruff, formatting, strict mypy clean).
-2. Create the requested documents-only checkpoint before production changes. Approval and B authorization are already recorded; no further planning review is required within the approved contract.
-3. Implement only the reviewed gaps in 3.2-B, with focused tests in the same slice; stop at Gate 3.2-B. Follow with 3.2-C integration/acceptance verification and 3.2-D final documentation/closeout, each separately reviewed and authorized.
+1. Step 3.2 is complete and approved on 2026-09-07; all A–D gates are closed. The [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) records the accepted final gate: 1,853 tests, 89% reported coverage, and clean Ruff, formatting, and strict mypy.
+2. Prepare the implementation checkpoint and PR from the approved Step 3.2 changes. Drafting is requested; commit, push, PR creation, and posting comments require explicit authorization.
+3. Record the implementation commit/PR outcome when it occurs. No implementation commit, push, or PR has been performed by the agent; completion approval does not mean the changes are merged.
 4. Proceed through Step 3.3, P2-Profiles, Step 3.4, and Step 3.5 only under their own planning/review gates. Reconsider P2-ETF after 3.5 only when separately prioritized and its provider/product-policy gate is met.
 5. Preserve classified unavailability for later representative live validation of the useful-result ratio and any separately reviewed provider-mapping expansion.
