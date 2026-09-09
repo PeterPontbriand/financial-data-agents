@@ -1568,6 +1568,8 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 - [x] Stale or invalid data cannot silently become the source of truth for downstream analytics.
 - [x] Quality failures appear transparently in the trajectory log.
 
+**Sign-off:** Step 3.3 acceptance criteria are satisfied and the full managed quality gate is green for [PR #32](https://github.com/PeterPontbriand/financial-data-agents/pull/32); Step 3.3 completed on 2026-09-08.
+
 ---
 
 ### 4.10 Step 3.4 – Local Research Workspace & Analysis Run Library
