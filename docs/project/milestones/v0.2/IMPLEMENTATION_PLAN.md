@@ -9,8 +9,9 @@
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
 **Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
 **Revised:** 2026-09-08 — Recorded the accepted Step 3.5 (Deterministic Quantitative Screening Strategies) plan and the Light Mode renumber to Step 3.6. The project owner has explicitly approved the start of Step 3.4 (Local Research Workspace & Analysis Run Library) on 2026-09-08; implementation is authorized on `feat/step-3.4-research-workspace`.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.4 → start approved on 2026-09-08.
-**Next work item:** Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Revised:** 2026-09-09 — Added Step 3.3A fresh-database initialization/readiness planning before Step 3.4. Step 3.4 start authorization is retained but deferred pending 3.3A final acceptance; production implementation of 3.3A requires Gate A approval.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.3A → planning in progress, implementation not authorized; Step 3.4 → start approved on 2026-09-08, deferred until 3.3A acceptance.
+**Next work item:** [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -21,6 +22,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 
 **In scope**
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
+- Step 3.3A – Fresh database initialization, typed readiness errors, user documentation, and deterministic lifecycle verification (before Step 3.4).
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
 - R2 – Analysis Strategy Package Split (accepted plan after R1; complete and approved on 2026-09-07; before Step 3.2)
@@ -92,6 +94,7 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Step 3.2 repositories | `feat/step-3.2-repositories` | Typed DAO/repository layer |
 | Issue #17 telemetry closeout | `codex/issue-17-telemetry-closeout` | Focused hash and recovery regression coverage after Step 3.2, before Step 3.3 |
 | Step 3.3 data quality | `feat/step-3.3-data-quality` | Validation, staleness, invalidation |
+| Step 3.3A database readiness | `codex/step-3.3a-database-readiness` | Bounded fresh initialization and readiness prerequisite; planning first |
 | Step 3.4 research workspace | `feat/step-3.4-research-workspace` | Watchlists, user-initiated concurrent refresh, durable Analysis Runs, run browsing |
 | **Step 3.5 quantitative screens** | `feat/step-3.5-quantitative-screens` | Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula |
 | Step 3.6 Light Mode | `feat/step-3.6-light-mode` | Adoption workflow and smoke validation |
@@ -1575,7 +1578,23 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 ---
 
+### 4.9A Step 3.3A – Fresh Database Initialization & Schema Readiness
+
+**Status:** Planning requested on 2026-09-09; production implementation not authorized. [Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) owns the bounded behavior, verification matrix, and A–D review gates.
+
+**Goal:** Make the first persistence-backed analysis initialize verified empty SQLite storage through bundled Alembic migrations, while preserving explicit upgrades of existing databases and reporting actionable typed readiness errors.
+
+**Scope:** Shared application readiness boundary; strict fresh/current/older/incompatible/unavailable classification; bounded cross-process initialization with recheck and atomic migration; sanitized CLI/operational errors; durable user documentation; deterministic lifecycle, concurrency, rollback, and CLI tests. No existing-data auto-upgrades, schema repair, new business tables, dependencies, or workspace functionality.
+
+**Sequencing:** Complete and accept 3.3A before Step 3.4 contract preparation and implementation. The 2026-09-08 Step 3.4 authorization is retained, not revoked; its start is deferred. Preserve the latest selected subsequent sequence: Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6. This supersedes older P2-before-workspace sequencing statements.
+
+**Acceptance:** The companion matrix and full managed quality gate must pass. Gate A requires explicit contract/implementation approval; B and C require review before proceeding; Gate D requires explicit final acceptance. This documentation checkpoint does not assert implementation or a fresh test baseline.
+
+---
+
 ### 4.10 Step 3.4 – Local Research Workspace & Analysis Run Library
+
+**Scheduling:** Start authorization from 2026-09-08 is retained. Contract design and implementation are deferred until Step 3.3A final acceptance; no Step 3.4 companion contract exists yet.
 
 **Goal**
 Turn the command-line program into a small local research workbench before real-user validation: users maintain ticker/analysis lists, initiate a refresh, and revisit durable completed results without requiring a GUI or unattended service.
@@ -1721,11 +1740,12 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gates 3.2-A/B/C approved; Gate 3.2-D approved; complete on 2026-09-07)
   ├─ Issue #17 telemetry closeout (complete and approved; publication pending)
   ├─ 3.3 data quality / invalidation (authorized to begin on 2026-09-07)
-  └─ P2-Profiles durable instrument profiles (no ETF aggregation)
+  └─ 3.3A fresh initialization / schema readiness (planning; acceptance before Phase H)
         │
         ▼
 Phase H — Step 3.4 local research workspace
-  └─ watchlists + user-initiated concurrent refresh + Analysis Run library
+  ├─ watchlists + user-initiated concurrent refresh + Analysis Run library
+  └─ P2-Profiles durable instrument profiles (after Step 3.4; no ETF aggregation)
         │
         ▼
 Phase I — Step 3.5 deterministic quantitative screening strategies
@@ -1817,20 +1837,15 @@ All of the following must be true before declaring the milestone complete and op
 3. **Tangible-book and sector-specific variants** — Defer these until the base Graham methods and their limitations are validated.
 4. **Step 2.4 product refinements** — P/FCF thresholds, alternate FCF definitions, smoothing, horizons outside the approved three/four/five-year set, peer comparisons, cash conversion, and user-defined composite thresholds remain deferred. FCF yield and FY1/FY2 consensus EPS are in scope only as documented optional context and only after their provider evidence gates are satisfied. FCF/share growth is approved current scope under the versioned E1–E3 extension, not a deferred composite feature.
 5. **Ollama Modelfile consolidation (resolved 2026-08-30)** — `docs/project/deploy/ollama/` is the canonical location. The identical root `Modelfile.agents` duplicate was removed, the application artifact was retained there, and the Step 2.5 Cline implementation model received a separately named Modelfile and documented alias so development-agent configuration cannot be confused with application or Golden model-under-evaluation configuration.
-6. **P2 split scheduling and ETF aggregation policy** — P2-Profiles follows 3.2/3.3 and precedes 3.4. P2-ETF is deferred until after 3.5 and requires separate prioritization plus provider/licensing/holdings/aggregation policy approval. It does not block Step 3.4, Step 3.5, or the v0.2.5 validation checkpoint. Neither deliverable has started.
+6. **P2 split scheduling and ETF aggregation policy** — P2-Profiles follows Step 3.4 under the latest selected sequence; Step 3.3A now precedes Step 3.4. P2-ETF is deferred until after 3.6 and requires separate prioritization plus provider/licensing/holdings/aggregation policy approval. It does not block Step 3.4, Step 3.5, or the v0.2.5 validation checkpoint. Neither deliverable has started.
 7. **Full package-per-command CLI ownership and `src/analysis/` auto-discovery** — Considered alongside R1 and explicitly deferred: each analyzer package self-registering its own Typer sub-app, and automatic discovery of analyzer subpackages at startup, are not part of R1's scope. Revisit only if the analyzer count grows enough that shared-plumbing extraction (R1) stops being sufficient; not authorized for v0.2.
 
 ---
 
 ## 9. Next Immediate Actions
 
-Steps 2.3 through 2.6, Step 3.1, R1, and R2 are complete and approved.
-Step 2.6 and Step 3.1 were merged in PRs #27 and #28; R1/R2 were merged in
-[PR #29](https://github.com/PeterPontbriand/financial-data-agents/pull/29)
-on 2026-09-07. Their checkpoint/PR workflows are closed.
-
-1. Step 3.2 is complete and approved on 2026-09-07; all A–D gates are closed. The [Step 3.2 Contract and Slice Plan](step-3.2/STEP_3_2_CONTRACT_AND_SLICE_PLAN.md) records the accepted final gate: 1,853 tests, 89% reported coverage, and clean Ruff, formatting, and strict mypy.
-2. **Issue #17 is complete and approved.** Final review on 2026-09-07 accepted the [Telemetry Closeout Plan and evidence](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md). Publish the accepted test/documentation change through the separately authorized commit/PR workflow; publication and GitHub issue closure remain outstanding. The companion supplies recommended commit/PR particulars and an optional approval comment.
-3. Step 3.2 publication is complete: [PR #30](https://github.com/PeterPontbriand/financial-data-agents/pull/30) merged as `f3ef25701cac3fbee3a2caa295f102f4d389d51b` on 2026-09-08 at 00:11 UTC (2026-09-07 in America/Toronto). The local checkout remains at its original head `d07a709`; base the separate Issue #17 PR on updated `main` while preserving its pending changes.
-4. **Step 3.3 companion plan approved and implementation authorized on 2026-09-07 on `feat/step-3.3-data-quality`.** The [companion plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) supplies the approved contract, completed A reconciliation and verified B evidence; Gate B review is next before C integration. The project owner confirmed the corrected step number on 2026-09-07. Proceed within its existing scope and gates; no Step 3.3 implementation has been performed by this closeout task. P2-Profiles, Step 3.4, and Step 3.5 retain their separate planning/review gates. Reconsider P2-ETF after 3.5 only when separately prioritized and its provider/product-policy gate is met.
-5. Preserve classified unavailability for later representative live validation of the useful-result ratio and any separately reviewed provider-mapping expansion.
+1. Review [Step 3.3A Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md). Complete Slice A caller/test inventory, concrete interfaces and locking/error contract, and fresh managed baseline. Explicit Gate A approval is required before production implementation.
+2. Preserve Step 3.4's prior start authorization while deferring its contract preparation and implementation until 3.3A final acceptance. Then prepare its companion contract before implementing workspace functionality.
+3. Retain the selected subsequent order: Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6. P2-ETF remains deferred beyond Step 3.6 with separate prioritization and policy approval.
+4. Steps 3.2 and 3.3 are complete and approved. Local history records telemetry closeout in PR #31 and Step 3.3 in PR #32; older publication-pending notes are historical and do not schedule repeat implementation/publication. GitHub issue closure has not been verified by this planning task.
+5. Preserve classified financial-data unavailability and the separate empirical Light Mode validation follow-up. No live provider validation or user-database migration is part of this documentation checkpoint.

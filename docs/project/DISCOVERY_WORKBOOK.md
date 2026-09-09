@@ -575,3 +575,25 @@ Finance remains primary. Core layers remain modular enough for possible later re
 The Master Plan and Discovery Workbook are versioned through Git. Embedded document version numbers are intentionally avoided.
 
 *End of Discovery Workbook*
+
+## Fresh database readiness decision — 2026-09-09
+
+A reported first-use Graham failure exposed an onboarding gap: an empty local
+SQLite file caused a missing-table exception that the CLI reduced to a generic
+message, including with analysis diagnostics selected. The supplied investigation
+reported successful analysis after an explicit operator migration; this planning
+change did not independently reproduce or migrate the operational database.
+
+Plan automatic initialization of verified fresh storage, with explicit upgrades
+for existing schemas. This removes an avoidable first-use prerequisite while
+protecting future watchlists and Analysis Runs. Alembic remains the sole schema
+authority; generic missing-table errors are insufficient evidence of freshness.
+Reject automatic upgrades on every launch, parallel create-all schemas, and
+silent cache fallback because they weaken schema/data ownership or obscure failure.
+
+The [bounded contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
+requires typed readiness errors, cross-process coordination, transactional recovery,
+consistent user documentation, and deterministic tests. Planning was requested;
+production implementation awaits contract approval. Complete this prerequisite
+before designing/implementing Step 3.4, retaining its earlier start authorization.
+The active milestone governs subsequent sequencing and supersedes older ordering.

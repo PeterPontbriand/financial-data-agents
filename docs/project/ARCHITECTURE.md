@@ -487,6 +487,19 @@ Private model reasoning is never reconstructed.
 
 ---
 
+### Planned database readiness boundary
+
+The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
+is a proposed target, not current runtime behavior. Application composition will
+check required persistence before use and initialize only verified empty storage
+through bundled Alembic migrations. Existing schemas require explicit operator
+upgrades. The shared repository boundary owns classification and coordinated
+initialization; analyzers remain free of schema management. Cross-process locking,
+post-lock recheck, transactional DDL, and typed sanitized errors are required.
+Optional telemetry must neither trigger initialization nor control business
+execution. Current explicit-migration behavior remains in force until implementation
+and acceptance; no runtime change is claimed by this planning document.
+
 ## 10. Development guardrails
 
 - Preserve existing behavior outside the active step.

@@ -7,9 +7,11 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 ## Current work — single source of truth
 
 **Active milestone:** v0.2<br/>
-**Completed step:** Step 2.6 — Circuit Breakers & Timeout Limits — complete and approved on 2026-09-03<br/>
-**Active step:** Step 3.1 — SQLite DB & Migration Infrastructure — D0 contract/schema mapping in progress; production code not started<br/>
-**Last recorded checkpoint:** `07c73e5`; the approved Step 2.6 implementation remains in the working tree pending commit<br/>
+**Completed step:** Step 3.3 — Data Quality & Cache Invalidation — complete and approved on 2026-09-08<br/>
+**Active work:** Step 3.3A — Fresh Database Initialization & Schema Readiness — planning only; implementation awaits Gate A approval<br/>
+**Active companion:** [Step 3.3A Contract and Slice Plan](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)<br/>
+**Deferred next step:** Step 3.4 contract preparation and implementation follow 3.3A final acceptance; prior start authorization is retained<br/>
+**Planning checkpoint base:** `b6a84e0`; no implementation or new quality baseline is claimed by this documentation update<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -116,9 +118,10 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 ## Next implementation handoff
 
-[R1 Contract and Implementation Handoff](milestones/v0.2/r1/R1_CONTRACT_AND_SLICE_PLAN.md)
-was approved on 2026-09-06. Approval closes the planning gate and authorizes R1-B
-after the requested documentation checkpoint commit;
-implementation has not started. The active plan sequences profile persistence
-before the research workspace and defers ETF aggregation until after Light Mode
-validation, subject to separate prioritization and approval.
+[Step 3.3A Contract and Slice Plan](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
+records the fresh-storage initialization and readiness enhancement requested for
+planning on 2026-09-09. Finish its concrete Slice A design and baseline, then
+obtain contract and implementation approval before production changes.
+Step 3.4 retains its prior start authorization but waits for 3.3A final acceptance.
+The governing milestone sequence then places Step 3.4 before P2-Profiles,
+Step 3.5, and Step 3.6; ETF aggregation remains separately deferred.
