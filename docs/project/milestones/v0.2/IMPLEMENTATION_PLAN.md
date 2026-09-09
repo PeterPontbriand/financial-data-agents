@@ -10,7 +10,7 @@
 **Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
 **Revised:** 2026-09-08 — Recorded the accepted Step 3.5 (Deterministic Quantitative Screening Strategies) plan and the Light Mode renumber to Step 3.6. The project owner has explicitly approved the start of Step 3.4 (Local Research Workspace & Analysis Run Library) on 2026-09-08; implementation is authorized on `feat/step-3.4-research-workspace`.<br/>
 **Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.4 → start approved on 2026-09-08.
-**Next work item:** P2-Profiles → Step 3.4 → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support.(issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Next work item:** Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -28,7 +28,6 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - Step 3.4 – Local Research Workspace & Analysis Run Library
 - **Step 3.5 – Deterministic Quantitative Screening Strategies**
 - Step 3.6 – Light Mode Support (required before the v0.2.5 checkpoint)
-Markdown
 **Out of scope (explicit)**
 - Milestone v0.2.5 real-user validation activities (recruitment, feedback sessions)
 - Milestone v0.3 analytics expansion or localization
@@ -44,7 +43,6 @@ A clean, Light-Mode-capable analysis workflow exists that:
 5. Persists data, execution logs, and later investor-facing Analysis Run history in SQLite (WAL) with typed repositories and basic data-quality checks.
 6. Presents Momentum, Graham, Free Cash Flow & Earnings Growth, **and the Step 3.5 quantitative screening suite** through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
 7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses (including the Step 3.5 screens), revisit completed runs, and inspect the evidence behind a result.
-Markdown
 
 ---
 
