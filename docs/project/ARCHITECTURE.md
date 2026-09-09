@@ -197,7 +197,7 @@ Step 2.2 establishes structured-output enforcement with layered defenses:
 3. use the configured prompt-based schema fallback when native capability is unavailable or unknown;
 4. retain legacy compatibility parsing only as the final fallback where required.
 
-Empirical model-by-model validation of native-schema behavior for the supported Light Mode configuration remains a non-blocking validation item before Step 3.5 completion.
+Empirical model-by-model validation of native-schema behavior for the supported Light Mode configuration remains a non-blocking validation item before Step 3.6 completion.
 
 Do not rewrite the runtime around a model-specific assumption merely to make one model pass.
 

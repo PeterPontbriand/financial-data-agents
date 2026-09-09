@@ -203,7 +203,7 @@ CLI / bounded orchestrator
 
 The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
 
-Steps 2.3 and 2.4 are complete and approved. Step 2.5 consumes their stable strategy contracts and is current, but its 2026-08-31 Gate M review did not approve the checkpoint. The Golden runner must distinguish expected native domain outcomes from fixture/execution failures, expose one canonical full-suite report boundary, complete the cross-strategy ETF scenario, and pass strict typing before Gate M is reconsidered. The approved SEC foreign-private-issuer/IFRS work follows as Step 2.5A only after Step 2.5 closes.
+Steps 2.3 and 2.4 are complete and approved. Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula). Step 3.6 validates the complete Light Mode investor workflow that now includes those screens.
 
 ### Current package intent
 
@@ -251,7 +251,7 @@ The deterministic/no-LLM mode cannot measure actual LLM strategy selection.
 Step 2.1 established structured trajectory telemetry separately from operational logging. JSONL is the initial sink; SQLite is added in Step 3.1.
 
 ### Structured output
-Step 2.2 prefers native schema constraints when supported, retains Pydantic validation, and uses configured fallbacks. Empirical Light Mode model/schema compatibility remains a non-blocking validation item before Step 3.5 exit.
+Step 2.2 prefers native schema constraints when supported, retains Pydantic validation, and uses configured fallbacks. Empirical Light Mode model/schema compatibility remains a non-blocking validation item before Step 3.6 exit.
 
 ---
 
@@ -347,7 +347,7 @@ Report projection is separately versioned because presentation contracts can evo
 ### Agentic feel before autonomy
 Step 3.4 should let a user maintain ticker/analysis lists, start a refresh, and inspect already-completed runs while the user-started process handles other independent jobs concurrently. This delivers useful “do the legwork for me” behavior without pretending a daemon or proactive autonomous analyst already exists.
 
-Step 3.5 may add bounded local-model synthesis over completed deterministic results. The LLM may explain and compare evidence or suggest what to inspect next; it never invents financial facts, performs the deterministic calculation, or supplies an unrequested growth assumption.
+Step 3.6 may add bounded local-model synthesis over completed deterministic results. The LLM may explain and compare evidence or suggest what to inspect next; it never invents financial facts, performs the deterministic calculation, or supplies an unrequested growth assumption.
 
 ### Real-user validation priority
 Rich terminal presentation and the workspace/run-history workflow are intentionally pulled forward because v0.2.5 must test whether the tool is useful, not merely whether testers can execute a developer-oriented command. Graphical UI, full-screen TUI, high-fidelity charts, and executive report generation remain deferred until validation provides evidence.
@@ -412,7 +412,7 @@ Product documentation records aggregate stakeholder needs, evidence, and resulti
 # 18. Release Strategy
 
 - **v0.1** — Core orchestration engine.
-- **v0.2** — Reliability/observability + Graham/data/presentation foundation + heterogeneous Golden evaluation + circuit breakers + SQLite/data quality + local watchlists/Analysis Run history + Light Mode investor-workflow completion.
+- **v0.2** — Reliability/observability + Graham/data/presentation foundation + heterogeneous Golden evaluation + circuit breakers + SQLite/data quality + local watchlists/Analysis Run history + deterministic quantitative screening suite (Step 3.5) + Light Mode investor-workflow completion (Step 3.6).
 - **v0.2.5** — Real-user Light Mode validation.
 - **v0.3** — Analytics expansion beyond the initial Momentum/Graham pair plus localization subject to user feedback.
 - **v1.0** — Hardened unattended/multi-step autonomy, proactive monitoring/notifications where justified, visualization, and executive reporting.
@@ -566,6 +566,7 @@ Finance remains primary. Core layers remain modular enough for possible later re
 | D38 | 2026-08-30 | Split ETF identity/applicability work into P1 before the Golden Suite and P2 after Step 3.1 | FLSW proved that missing company facts, ticker validity, instrument identity, and strategy applicability were conflated. P1 adds only provider-backed kind evidence, request-scoped fallback, native `not_applicable` behavior, and presentation/error corrections so Golden cases freeze deliberate production behavior. P2 later adds durable instrument profiles and a separate holdings-based ETF aggregate FCF-growth strategy after persistence, without redefining or silently substituting the company-level strategy. | Accepted |
 | D39 | 2026-08-31 | Reject Step 2.5 Gate M approval and require a bounded Slice H correction | Passing pytest was insufficient because the mandatory strict-mypy gate failed, expected historical-boundary and applicability outcomes were not consistently enforced by aggregate evaluation, no canonical operation produced one full minimum-suite report, and the Golden catalog lacked three routes in the cross-strategy ETF scenario. Slice H corrects only those demonstrated defects and returns to Gate M. | Accepted |
 | D40 | 2026-08-31 | Place a corrected SEC FPI/IFRS capability package in Step 2.5A after Golden closeout | Foreign annual-form support is valuable but must not destabilize the open benchmark gate. A1 expands existing US-GAAP duration facts only; B1 maps four exact IFRS duration concepts behind one analysis-scoped SEC snapshot, latest-eligible-accession taxonomy selection, and affirmative security-unit compatibility. IFRS BVPS, missing-preferred-equals-zero inference, ADR/ADS conversion, and broad concept fallback are deferred because current Company Facts evidence cannot prove them safely. | Accepted |
+| D41 | 2026-09-08 | Insert a bounded deterministic quantitative screening suite (Piotroski F-Score, Altman Z-Score, Beneish M-Score, EV/EBITDA + FCF Yield, Greenblatt Magic Formula) as new Step 3.5; renumber former Light Mode Support to Step 3.6 | Real-user validation (v0.2.5) requires the expanded strategy surface; the five chosen models are classic, complementary, data-feasible with existing SEC/yfinance boundaries, and preserve every core principle (determinism, provenance, fail-closed, heterogeneous typing). Placement after the workspace foundations and before Light Mode keeps numerical order and ensures testers exercise the new screens. | Accepted |
 
 ---
 

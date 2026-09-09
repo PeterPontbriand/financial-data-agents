@@ -8,8 +8,9 @@
 **Prepared:** 2026-08-15<br/>
 **Revised:** 2026-09-06 — Recorded Step 3.1 and R1 completion, the pushed R1 checkpoint, and the revised R2 proposal with independent slice gates before Step 3.2. R2 documentation review does not authorize production implementation.<br/>
 **Revised:** 2026-09-07 — Recorded merged PR #29 closing R1/R2. Prepared Step 3.2 source reconciliation, gap matrix, bounded implementation contract, and fresh baseline; Gates 3.2-A/B/C approved on 2026-09-07; implementation and acceptance verification passed; final Gate 3.2-D approved; Step 3.2 complete on 2026-09-07.<br/>
-**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07
-**Next work item:** Step 3.3 companion plan approved and implementation authorized on 2026-09-07 on `feat/step-3.3-data-quality`. A reconciliation is complete; review B rules and tests in the [companion plan](step-3.3/STEP_3_3_CONTRACT_AND_SLICE_PLAN.md) before C integration. Issue #17 is complete and approved; its [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Revised:** 2026-09-08 — Recorded the accepted Step 3.5 (Deterministic Quantitative Screening Strategies) plan and the Light Mode renumber to Step 3.6. The project owner has explicitly approved the start of Step 3.4 (Local Research Workspace & Analysis Run Library) on 2026-09-08; implementation is authorized on `feat/step-3.4-research-workspace`.<br/>
+**Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.4 → start approved on 2026-09-08.
+**Next work item:** P2-Profiles → Step 3.4 → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support.(issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -24,8 +25,10 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
 - R2 – Analysis Strategy Package Split (accepted plan after R1; complete and approved on 2026-09-07; before Step 3.2)
 - Step 3.2 – DAO & Repository Layer (started 2026-09-07 after R2 completion; before Step 3.3)
-- Step 3.5 – Light Mode Support (required before the v0.2.5 checkpoint)
-
+- Step 3.4 – Local Research Workspace & Analysis Run Library
+- **Step 3.5 – Deterministic Quantitative Screening Strategies**
+- Step 3.6 – Light Mode Support (required before the v0.2.5 checkpoint)
+Markdown
 **Out of scope (explicit)**
 - Milestone v0.2.5 real-user validation activities (recruitment, feedback sessions)
 - Milestone v0.3 analytics expansion or localization
@@ -39,8 +42,9 @@ A clean, Light-Mode-capable analysis workflow exists that:
 3. Passes a golden-test suite at the ≥ 90 % target.
 4. Has hard circuit-breaker and timeout limits.
 5. Persists data, execution logs, and later investor-facing Analysis Run history in SQLite (WAL) with typed repositories and basic data-quality checks.
-6. Presents Momentum, Graham, and Free Cash Flow & Earnings Growth analysis through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
-7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses, revisit completed runs, and inspect the evidence behind a result.
+6. Presents Momentum, Graham, Free Cash Flow & Earnings Growth, **and the Step 3.5 quantitative screening suite** through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
+7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses (including the Step 3.5 screens), revisit completed runs, and inspect the evidence behind a result.
+Markdown
 
 ---
 
@@ -91,7 +95,8 @@ Use **fine-grained branches aligned with coherent implementation units within a 
 | Issue #17 telemetry closeout | `codex/issue-17-telemetry-closeout` | Focused hash and recovery regression coverage after Step 3.2, before Step 3.3 |
 | Step 3.3 data quality | `feat/step-3.3-data-quality` | Validation, staleness, invalidation |
 | Step 3.4 research workspace | `feat/step-3.4-research-workspace` | Watchlists, user-initiated concurrent refresh, durable Analysis Runs, run browsing |
-| Step 3.5 Light Mode | `feat/step-3.5-light-mode` | Adoption workflow and smoke validation |
+| **Step 3.5 quantitative screens** | `feat/step-3.5-quantitative-screens` | Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula |
+| Step 3.6 Light Mode | `feat/step-3.6-light-mode` | Adoption workflow and smoke validation |
 
 **Working agreement**
 - Prefer small, reviewable PRs that each leave `main` green.
@@ -1631,7 +1636,27 @@ no speculative plugin framework or ETF schema is authorized here.
 - [ ] Analysis Run identity is distinct from, but linkable to, execution telemetry identity.
 - [ ] No daemon, unattended scheduler, proactive monitoring, notifications, full-screen TUI, or executive report generator is introduced.
 
-### 4.11 Step 3.5 – Light Mode Support
+### 4.11 Step 3.5 – Deterministic Quantitative Screening Strategies
+
+**Goal**  
+Implement the five independently typed deterministic screening strategies defined in the companion Step 3.5 plan (Piotroski F-Score, Altman Z-Score, Beneish M-Score, Unlevered Valuation Multiples, Greenblatt Magic Formula Ranking). All work reuses existing financial-fact, InputResolver, provenance, Analysis Run, and progressive-disclosure contracts. No paid data sources and no LLM arithmetic.
+
+**Implementation outline**
+1. Extend the SEC EDGAR concept dictionary and yfinance fallback mappings for the required line items; add sector-applicability helpers.
+2. Implement each strategy as a first-class `BaseAnalyzer` under `src/analysis/strategy/` with full Pydantic result models and component-level provenance.
+3. Wire CLI commands, presenters, and Analysis Run persistence following established patterns.
+4. Extend the Golden Suite; add focused unit/integration tests for the documented edge cases.
+5. Author the five user-facing strategy guides plus Finance Math / Glossary updates.
+6. Pass the full repository quality gate.
+
+**Acceptance criteria**
+- [ ] All five strategies produce reproducible, provenance-tagged results (and correct inapplicability signals where required).
+- [ ] Each strategy has a complete user-facing guide.
+- [ ] Golden-Suite extension and unit tests are green; coverage meets project policy.
+- [ ] Strategies are selectable on watchlists and appear in the Light Mode workflow.
+- [ ] Quality gates (ruff, mypy --strict, pytest) pass.
+
+### 4.12 Step 3.6 – Light Mode Support
 
 **Goal**
 The complete investor workflow—data fetch/cache → deterministic analytics → durable Analysis Run → concise/detailed inspection → bounded local-model synthesis—runs cleanly under Light Mode with a 14B-class (or smaller) model.
@@ -1648,7 +1673,7 @@ The complete investor workflow—data fetch/cache → deterministic analytics �
 **Synthesis boundary**
 The model may summarize, compare, flag tensions, and suggest what the investor may wish to inspect next. It may not invent financial facts, perform the deterministic arithmetic, silently select a growth assumption, or turn a screening result into an investment recommendation.
 
-**Acceptance criteria (exit criterion for Step 3.5)**
+**Acceptance criteria (exit criterion for Step 3.6)**
 - [ ] A new user following only Light Mode instructions can analyze/add a real ticker, refresh supported analyses, and revisit stored results.
 - [ ] The user can see a concise result and inspect detailed provenance without developer assistance.
 - [ ] Bounded local-model synthesis works on the supported Light Mode configuration and is clearly downstream of deterministic results.
@@ -1705,11 +1730,15 @@ Phase H — Step 3.4 local research workspace
   └─ watchlists + user-initiated concurrent refresh + Analysis Run library
         │
         ▼
-Phase I — Step 3.5 adoption gate
-  └─ Light Mode workflow + bounded typed-result synthesis
+Phase I — Step 3.5 deterministic quantitative screening strategies
+  └─ Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula
+        │
+        ▼
+Phase J — Step 3.6 adoption gate
+  └─ Light Mode workflow (including Step 3.5 screens) + bounded typed-result synthesis
        → unlocks Milestone v0.2.5 real-user validation
-
-Deferred beyond Step 3.5 — P2-ETF aggregation strategy
+	   
+Deferred beyond Step 3.6 — P2-ETF aggregation strategy
   └─ separate prioritization + provider/product-policy approval; not automatic
 ```
 
@@ -1730,9 +1759,9 @@ The following quality checks must pass on every pull request within this milesto
 
 All of the following must be true before declaring the milestone complete and opening the v0.2.5 validation window:
 
-1. Steps 2.1–2.6 and 3.1–3.5, including the new Step 3.4 research workspace, are fully implemented and merged.
+1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, are fully implemented and merged.
 2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, both Graham methods, and Free Cash Flow & Earnings Growth, and reports strategy-selection, Graham method-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
-3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis, refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
+3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis (including selected Step 3.5 screens), refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.
 6. Temporary scaffolding and blocking TODOs are cleaned up or documented.
