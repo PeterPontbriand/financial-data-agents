@@ -1,9 +1,9 @@
 """Bounded, injectable SEC filing-document transport."""
 
-from collections.abc import Mapping
-from dataclasses import dataclass
 import math
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Protocol
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -46,9 +46,8 @@ class FilingFetcher(Protocol):
 class _NoRedirect(HTTPRedirectHandler):
     """Refuse redirects before any request to another origin is issued."""
 
-    def redirect_request(  # type: ignore[no-untyped-def]
-        self, req, fp, code, msg, headers, newurl  # noqa: ANN001, ANN201
-    ):
+    def redirect_request(self, *_args: object, **_kwargs: object) -> None:
+        """Reject every redirect, including redirects to another SEC URL."""
         return None
 
 
@@ -60,8 +59,10 @@ def fetch_filing(url: str, *, headers: Mapping[str, str], policy: FilingReaderPo
     if not request_headers.get("User-Agent", "").strip():
         raise ValueError("SEC filing requests require a declared User-Agent.")
     request_headers["Accept"] = "text/html,application/xhtml+xml"
-    with build_opener(_NoRedirect()).open(Request(url, headers=request_headers), timeout=policy.timeout_seconds) as response:
-        data = response.read(policy.max_document_bytes + 1)
+    with build_opener(_NoRedirect()).open(
+        Request(url, headers=request_headers), timeout=policy.timeout_seconds
+    ) as response:
+        data: bytes = response.read(policy.max_document_bytes + 1)
     if len(data) > policy.max_document_bytes:
         raise ValueError("Filing exceeds the configured size limit.")
     return data.decode("utf-8-sig")

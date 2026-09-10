@@ -25,7 +25,7 @@ A representative result looks like this:
 ```text
 COCA COLA CO (KO) — Graham Number (maximum indicated price): 21.14 USD
 Current price: 87.55 USD
-Price comparison: unavailable
+Price relationship: 314.11% above the Graham Number
 
 Basis: 3-year average diluted EPS + latest eligible fiscal-year-end BVPS
 EPS (3-year average): 2.66 USD

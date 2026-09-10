@@ -434,6 +434,17 @@ The implemented predicate accepts only affirmative ordinary-share / 1:1 quoted-
 unit evidence; unknown and ADR/ADS shapes make quote-dependent comparisons
 unavailable without erasing independently supported issuer-level facts.
 
+The Graham services complete missing unit evidence after financial input
+resolution, inside the existing request-scoped SEC snapshot. The optional SEC
+capability verifies original source accessions and current annual filing class
+evidence through a bounded Inline XBRL reader. It supports the reviewed domestic
+US-GAAP single-common-class mapping for current requests; unsupported evidence
+produces a structured absence. Derived shares and inferred preferred-share
+guards retain typed source lineage through the existing financial cache format.
+No durable evidence cache or database migration is introduced. Shared comparison
+evaluation supplies both the legacy percentage and structured status/reason;
+Graham presentation schema 4 exposes sanitized evidence and provenance.
+
 IFRS BVPS is not in this seam. Company Facts does not preserve the
 dimensional ordinary/preference share-class evidence needed to infer common
 equity and denominator safely; missing preferred-share evidence is never zero.

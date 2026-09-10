@@ -11,6 +11,7 @@ from typing import Annotated
 
 import typer
 
+from src.analysis.shared.financial_resolution import PriceComparison
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
     FCFEarningsGrowthAnalyzer,
@@ -738,6 +739,7 @@ def _run_graham_number(  # noqa: PLR0913
     analysis = GrahamNumberAnalyzer(resolver, instrument_profile=profile).run_analysis(config, ticker=ticker)
     as_of = config.as_of
     assembly = analysis.assembly
+    profile = analysis.instrument_profile or profile
     identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
@@ -746,6 +748,7 @@ def _run_graham_number(  # noqa: PLR0913
                 ticker=ticker,
                 assembly=assembly,
                 result=analysis.result,
+                price_comparison=analysis.price_comparison,
                 as_of=as_of,
                 identity_resolution=identity_resolution,
                 instrument_profile=profile,
@@ -758,6 +761,7 @@ def _run_graham_number(  # noqa: PLR0913
             mode=mode,
             identity_resolution=identity_resolution,
             instrument_profile=profile,
+            price_comparison=analysis.price_comparison,
         )
 
     presentation_assembly = _number_with_public_quote_reason(assembly)
@@ -767,6 +771,7 @@ def _run_graham_number(  # noqa: PLR0913
         result=analysis.result,
         as_of=as_of,
         margin_of_safety_percent=analysis.margin_of_safety_percent,
+        price_comparison=analysis.price_comparison,
         identity_resolution=identity_resolution,
         instrument_profile=profile,
     )
@@ -795,6 +800,7 @@ def _run_graham_growth(  # noqa: PLR0913
     )
     as_of = config.as_of
     assembly = analysis.assembly
+    profile = analysis.instrument_profile or profile
     identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
@@ -803,6 +809,7 @@ def _run_graham_growth(  # noqa: PLR0913
                 ticker=ticker,
                 assembly=assembly,
                 result=analysis.result,
+                price_comparison=analysis.price_comparison,
                 base_pe=policy.base_pe,
                 growth_multiplier=policy.growth_multiplier,
                 baseline_aaa_yield=policy.baseline_aaa_yield,
@@ -818,6 +825,7 @@ def _run_graham_growth(  # noqa: PLR0913
             mode=mode,
             identity_resolution=identity_resolution,
             instrument_profile=profile,
+            price_comparison=analysis.price_comparison,
         )
 
     presentation_assembly = _growth_with_public_quote_reason(assembly)
@@ -830,6 +838,7 @@ def _run_graham_growth(  # noqa: PLR0913
         baseline_aaa_yield=policy.baseline_aaa_yield,
         as_of=as_of,
         margin_of_safety_percent=analysis.margin_of_safety_percent,
+        price_comparison=analysis.price_comparison,
         identity_resolution=identity_resolution,
         instrument_profile=profile,
     )
@@ -845,6 +854,7 @@ def _number_failure_output(  # noqa: PLR0913
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution,
     instrument_profile: InstrumentProfile,
+    price_comparison: PriceComparison | None = None,
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
@@ -852,6 +862,7 @@ def _number_failure_output(  # noqa: PLR0913
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=safe_assembly,
+        price_comparison=price_comparison,
         result=None,
         as_of=as_of,
         identity_resolution=identity_resolution,
@@ -868,6 +879,7 @@ def _growth_failure_output(  # noqa: PLR0913
     mode: PresentationMode,
     identity_resolution: SecurityIdentityResolution,
     instrument_profile: InstrumentProfile,
+    price_comparison: PriceComparison | None = None,
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
@@ -876,6 +888,7 @@ def _growth_failure_output(  # noqa: PLR0913
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=safe_assembly,
+        price_comparison=price_comparison,
         result=None,
         base_pe=policy.base_pe,
         growth_multiplier=policy.growth_multiplier,

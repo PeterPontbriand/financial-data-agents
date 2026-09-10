@@ -180,6 +180,14 @@ Diagnostics are intentionally more technical. They can show how overrides, cache
 uv run financial-agents graham-number KO --json
 ```
 
+Graham JSON uses presentation schema version **4**. The additive top-level
+`price_comparison` object contains `status`, `reason`, `percent`,
+`security_unit_evidence`, and `provenance`. Its percentage matches the retained
+`result.margin_of_safety_percent` field; unavailable comparisons use null.
+Consumers pinned to version 3 must accept version 4 explicitly. Existing
+programmatic presentations without a structured comparison emit a null object.
+Other strategies retain their own schema versions.
+
 [Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Financial Data Agents currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
 
 JSON intentionally retains stable machine identifiers such as snake_case field names where those identifiers are part of the programmatic contract.

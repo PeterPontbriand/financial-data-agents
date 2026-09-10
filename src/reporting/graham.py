@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final
 
+from src.analysis.shared.financial_resolution import PriceComparison
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
@@ -115,7 +116,7 @@ def units_display_name(units: str | None) -> str:
 # Constants and models
 # ---------------------------------------------------------------------------
 
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 _NUMBER_LIMITATION = (
     "The Graham Number is a maximum indicated price / screening ceiling, "
     "not a complete intrinsic-value conclusion or investment recommendation."
@@ -137,6 +138,7 @@ class GrahamNumberPresentation:
     margin_of_safety_percent: float | None = None
     identity_resolution: SecurityIdentityResolution | None = None
     instrument_profile: InstrumentProfile | None = None
+    price_comparison: PriceComparison | None = None
 
     def __post_init__(self) -> None:
         """Validate presentation-only coherence without performing finance math."""
@@ -144,6 +146,8 @@ class GrahamNumberPresentation:
             object.__setattr__(self, "identity_resolution", profile_identity_resolution(self.instrument_profile))
         _validate_ticker(self.ticker)
         _validate_margin(self.margin_of_safety_percent, self.assembly.current_price)
+        if self.price_comparison is not None and self.price_comparison.percent != self.margin_of_safety_percent:
+            raise ValueError("Comparison and legacy percentage disagree.")
         _validate_presentation_as_of(self.as_of, self.assembly.eps, self.assembly.bvps, self.assembly.current_price)
         if (
             self.result is not None
@@ -168,6 +172,7 @@ class GrahamGrowthPresentation:
     margin_of_safety_percent: float | None = None
     identity_resolution: SecurityIdentityResolution | None = None
     instrument_profile: InstrumentProfile | None = None
+    price_comparison: PriceComparison | None = None
 
     def __post_init__(self) -> None:
         """Validate presentation-only coherence without performing finance math."""
@@ -175,6 +180,8 @@ class GrahamGrowthPresentation:
             object.__setattr__(self, "identity_resolution", profile_identity_resolution(self.instrument_profile))
         _validate_ticker(self.ticker)
         _validate_margin(self.margin_of_safety_percent, self.assembly.current_price)
+        if self.price_comparison is not None and self.price_comparison.percent != self.margin_of_safety_percent:
+            raise ValueError("Comparison and legacy percentage disagree.")
         _validate_presentation_as_of(
             self.as_of,
             self.assembly.eps,
@@ -232,6 +239,7 @@ def render_graham_number(
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
         lines.extend(_profile_diagnostic_lines(presentation.instrument_profile, presentation.identity_resolution))
+        lines.extend(_comparison_details(presentation.price_comparison))
     return "\n".join(lines)
 
 
@@ -263,6 +271,7 @@ def render_graham_growth(
     elif mode is PresentationMode.DIAGNOSTICS:
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
         lines.extend(_profile_diagnostic_lines(presentation.instrument_profile, presentation.identity_resolution))
+        lines.extend(_comparison_details(presentation.price_comparison))
     return "\n".join(lines)
 
 
@@ -291,6 +300,7 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
             _comparison_lines(
                 p.assembly.current_price,
                 p.margin_of_safety_percent,
+                comparison=p.price_comparison,
                 reference_value=p.result.maximum_indicated_price,
                 valuation_currency=currency,
                 reference_label="Graham Number",
@@ -350,6 +360,7 @@ def _growth_concise_lines(p: GrahamGrowthPresentation) -> list[str]:
             _comparison_lines(
                 p.assembly.current_price,
                 p.margin_of_safety_percent,
+                comparison=p.price_comparison,
                 reference_value=p.result.growth_value,
                 valuation_currency=_common_currency(p.assembly.eps),
                 reference_label="Graham growth value",
@@ -399,6 +410,7 @@ def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
     lines = ["", "Details", "-------"]
     lines.extend(_identity_detail_lines(p.identity_resolution))
     lines.extend(_kind_detail_lines(p.instrument_profile))
+    lines.extend(_comparison_details(p.price_comparison))
     lines.extend(_input_detail_lines("EPS", p.assembly.eps))
     lines.extend(_input_detail_lines("BVPS", p.assembly.bvps))
     lines.extend(_input_detail_lines("Current price", p.assembly.current_price))
@@ -409,6 +421,7 @@ def _growth_detail_lines(p: GrahamGrowthPresentation) -> list[str]:
     lines = ["", "Details", "-------"]
     lines.extend(_identity_detail_lines(p.identity_resolution))
     lines.extend(_kind_detail_lines(p.instrument_profile))
+    lines.extend(_comparison_details(p.price_comparison))
     lines.extend(_input_detail_lines("EPS", p.assembly.eps))
     lines.extend(_input_detail_lines("Expected growth", p.assembly.expected_growth))
     lines.extend(_input_detail_lines("Current AAA yield", p.assembly.current_aaa_yield))
@@ -588,13 +601,103 @@ def _bvps_basis_label(value: ResolvedInput) -> str:
     return "BVPS basis unspecified"
 
 
-def _comparison_lines(
+def _comparison_reason(reason: str) -> str:
+    """Translate stable comparison decisions without exposing provider exceptions."""
+    return {
+        "missing_evidence": "share-unit evidence is missing; use --no-cache to refresh legacy inputs",
+        "provider_unsupported": "share-unit evidence is unsupported by this provider",
+        "provider_error": "share-unit evidence could not be retrieved",
+        "unsupported_temporal_evidence": "historical share-unit evidence is unsupported",
+        "source_mismatch": "filing and quoted security identities could not be matched",
+        "ambiguous_class": "filing and quoted share classes could not be matched",
+        "multi_class_ambiguity": "filing and quoted share classes could not be matched",
+        "unsupported_evidence": "filing share-unit evidence is unsupported or inconsistent",
+        "unknown_ratio": "the quoted-to-filing share ratio is unknown",
+        "unsupported_unit_kind": "the quoted share unit is unsupported",
+        "non_unit_ratio": "the quoted-to-filing share ratio is not 1:1",
+        "currency_mismatch": "valuation and quote currencies differ",
+        "missing_quote": "no current quote",
+        "nonpositive_reference": "the reference value is non-positive",
+        "calculation_unavailable": "the reference calculation is unavailable",
+        "nonfinite_comparison": "the price relationship is not finite",
+    }.get(reason, "share-unit compatibility could not be established")
+
+
+def _comparison_payload(comparison: PriceComparison | None) -> dict[str, Any] | None:
+    if comparison is None:
+        return None
+    resolution = comparison.security_unit_resolution
+    evidence = resolution.evidence if resolution else None
+    provenance = resolution.provenance if resolution else None
+    return {
+        "status": comparison.status,
+        "reason": comparison.reason,
+        "percent": comparison.percent,
+        "security_unit_evidence": None
+        if evidence is None
+        else {
+            "ticker": evidence.ticker,
+            "filing_unit_kind": evidence.filing_unit_kind.value,
+            "quoted_unit_kind": evidence.quoted_unit_kind.value,
+            "underlying_shares_per_quoted_unit": evidence.underlying_shares_per_quoted_unit,
+            "provider_id": evidence.provider_id,
+            "source": evidence.source,
+        },
+        "provenance": None
+        if provenance is None
+        else {
+            "mapping_id": provenance.mapping_id,
+            "cik": provenance.cik,
+            "class_title": provenance.class_title,
+            "documents": [
+                {
+                    "accession": item.accession,
+                    "url": item.url,
+                    "context_ids": list(item.context_ids),
+                    "available_at": item.available_at.isoformat(),
+                    "retrieved_at": item.retrieved_at.isoformat(),
+                }
+                for item in provenance.documents
+            ],
+        },
+    }
+
+
+def _comparison_details(comparison: PriceComparison | None) -> list[str]:
+    if comparison is None:
+        return []
+    lines = [f"Price comparison status: {comparison.status} ({comparison.reason})"]
+    resolution = comparison.security_unit_resolution
+    if resolution is not None and resolution.evidence is not None:
+        evidence = resolution.evidence
+        lines.extend(
+            [
+                f"Share-unit provider: {provider_display_name(evidence.provider_id)}",
+                f"Filing unit: {evidence.filing_unit_kind.value}; quoted unit: {evidence.quoted_unit_kind.value}",
+                f"Underlying shares per quoted unit: {evidence.underlying_shares_per_quoted_unit}",
+            ]
+        )
+    if resolution is not None and resolution.provenance is not None:
+        provenance = resolution.provenance
+        lines.extend([f"Share-unit mapping: {provenance.mapping_id}", f"Share class: {provenance.class_title}"])
+        for document in provenance.documents:
+            lines.append(
+                f"Share evidence: SEC EDGAR {document.accession}; "
+                f"available {format_utc_minute(document.available_at)}; "
+                f"retrieved {format_utc_minute(document.retrieved_at)}"
+            )
+            lines.append(f"Share contexts: {', '.join(document.context_ids)}")
+    return lines
+
+
+def _comparison_lines(  # noqa: PLR0913
     current_price: ResolvedInput | None,
     margin_of_safety_percent: float | None,
     *,
     reference_value: float | None = None,
     valuation_currency: str | None = None,
     reference_label: str,
+    comparison: PriceComparison | None = None,
 ) -> list[str]:
     if current_price is None:
         return ["Current price: unavailable", "Price comparison: unavailable (no current quote)"]
@@ -608,6 +711,8 @@ def _comparison_lines(
         and valuation_currency != current_price.currency
     ):
         lines.append("Price comparison: unavailable (valuation and quote currencies differ)")
+    elif comparison is not None and comparison.status == "unavailable":
+        lines.append(f"Price comparison: unavailable ({_comparison_reason(comparison.reason)})")
     elif margin_of_safety_percent is None:
         lines.append("Price comparison: unavailable")
     elif margin_of_safety_percent >= 0:
@@ -814,6 +919,7 @@ def _number_payload(p: GrahamNumberPresentation) -> dict[str, Any]:
     )
     return {
         "schema_version": _SCHEMA_VERSION,
+        "price_comparison": _comparison_payload(p.price_comparison),
         "analysis": "graham",
         "ticker": p.ticker.upper(),
         "security_identity": security_identity_payload(p.ticker, p.identity_resolution),
@@ -866,6 +972,7 @@ def _growth_payload(p: GrahamGrowthPresentation) -> dict[str, Any]:
     result_value = p.result.growth_value if p.result is not None and p.result.status is CalculationStatus.OK else None
     return {
         "schema_version": _SCHEMA_VERSION,
+        "price_comparison": _comparison_payload(p.price_comparison),
         "analysis": "graham",
         "ticker": p.ticker.upper(),
         "security_identity": security_identity_payload(p.ticker, p.identity_resolution),

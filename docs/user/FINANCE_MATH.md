@@ -205,6 +205,16 @@ Both baseline and current yields must be strictly positive.
 
 For either Graham method, a compatible current market price is optional to the formula itself.
 
+Automatic share-unit verification currently covers only a single positively
+identified ordinary common-stock class in SEC domestic US-GAAP `10-K` evidence
+for current requests. It checks original source values and contexts without
+replacing the financial inputs or changing the formula. Matching the sole
+registered common class to entity-wide common-share inputs supports the 1:1
+unit inference; an equity classification alone does not. Missing, contradictory,
+or unsupported evidence suppresses only the comparison with an explicit reason.
+See the [Graham guide](strategies/GRAHAM.md#current-price-comparison) for scope,
+timing limitations, and legacy-cache handling.
+
 When both a reference value and current price are available:
 
 ```text

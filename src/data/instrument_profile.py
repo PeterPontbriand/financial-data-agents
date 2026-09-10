@@ -171,9 +171,11 @@ class InstrumentProfile:
             raise ValueError("Instrument-kind ticker does not match the instrument profile ticker.")
         if self.security_unit_evidence is not None and self.security_unit_evidence.ticker != normalized_ticker:
             raise ValueError("Security-unit ticker does not match the instrument profile ticker.")
-        if self.security_unit_resolution is not None:
-            if self.security_unit_resolution.evidence != self.security_unit_evidence:
-                raise ValueError("Security-unit resolution contradicts the profile evidence.")
+        if (
+            self.security_unit_resolution is not None
+            and self.security_unit_resolution.evidence != self.security_unit_evidence
+        ):
+            raise ValueError("Security-unit resolution contradicts the profile evidence.")
 
 
 def complete_security_unit_profile(
@@ -193,9 +195,7 @@ def complete_security_unit_profile(
         except Exception:
             resolution = SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_ERROR)
     evidence = resolution.evidence
-    if evidence is not None and (
-        evidence.ticker != request.ticker or evidence.provider_id != request.provider_id
-    ):
+    if evidence is not None and (evidence.ticker != request.ticker or evidence.provider_id != request.provider_id):
         resolution = SecurityUnitResolution(SecurityUnitResolutionReason.SOURCE_MISMATCH)
     identity = profile.identity
     if (
@@ -209,7 +209,8 @@ def complete_security_unit_profile(
         InstrumentProfileCapability.SECURITY_UNIT,
         request.provider_id,
         InstrumentProfileResolutionStatus.RESOLVED
-        if resolution.evidence is not None else InstrumentProfileResolutionStatus.UNAVAILABLE,
+        if resolution.evidence is not None
+        else InstrumentProfileResolutionStatus.UNAVAILABLE,
         f"Share-unit evidence: {resolution.reason.value}.",
     )
     return replace(

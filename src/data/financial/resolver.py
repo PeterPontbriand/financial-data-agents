@@ -16,6 +16,7 @@ from src.data.financial.facts import (
     FinancialProviderError,
     FinancialUnit,
     ProviderFact,
+    ProviderShareSource,
 )
 from src.data.financial.provenance import (
     ComponentLineage,
@@ -35,6 +36,61 @@ from src.data.quality_reporting import publish_quality
 # ---------------------------------------------------------------------------
 # InputResolutionResult
 # ---------------------------------------------------------------------------
+
+
+def _provider_lineage(fact: ProviderFact, *, resolved_at: datetime, as_of: datetime | None) -> ComponentLineage | None:
+    """Retain typed adapter derivation sources through ordinary cache serialization."""
+    if not fact.source_facts:
+        return None
+    assert fact.source_transformation is not None
+    return ComponentLineage(
+        transformation=fact.source_transformation,
+        components=tuple(
+            _resolved_share_source(source, resolved_at=resolved_at, as_of=as_of)
+            if isinstance(source, ProviderShareSource)
+            else ResolvedInput(
+                field_name=source.field_name.value,
+                value=source.value,
+                source_kind=SourceKind.DERIVED if source.source_facts else SourceKind.PROVIDER,
+                resolved_at=resolved_at,
+                basis=source.basis,
+                units=source.units.value,
+                currency=source.currency,
+                provider_id=source.provider_id,
+                provider_field=source.provider_field,
+                observation_period_start=source.observation_period_start,
+                observation_period_end=source.observation_period_end,
+                available_at=source.available_at,
+                as_of=as_of,
+                retrieved_at=source.retrieved_at,
+                notes=source.notes,
+                provider_fact_id=source.provider_fact_id,
+                lineage=_provider_lineage(source, resolved_at=resolved_at, as_of=as_of),
+            )
+            for source in fact.source_facts
+        ),
+    )
+
+
+def _resolved_share_source(
+    source: ProviderShareSource, *, resolved_at: datetime, as_of: datetime | None
+) -> ResolvedInput:
+    """Carry raw shares without relabelling treasury shares as outstanding."""
+    return ResolvedInput(
+        field_name=source.provider_field,
+        value=source.value,
+        source_kind=SourceKind.PROVIDER,
+        resolved_at=resolved_at,
+        basis="fiscal_year_end",
+        units="shares",
+        provider_id=source.provider_id,
+        provider_field=source.provider_field,
+        observation_period_end=source.observation_period_end,
+        available_at=source.available_at,
+        as_of=as_of,
+        retrieved_at=source.retrieved_at,
+        provider_fact_id=source.provider_fact_id,
+    )
 
 
 @dataclass(frozen=True)
@@ -1049,7 +1105,7 @@ class InputResolver:
         ri = ResolvedInput(
             field_name=field_name,
             value=fact.value,
-            source_kind=SourceKind.PROVIDER,
+            source_kind=SourceKind.DERIVED if fact.source_facts else SourceKind.PROVIDER,
             resolved_at=self._clock(),
             basis=fact.basis,
             units=fact.units.value,
@@ -1068,6 +1124,7 @@ class InputResolver:
             accounting_scope=fact.accounting_scope,
             capital_expenditure_sign=fact.capital_expenditure_sign,
             provider_fact_id=fact.provider_fact_id,
+            lineage=_provider_lineage(fact, resolved_at=self._clock(), as_of=request.as_of),
         )
 
         if use_cache and self._cache is not None:

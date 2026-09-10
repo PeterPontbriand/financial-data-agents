@@ -403,7 +403,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["analysis"] == "graham"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
