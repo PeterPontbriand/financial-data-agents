@@ -8,9 +8,9 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 3.3 — Data Quality & Cache Invalidation — complete and approved on 2026-09-08<br/>
-**Active work:** Step 3.3A — Fresh Database Initialization & Schema Readiness — planning only; implementation awaits Gate A approval<br/>
-**Active companion:** [Step 3.3A Contract and Slice Plan](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)<br/>
-**Deferred next step:** Step 3.4 contract preparation and implementation follow 3.3A final acceptance; prior start authorization is retained<br/>
+**Active work:** Immediate Graham Price Comparison Repair — R0 accepted with caveats; R1 evidence/contract design next, implementation not authorized<br/>
+**Active companion:** [Graham Comparison Repair Plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)<br/>
+**Deferred next step:** Step 3.3A resumes after repair acceptance at its existing planning gate; Step 3.4 contract preparation and implementation follow 3.3A final acceptance; prior start authorization is retained<br/>
 **Planning checkpoint base:** `b6a84e0`; no implementation or new quality baseline is claimed by this documentation update<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
@@ -118,10 +118,11 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 ## Next implementation handoff
 
-[Step 3.3A Contract and Slice Plan](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
-records the fresh-storage initialization and readiness enhancement requested for
-planning on 2026-09-09. Finish its concrete Slice A design and baseline, then
-obtain contract and implementation approval before production changes.
-Step 3.4 retains its prior start authorization but waits for 3.3A final acceptance.
-The governing milestone sequence then places Step 3.4 before P2-Profiles,
-Step 3.5, and Step 3.6; ETF aggregation remains separately deferred.
+[Immediate Graham Price Comparison Repair](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
+has R0 planning acceptance with caveats recorded on 2026-09-09. R1 design is next. It precedes database readiness and addresses
+production share-unit evidence plus lost comparison-failure reasons in both Graham
+methods. Provider mapping, concrete interfaces, and a fresh baseline must be
+reviewed before implementation is authorized. Final repair acceptance returns work
+to [Step 3.3A](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
+at its existing gate, followed by Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6.
+Use `fix/graham-price-comparison` for the combined repair and small README audit correction. Keep database-readiness implementation separate.

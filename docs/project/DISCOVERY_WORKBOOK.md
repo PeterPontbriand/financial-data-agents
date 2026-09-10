@@ -597,3 +597,19 @@ consistent user documentation, and deterministic tests. Planning was requested;
 production implementation awaits contract approval. Complete this prerequisite
 before designing/implementing Step 3.4, retaining its earlier start authorization.
 The active milestone governs subsequent sequencing and supersedes older ordering.
+
+## Immediate Graham comparison repair — 2026-09-09
+
+The project owner identified a significant default-workflow defect: Graham Number
+and current price are present, but their comparison is unavailable without a reason.
+Local inspection shows profile composition leaves security-unit evidence unset,
+both Graham services require it when profiles exist, and the compatibility failure
+is reduced to a nullable percentage. The safeguard is valid; the missing production
+evidence integration and lost explanation require repair.
+
+Prioritize the [bounded repair](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
+before database readiness, rather than defer it to a backlog issue. Restore supported
+comparisons with validated provider evidence and preserve specific reasons when
+compatibility cannot be established. Do not remove the guard, fabricate ordinary-share
+ratios, or expand this into profile persistence. Planning was accepted with caveats on 2026-09-09;
+provider mapping and implementation approval remain explicit gates. The small README correction from the CLI audit belongs in the same repair review, because it exposed the defect; it must not redefine the defect as intended behavior. Use `fix/graham-price-comparison` and keep database-readiness implementation separate.

@@ -1,6 +1,6 @@
 # Step 3.3A — Fresh Database Initialization and Schema Readiness
 
-**Status:** Planning requested on 2026-09-09. Proposed contract and implementation slices; production implementation is not authorized by this documentation request. No baseline or implementation acceptance is claimed.
+**Status:** Deferred until [immediate Graham comparison repair](../graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) final acceptance. Planning requested on 2026-09-09. Proposed contract and implementation slices; production implementation is not authorized by this documentation request. No baseline or implementation acceptance is claimed.
 
 **Authority:** [Milestone implementation plan](../IMPLEMENTATION_PLAN.md#49a-step-33a--fresh-database-initialization--schema-readiness). This bounded prerequisite precedes Step 3.4 contract design and implementation. Step 3.4's 2026-09-08 start authorization is retained but deferred until this work receives final acceptance; its own contract/review gates still apply. Subsequent sequence remains Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6, following the active milestone's latest ordering.
 

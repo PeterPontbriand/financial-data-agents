@@ -487,6 +487,19 @@ Private model reasoning is never reconstructed.
 
 ---
 
+### Planned Graham comparison evidence repair
+
+The [immediate repair plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
+has planning acceptance with branch-naming and combined README-review caveats. Current profile composition does not supply the share-unit
+evidence required by the Graham services, and nullable comparison output loses
+the compatibility reason. The repair must supply defensible provider-backed,
+request-scoped evidence and propagate typed decisions through services and reporting.
+Matching currencies and an equity classification alone do not establish a 1:1
+filing-share/quoted-unit relationship. Preserve the fail-closed guard and valid
+standalone financial results; unsupported comparisons need explicit reasons.
+This target introduces neither durable profile storage nor ADR/FX conversion and
+is not a claim that production behavior has already changed.
+
 ### Planned database readiness boundary
 
 The [fresh database readiness contract](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
