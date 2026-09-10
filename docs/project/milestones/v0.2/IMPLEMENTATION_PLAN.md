@@ -12,7 +12,7 @@
 **Revised:** 2026-09-09 — Added Step 3.3A fresh-database initialization/readiness planning before Step 3.4. Step 3.4 start authorization is retained but deferred pending 3.3A final acceptance; production implementation of 3.3A requires Gate A approval.<br/>
 **Revised:** 2026-09-09 — Prioritized the immediate Graham price-comparison repair ahead of Step 3.3A. Planning was accepted with caveats on 2026-09-09; production changes are not authorized. Both Graham methods must receive validated share-unit evidence and report structured comparison-unavailability reasons.<br/>
 **Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.3A → planning in progress, implementation not authorized; Step 3.4 → start approved on 2026-09-08, deferred until 3.3A acceptance.
-**Next work item:** [Immediate Graham Price Comparison Repair](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) (R0 accepted; R1 next) → [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Next work item:** [Immediate Graham Price Comparison Repair](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) (R1 ready for review) → [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1583,7 +1583,7 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 ### 4.9R Immediate Graham Price Comparison Repair
 
-**Status:** R0 planning accepted on 2026-09-09 with descriptive branch prefixes and inclusion of the small README audit correction. R1 evidence/contract design is next; production implementation awaits R1 approval. [Repair contract and review plan](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) governs evidence design, implementation authorization, tests, and acceptance. No production work or baseline is claimed.
+**Status:** R0 planning accepted on 2026-09-09 with descriptive branch prefixes and inclusion of the small README audit correction. [R1 evidence/contract](graham-comparison/R1_EVIDENCE_AND_CONTRACT.md) is ready for review with a green 1,944-test baseline and two deterministic CLI reproductions; production implementation awaits R1 approval. [Repair contract and review plan](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) governs evidence design, implementation authorization, tests, and acceptance. No production work or baseline is claimed.
 
 **Priority:** Complete this repair before Step 3.3A implementation/design continuation. Default production profile composition omits share-unit evidence required by both Graham methods; comparison is suppressed and its reason is lost. Restore supported comparisons through validated provider evidence and carry explicit incompatibility reasons to all output modes. Preserve the fail-closed 1:1 ordinary-share guard; do not hardcode KO, infer compatibility from EQUITY/USD, or expand into ADR conversion or P2 persistence.
 
@@ -1753,7 +1753,7 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gates 3.2-A/B/C approved; Gate 3.2-D approved; complete on 2026-09-07)
   ├─ Issue #17 telemetry closeout (complete and approved; publication pending)
   ├─ 3.3 data quality / invalidation (authorized to begin on 2026-09-07)
-  ├─ Immediate Graham comparison repair (R0 accepted; R1 next)
+  ├─ Immediate Graham comparison repair (R1 ready for review)
   └─ 3.3A fresh initialization / schema readiness (planning; acceptance before Phase H)
         │
         ▼
@@ -1858,7 +1858,7 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-1. Review [Immediate Graham Price Comparison Repair](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) with R0 accepted on 2026-09-09. Include the small README audit correction on `fix/graham-price-comparison`; keep database-readiness implementation separate. Complete R1 evidence/contract design and obtain implementation authorization; final repair acceptance is required before returning to Step 3.3A. Then review [Step 3.3A Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md). Complete Slice A caller/test inventory, concrete interfaces and locking/error contract, and fresh managed baseline. Explicit Gate A approval is required before production implementation.
+1. Review [Immediate Graham Price Comparison Repair](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) with R0 accepted on 2026-09-09. Include the small README audit correction on `fix/graham-price-comparison`; keep database-readiness implementation separate. Review the completed [R1 evidence/contract](graham-comparison/R1_EVIDENCE_AND_CONTRACT.md), including the proposed filing reader, mapping limits, and JSON schema 4, and obtain implementation authorization; final repair acceptance is required before returning to Step 3.3A. Then review [Step 3.3A Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md). Complete Slice A caller/test inventory, concrete interfaces and locking/error contract, and fresh managed baseline. Explicit Gate A approval is required before production implementation.
 2. Preserve Step 3.4's prior start authorization while deferring its contract preparation and implementation until 3.3A final acceptance. Then prepare its companion contract before implementing workspace functionality.
 3. Retain the selected subsequent order: Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6. P2-ETF remains deferred beyond Step 3.6 with separate prioritization and policy approval.
 4. Steps 3.2 and 3.3 are complete and approved. Local history records telemetry closeout in PR #31 and Step 3.3 in PR #32; older publication-pending notes are historical and do not schedule repeat implementation/publication. GitHub issue closure has not been verified by this planning task.

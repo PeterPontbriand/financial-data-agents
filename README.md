@@ -23,14 +23,14 @@ uv run financial-agents graham-number KO
 A representative result looks like this:
 
 ```text
-KO — Graham Number (maximum indicated price): 21.14 USD
-Current price: 91.86 USD
-Price relationship: 334.47% above the Graham Number
+COCA COLA CO (KO) — Graham Number (maximum indicated price): 21.14 USD
+Current price: 87.55 USD
+Price comparison: unavailable
 
 Basis: 3-year average diluted EPS + latest eligible fiscal-year-end BVPS
 EPS (3-year average): 2.66 USD
 Book value per common share: 7.48 USD
-Sources / freshness: EPS — derived from SEC EDGAR (available 2026-02-20); BVPS — derived from SEC EDGAR (available 2026-02-20)
+Sources / freshness: EPS — cache (original=derived, provider=SEC EDGAR) (available 2026-02-20); BVPS — cache (original=derived, provider=SEC EDGAR) (available 2026-02-20)
 Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.
 ```
 

@@ -8,10 +8,10 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 3.3 — Data Quality & Cache Invalidation — complete and approved on 2026-09-08<br/>
-**Active work:** Immediate Graham Price Comparison Repair — R0 accepted with caveats; R1 evidence/contract design next, implementation not authorized<br/>
-**Active companion:** [Graham Comparison Repair Plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)<br/>
+**Active work:** Immediate Graham Price Comparison Repair — R1 evidence/contract ready for review; baseline passed, implementation not authorized<br/>
+**Active companion:** [Graham R1 Evidence and Contract](milestones/v0.2/graham-comparison/R1_EVIDENCE_AND_CONTRACT.md), under the [accepted repair plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)<br/>
 **Deferred next step:** Step 3.3A resumes after repair acceptance at its existing planning gate; Step 3.4 contract preparation and implementation follow 3.3A final acceptance; prior start authorization is retained<br/>
-**Planning checkpoint base:** `b6a84e0`; no implementation or new quality baseline is claimed by this documentation update<br/>
+**Inspected checkpoint:** `e20f6f7`; R1 full managed baseline passed (1,944 tests, 89% coverage); no production fix is claimed<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -119,7 +119,7 @@ The first two repair commands intentionally mutate files. Review their diff befo
 ## Next implementation handoff
 
 [Immediate Graham Price Comparison Repair](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
-has R0 planning acceptance with caveats recorded on 2026-09-09. R1 design is next. It precedes database readiness and addresses
+has R0 acceptance with caveats. [R1 design and evidence](milestones/v0.2/graham-comparison/R1_EVIDENCE_AND_CONTRACT.md) are ready for review; the 1,944-test baseline and two isolated reproductions passed. It precedes database readiness and addresses
 production share-unit evidence plus lost comparison-failure reasons in both Graham
 methods. Provider mapping, concrete interfaces, and a fresh baseline must be
 reviewed before implementation is authorized. Final repair acceptance returns work
