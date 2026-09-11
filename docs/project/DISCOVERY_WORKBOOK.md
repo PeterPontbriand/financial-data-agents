@@ -613,3 +613,31 @@ comparisons with validated provider evidence and preserve specific reasons when
 compatibility cannot be established. Do not remove the guard, fabricate ordinary-share
 ratios, or expand this into profile persistence. Planning was accepted with caveats on 2026-09-09;
 provider mapping and implementation approval remain explicit gates. The small README correction from the CLI audit belongs in the same repair review, because it exposed the defect; it must not redefine the defect as intended behavior. Use `fix/graham-price-comparison` and keep database-readiness implementation separate.
+
+## Existing-strategy correctness takes priority over readiness
+
+After the Graham comparison repair, review of a detailed KO result exposed
+additional defects: a cached quote labelled current without a quote-specific
+freshness bound, missing venue enrichment despite available filing evidence,
+ambiguous unavailable/n/a/unspecified labels, and insufficiently explicit
+inferred-zero provenance. The earlier passing synthetic suite also missed a real
+filing shape, demonstrating the need for independent source-to-output verification.
+
+The project owner accepted a systematic audit and repair of Graham Number,
+Graham Growth, Momentum, and FCF/Earnings Growth before database readiness
+continues, and approved expansion of the planning documents. The renamed branch
+is `fix/existing-strategy-correctness`; the Graham repair/README checkpoint
+`e8f4a95` is preserved. Its final acceptance is reopened within the broader audit.
+
+The [correctness plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)
+requires a coverage matrix and defect ledger, realistic provider-shaped tests,
+independent calculations, dated live evidence and no unresolved known
+correctness defects. ESC-C final acceptance releases database-readiness work at
+its existing gates. Readiness, workspace and profile changes must retain the
+four-analysis regressions; ESC-D renews acceptance immediately before Step 3.5.
+This is a binding prerequisite to new strategy development, not an issue backlog.
+
+One implementation owner avoids concurrent-edit overhead. A bounded read-only
+Cline review may provide independent scrutiny without becoming a required tool
+or sharing implementation ownership. Planning approval does not claim audit
+completion or authorize unreviewed financial-policy changes.

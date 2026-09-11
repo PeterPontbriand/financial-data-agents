@@ -1,5 +1,7 @@
 # Step 3.5: Deterministic Quantitative Screening Strategies
 
+**Mandatory implementation entry gate:** The [Existing Strategy Correctness Plan](../existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) requires ESC-C acceptance before database readiness resumes and explicit ESC-D renewed acceptance after readiness, workspace and P2-Profiles changes, on the actual Step 3.5 starting revision. No new strategy implementation may begin with unresolved known correctness defects in Graham Number, Graham Growth, Momentum or FCF/Earnings Growth. Earlier approval of this plan does not waive that requirement.
+
 **Milestone Context:** v0.2 – Reliability, Observability, Strategy Generalization, Data Persistence & Investor Workflow  
 **Placement:** After Step 3.4 (Local Research Workspace & Analysis Run Library) and before Step 3.6 (Light Mode Support). Required before Milestone v0.2.5 Real-User Validation Checkpoint.  
 **Dependencies:**  

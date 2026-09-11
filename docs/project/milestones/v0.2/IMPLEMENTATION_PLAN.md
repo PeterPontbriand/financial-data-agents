@@ -12,7 +12,8 @@
 **Revised:** 2026-09-09 — Added Step 3.3A fresh-database initialization/readiness planning before Step 3.4. Step 3.4 start authorization is retained but deferred pending 3.3A final acceptance; production implementation of 3.3A requires Gate A approval.<br/>
 **Revised:** 2026-09-09 — Prioritized the immediate Graham price-comparison repair ahead of Step 3.3A. Planning was accepted with caveats on 2026-09-09; production changes are not authorized. Both Graham methods must receive validated share-unit evidence and report structured comparison-unavailability reasons.<br/>
 **Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.3A → planning in progress, implementation not authorized; Step 3.4 → start approved on 2026-09-08, deferred until 3.3A acceptance.
-**Next work item:** [Immediate Graham Price Comparison Repair](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) (R2 implemented and verified; final review pending) → [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Current amendment:** Expanded planning approved for the four-analysis correctness audit. Graham-only final acceptance is reopened; ESC-C blocks readiness continuation and ESC-D blocks Step 3.5 implementation.<br/>
+**Next work item:** [Existing Strategy Correctness Audit and Repair](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) (expanded planning approved; ESC-C acceptance required) → [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → ESC-D renewed acceptance → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -23,7 +24,7 @@ This plan turns the high-level Master Plan steps for Milestone v0.2 into an acti
 
 **In scope**
 - Step 2 – Agent Reliability, Strategy Generalization, Evaluation & Observability Foundation (2.1 → 2.6)
-- Immediate Graham price-comparison repair — validated production share-unit evidence and explicit compatibility reasons, before Step 3.3A.
+- Existing-strategy correctness audit and repair — all four public analyses, including the Graham repair; ESC-C before Step 3.3A and renewed ESC-D acceptance before Step 3.5.
 - Step 3.3A – Fresh database initialization, typed readiness errors, user documentation, and deterministic lifecycle verification (before Step 3.4).
 - Step 3 – Relational Data Persistence, Data Quality & Local Research Workspace (3.1 → 3.4)
 - R1 – Graham Analyzer Separation & Shared CLI Plumbing Extraction (before Step 3.4)
@@ -198,7 +199,8 @@ The telemetry recorder will capture and store observable data explicitly exposed
 - **Verification:** The accepted closeout passed 35 focused tests and the complete
   managed gate (1,870 tests, 89% reported coverage, clean Ruff/format and strict
   mypy) on 2026-09-07. No production changes were needed; final acceptance was approved on 2026-09-07.
-- **Next work item:** Complete the bounded [Issue #17 Telemetry Closeout
+- **Current amendment:** Expanded planning approved for the four-analysis correctness audit. Graham-only final acceptance is reopened; ESC-C blocks readiness continuation and ESC-D blocks Step 3.5 implementation.<br/>
+**Next work item:** Complete the bounded [Issue #17 Telemetry Closeout
   Plan](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) after Step 3.2 and before
   Step 3.3. Contract and final acceptance were approved on 2026-09-07; the closeout
   is complete and Step 3.3 is authorized to begin. Publication remains outstanding.
@@ -1581,25 +1583,27 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 ---
 
-### 4.9R Immediate Graham Price Comparison Repair
+### 4.9R Existing Strategy Correctness Audit and Repair
 
-**Status:** R0/R1 accepted and R2 implementation authorized, including the approved source-lineage extension. R2 is implemented and verified on `fix/graham-price-comparison`: 2,004 tests passed, 89% coverage, Ruff/format/strict mypy clean. [R2 evidence and handoff](graham-comparison/R2_IMPLEMENTATION_AND_VERIFICATION.md) records the scope, continuation authorization, and limitations. Paused for final R2/R3 acceptance; database-readiness implementation remains separate.
+**Status:** The project owner reviewed and approved the expanded audit and repair plan, including its scope, sequencing and acceptance gates. Ready for ESC-A evidence and concrete repair-contract preparation; its policy/API decisions and later acceptance remain open. Work is on `fix/existing-strategy-correctness`; the previous Graham repair is checkpointed in `e8f4a95`. Its 2,004-test gate is historical evidence, not acceptance of this expanded scope. Graham R2/R3 final acceptance is reopened and incorporated into ESC-C.
 
-**Priority:** Complete this repair before Step 3.3A implementation/design continuation. Default production profile composition omits share-unit evidence required by both Graham methods; comparison is suppressed and its reason is lost. Restore supported comparisons through validated provider evidence and carry explicit incompatibility reasons to all output modes. Preserve the fail-closed 1:1 ordinary-share guard; do not hardcode KO, infer compatibility from EQUITY/USD, or expand into ADR conversion or P2 persistence.
+**Contract:** [Existing Strategy Correctness Plan](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) governs the evidence matrix, defect ledger, repair contracts and acceptance gates for Graham Number, Graham Growth, Momentum, and FCF/Earnings Growth. Trace provider evidence, cache lifecycle, calculations, classification and all output modes. No known output-correctness defect may be left unresolved in a backlog before further strategy development.
 
-**Gates:** R0/R1 accepted; R2 implementation and full managed verification complete under the recorded continuation authorization. Review the R2 evidence and grant final R2/R3 acceptance before returning to Step 3.3A. Intermediate distribution-slice approvals are not claimed. Better error wording alone does not complete the repair.
+**Gates:** ESC-A establishes fresh evidence/baseline and concrete policy/file contracts for approval before expanded production edits. ESC-B executes approved repairs toward one final ESC-C review. Explicit ESC-C acceptance is required before database-readiness design/implementation continuation. ESC-D renews acceptance on the actual starting revision immediately before Step 3.5, after readiness/workspace/profile changes. A green test count alone does not establish correctness; independent arithmetic, realistic composition fixtures and dated live evidence are required.
+
+**Preservation:** Retain the Graham repair and README correction as predecessor evidence. Keep readiness implementation separate. Preserve existing financial assumptions unless a diagnosed defect justifies an explicitly reviewed change. This checkpoint changes planning only.
 
 ---
 
 ### 4.9A Step 3.3A – Fresh Database Initialization & Schema Readiness
 
-**Status:** Planning requested on 2026-09-09; production implementation not authorized. Deferred until immediate Graham comparison repair acceptance. [Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) owns the bounded behavior, verification matrix, and A–D review gates.
+**Status:** Planning requested on 2026-09-09; production implementation not authorized. Deferred until ESC-C existing-strategy correctness acceptance. [Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) owns the bounded behavior, verification matrix, and A–D review gates.
 
 **Goal:** Make the first persistence-backed analysis initialize verified empty SQLite storage through bundled Alembic migrations, while preserving explicit upgrades of existing databases and reporting actionable typed readiness errors.
 
 **Scope:** Shared application readiness boundary; strict fresh/current/older/incompatible/unavailable classification; bounded cross-process initialization with recheck and atomic migration; sanitized CLI/operational errors; durable user documentation; deterministic lifecycle, concurrency, rollback, and CLI tests. No existing-data auto-upgrades, schema repair, new business tables, dependencies, or workspace functionality.
 
-**Sequencing:** Complete and accept 3.3A before Step 3.4 contract preparation and implementation. The 2026-09-08 Step 3.4 authorization is retained, not revoked; its start is deferred. Preserve the latest selected subsequent sequence: Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6. This supersedes older P2-before-workspace sequencing statements.
+**Sequencing:** Complete and accept 3.3A before Step 3.4 contract preparation and implementation. The 2026-09-08 Step 3.4 authorization is retained, not revoked; its start is deferred. Preserve the subsequent sequence: Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. This supersedes older P2-before-workspace sequencing statements.
 
 **Acceptance:** The companion matrix and full managed quality gate must pass. Gate A requires explicit contract/implementation approval; B and C require review before proceeding; Gate D requires explicit final acceptance. This documentation checkpoint does not assert implementation or a fresh test baseline.
 
@@ -1667,6 +1671,8 @@ no speculative plugin framework or ETF schema is authorized here.
 - [ ] No daemon, unattended scheduler, proactive monitoring, notifications, full-screen TUI, or executive report generator is introduced.
 
 ### 4.11 Step 3.5 – Deterministic Quantitative Screening Strategies
+
+**Mandatory entry gate:** Explicit ESC-D renewed acceptance from the [correctness plan](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) is required on the actual starting revision. No new strategy implementation may begin with an unresolved known defect in any of the four existing analyses. Prior Step 3.5 plan approval does not waive this gate.
 
 **Goal**  
 Implement the five independently typed deterministic screening strategies defined in the companion Step 3.5 plan (Piotroski F-Score, Altman Z-Score, Beneish M-Score, Unlevered Valuation Multiples, Greenblatt Magic Formula Ranking). All work reuses existing financial-fact, InputResolver, provenance, Analysis Run, and progressive-disclosure contracts. No paid data sources and no LLM arithmetic.
@@ -1753,7 +1759,7 @@ Phase G — Step 3 production persistence/data quality
   ├─ 3.2 scope reconciliation + remaining typed repository work (started 2026-09-07; Gates 3.2-A/B/C approved; Gate 3.2-D approved; complete on 2026-09-07)
   ├─ Issue #17 telemetry closeout (complete and approved; publication pending)
   ├─ 3.3 data quality / invalidation (authorized to begin on 2026-09-07)
-  ├─ Immediate Graham comparison repair (R2 implemented and verified; final review pending)
+  ├─ Existing-strategy correctness audit/repair (ESC-C acceptance required)
   └─ 3.3A fresh initialization / schema readiness (planning; acceptance before Phase H)
         │
         ▼
@@ -1762,7 +1768,7 @@ Phase H — Step 3.4 local research workspace
   └─ P2-Profiles durable instrument profiles (after Step 3.4; no ETF aggregation)
         │
         ▼
-Phase I — Step 3.5 deterministic quantitative screening strategies
+Phase I — ESC-D renewed acceptance, then Step 3.5 deterministic quantitative screening strategies
   └─ Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula
         │
         ▼
@@ -1858,8 +1864,8 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-1. Review [Immediate Graham Price Comparison Repair](graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md) with R0 accepted on 2026-09-09. Include the small README audit correction on `fix/graham-price-comparison`; keep database-readiness implementation separate. Review the completed [R2 implementation and verification](graham-comparison/R2_IMPLEMENTATION_AND_VERIFICATION.md), including the approved lineage extension, filing reader, mapping limits, JSON schema 4, and 2,004-test managed gate; final repair acceptance is required before returning to Step 3.3A. Then review [Step 3.3A Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md). Complete Slice A caller/test inventory, concrete interfaces and locking/error contract, and fresh managed baseline. Explicit Gate A approval is required before production implementation.
+1. Begin ESC-A evidence and concrete repair-contract preparation under the [Existing Strategy Correctness Plan](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md), on `fix/existing-strategy-correctness`. Audit all four existing analyses and all supported output modes; populate the matrix/ledger and establish a fresh baseline. Approve concrete contracts before expanded production edits; require one final ESC-C acceptance before resuming Step 3.3A at its existing planning gates. No further strategy development is authorized while known correctness defects remain unresolved.
 2. Preserve Step 3.4's prior start authorization while deferring its contract preparation and implementation until 3.3A final acceptance. Then prepare its companion contract before implementing workspace functionality.
-3. Retain the selected subsequent order: Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6. P2-ETF remains deferred beyond Step 3.6 with separate prioritization and policy approval.
+3. Retain the subsequent order: Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. Rerun the four-analysis regressions after readiness and workspace/profile changes; newly found defects block strategy development until repaired and reviewed. P2-ETF remains deferred beyond Step 3.6 with separate prioritization and policy approval.
 4. Steps 3.2 and 3.3 are complete and approved. Local history records telemetry closeout in PR #31 and Step 3.3 in PR #32; older publication-pending notes are historical and do not schedule repeat implementation/publication. GitHub issue closure has not been verified by this planning task.
 5. Preserve classified financial-data unavailability and the separate empirical Light Mode validation follow-up. No live provider validation or user-database migration is part of this documentation checkpoint.

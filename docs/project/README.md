@@ -8,10 +8,10 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 3.3 — Data Quality & Cache Invalidation — complete and approved on 2026-09-08<br/>
-**Active work:** Immediate Graham Price Comparison Repair — R1 evidence/contract ready for review; baseline passed, implementation not authorized<br/>
-**Active companion:** [Graham R1 Evidence and Contract](milestones/v0.2/graham-comparison/R1_EVIDENCE_AND_CONTRACT.md), under the [accepted repair plan](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)<br/>
-**Deferred next step:** Step 3.3A resumes after repair acceptance at its existing planning gate; Step 3.4 contract preparation and implementation follow 3.3A final acceptance; prior start authorization is retained<br/>
-**Inspected checkpoint:** `e20f6f7`; R1 full managed baseline passed (1,944 tests, 89% coverage); no production fix is claimed<br/>
+**Active work:** Existing Strategy Correctness Audit and Repair — expanded plan reviewed and approved; ready for ESC-A evidence and concrete repair contracts<br/>
+**Active companion:** [Audit, Repair, and Acceptance Plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)<br/>
+**Deferred next step:** Step 3.3A resumes only after ESC-C acceptance; Step 3.4 follows readiness acceptance; ESC-D renewal blocks Step 3.5 until all known existing-analysis defects are resolved<br/>
+**Inspected checkpoint:** `e8f4a95` on `fix/existing-strategy-correctness`; prior Graham evidence is retained, not acceptance of the broader audit<br/>
 **Detailed Step 2.3 completion record:** [Step 2.3 Graham Slice Plan](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_SLICE_PLAN.md)<br/>
 **Governing Step 2.3 design:** [Step 2.3 Graham Design](milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md)<br/>
 **Active milestone implementation plan:** [Milestone v0.2 Implementation Plan](milestones/v0.2/IMPLEMENTATION_PLAN.md)<br/>
@@ -118,11 +118,13 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 ## Next implementation handoff
 
-[Immediate Graham Price Comparison Repair](milestones/v0.2/graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md)
-has R0 acceptance with caveats. [R1 design and evidence](milestones/v0.2/graham-comparison/R1_EVIDENCE_AND_CONTRACT.md) are ready for review; the 1,944-test baseline and two isolated reproductions passed. It precedes database readiness and addresses
-production share-unit evidence plus lost comparison-failure reasons in both Graham
-methods. Provider mapping, concrete interfaces, and a fresh baseline must be
-reviewed before implementation is authorized. Final repair acceptance returns work
-to [Step 3.3A](milestones/v0.2/step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md)
-at its existing gate, followed by Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6.
-Use `fix/graham-price-comparison` for the combined repair and small README audit correction. Keep database-readiness implementation separate.
+The [Existing Strategy Correctness Plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)
+expands the Graham repair into a systematic audit of all four existing analyses.
+Prepare ESC-A evidence, the defect ledger, and concrete repair contracts before
+expanded production edits. Complete repairs and obtain one final ESC-C review
+before database readiness resumes. Preserve the existing Graham/README checkpoint
+on `fix/existing-strategy-correctness`; keep readiness implementation separate.
+
+After Step 3.3A, Step 3.4 and P2-Profiles, renew the existing-analysis acceptance
+at ESC-D on the actual Step 3.5 starting revision. Newly discovered correctness
+defects block further strategy development until repaired and reviewed.

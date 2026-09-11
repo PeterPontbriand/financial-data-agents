@@ -1,5 +1,7 @@
 # Immediate Graham Price Comparison Repair — Contract and Review Plan
 
+**Superseding acceptance scope:** The project owner expanded this repair into the [Existing Strategy Correctness Audit](../existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md). Graham R2/R3 final acceptance is reopened and folded into ESC-C; this historical repair record does not independently release database readiness. The branch is now `fix/existing-strategy-correctness`; prior branch/workflow statements below describe predecessor work.
+
 **Status:** R1 accepted; R2 implementation and verification complete on 2026-09-10 (2,004 tests, 89% coverage, complete managed gate). Paused for final R2/R3 review. See [R2 implementation and verification](R2_IMPLEMENTATION_AND_VERIFICATION.md) for authorization, scope, evidence, and limitations.
 
 **Priority and authority:** The [active milestone](../IMPLEMENTATION_PLAN.md) schedules this repair immediately before Step 3.3A, then Step 3.4 → P2-Profiles → Step 3.5 → Step 3.6. It is an immediate corrective work item, not a deferred issue or the full P2-Profiles implementation. Step 3.4's prior authorization remains recorded with its existing deferral.

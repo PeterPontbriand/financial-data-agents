@@ -1,5 +1,7 @@
 # Graham Comparison Repair — R2 implementation and verification
 
+**Acceptance update:** The verified Graham repair is checkpointed in `e8f4a95` on the renamed `fix/existing-strategy-correctness` branch. Its final acceptance is reopened and incorporated into ESC-C of the [expanded four-analysis audit](../existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md). Preserve the following evidence as history, not approval of the expanded scope or permission to resume readiness.
+
 **Status:** Implementation and deterministic verification complete on 2026-09-10;
 paused for R2/R3 stakeholder review. Final acceptance has not been granted.
 
