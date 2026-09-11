@@ -8,7 +8,7 @@ If you want to install or use Financial Data Agents, start with the [Investor & 
 
 **Active milestone:** v0.2<br/>
 **Completed step:** Step 3.3 — Data Quality & Cache Invalidation — complete and approved on 2026-09-08<br/>
-**Active work:** Existing Strategy Correctness Audit and Repair — expanded plan reviewed and approved; ready for ESC-A evidence and concrete repair contracts<br/>
+**Active work:** Existing Strategy Correctness Audit and Repair — ESC-A evidence and concrete repair contracts prepared for review; expanded production edits await approval<br/>
 **Active companion:** [Audit, Repair, and Acceptance Plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)<br/>
 **Deferred next step:** Step 3.3A resumes only after ESC-C acceptance; Step 3.4 follows readiness acceptance; ESC-D renewal blocks Step 3.5 until all known existing-analysis defects are resolved<br/>
 **Inspected checkpoint:** `e8f4a95` on `fix/existing-strategy-correctness`; prior Graham evidence is retained, not acceptance of the broader audit<br/>
@@ -120,8 +120,8 @@ The first two repair commands intentionally mutate files. Review their diff befo
 
 The [Existing Strategy Correctness Plan](milestones/v0.2/existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md)
 expands the Graham repair into a systematic audit of all four existing analyses.
-Prepare ESC-A evidence, the defect ledger, and concrete repair contracts before
-expanded production edits. Complete repairs and obtain one final ESC-C review
+Review the [ESC-A evidence and concrete contracts](milestones/v0.2/existing-strategy-correctness/ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), including the linked twelve-entry ledger and coverage matrix, before
+expanded production edits. Complete approved repairs and obtain one final ESC-C review
 before database readiness resumes. Preserve the existing Graham/README checkpoint
 on `fix/existing-strategy-correctness`; keep readiness implementation separate.
 

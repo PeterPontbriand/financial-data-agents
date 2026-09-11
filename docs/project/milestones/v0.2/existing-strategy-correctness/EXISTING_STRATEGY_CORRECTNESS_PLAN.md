@@ -1,8 +1,8 @@
 # Existing Strategy Correctness — Audit, Repair, and Acceptance
 
-**Status:** Expanded audit and repair plan reviewed and approved by the project owner. Ready for ESC-A evidence and concrete repair-contract preparation. Investigation, policy decisions, repairs, and final acceptance are not claimed complete.
+**Status:** Expanded audit and repair plan approved. ESC-A evidence and proposed concrete contracts are prepared for review in the [review packet](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), with a populated [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage matrix](ESC_A_COVERAGE_MATRIX.md). Policy approval, expanded repairs, and final acceptance remain open.
 
-**Approval record:** Following review of the expanded planning documents, the project owner instructed: “Record approval and propose a docs-only checkpoint commit description.” Approval covers the four-analysis scope, defect accounting, execution/review structure, readiness deferral, and renewed acceptance before Step 3.5. It does not constitute approval of the concrete policy/API changes still to be proposed at ESC-A, completion of ESC-C/ESC-D, or authorization to create the checkpoint commit or push it. This update records approval only; ESC-A execution is the next work item.
+**Approval record:** Following review of the expanded planning documents, the project owner instructed: “Record approval and propose a docs-only checkpoint commit description.” Approval covers the four-analysis scope, defect accounting, execution/review structure, readiness deferral, and renewed acceptance before Step 3.5. After pushing checkpoint `8d7fba0`, the project owner authorized ESC-A evidence and concrete repair-contract preparation. The resulting C1–C6 proposals require review before ESC-B production edits; neither ESC-C nor ESC-D is complete.
 
 **Authority:** [Active milestone](../IMPLEMENTATION_PLAN.md). This work supersedes the Graham-only acceptance boundary. Complete it before resuming database readiness; no further strategy development may start while known correctness defects remain unresolved.
 
