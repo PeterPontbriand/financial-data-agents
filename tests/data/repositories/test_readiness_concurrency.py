@@ -28,9 +28,9 @@ from src.data.repositories.readiness import ensure_database_ready
 from src.data.repositories.readiness_lock import readiness_lock
 
 
-def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool) -> None:
+def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool, mode: str = "automatic") -> None:
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{Path(path).as_posix()}"))
-    original = migrations.upgrade_fresh_database
+    original = migrations._run_on_connection if mode == "manual" else migrations.upgrade_fresh_database
 
     def paused_upgrade(connection: Connection) -> None:
         connection.exec_driver_sql("CREATE TABLE transient_probe (value INTEGER)")
@@ -42,14 +42,24 @@ def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool) -> 
         original(connection)
 
     try:
-        with patch.object(readiness, "upgrade_fresh_database", paused_upgrade):
-            channel.send(ensure_database_ready(database).value)
+        if mode == "manual":
+            config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+            config.set_main_option("sqlalchemy.url", f"sqlite:///{Path(path).as_posix()}".replace("%", "%%"))
+            with patch.object(migrations, "_run_on_connection", paused_upgrade):
+                command.upgrade(config, "head")
+            channel.send("initialized")
+        else:
+            with patch.object(readiness, "upgrade_fresh_database", paused_upgrade):
+                outcome = (
+                    readiness.upgrade_database(database)[0] if mode == "explicit" else ensure_database_ready(database)
+                )
+                channel.send(outcome.value)
     finally:
         database.close()
         channel.close()
 
 
-def _waiter(path: str, channel: _ConnectionBase[object, object], manual: bool) -> None:
+def _waiter(path: str, channel: _ConnectionBase[object, object], mode: str) -> None:
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{Path(path).as_posix()}"))
     original_lock = readiness_lock
 
@@ -64,7 +74,7 @@ def _waiter(path: str, channel: _ConnectionBase[object, object], manual: bool) -
         raise AssertionError("The peer already initialized the database.")
 
     try:
-        if manual:
+        if mode == "manual":
             config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
             config.set_main_option("sqlalchemy.url", f"sqlite:///{Path(path).as_posix()}".replace("%", "%%"))
             with patch.object(migrations, "readiness_lock", signaled_lock):
@@ -75,7 +85,8 @@ def _waiter(path: str, channel: _ConnectionBase[object, object], manual: bool) -
             patch.object(readiness, "readiness_lock", signaled_lock),
             patch.object(readiness, "upgrade_fresh_database", forbidden_upgrade),
         ):
-            channel.send(ensure_database_ready(database).value)
+            outcome = readiness.upgrade_database(database)[0] if mode == "explicit" else ensure_database_ready(database)
+            channel.send(outcome.value)
     finally:
         database.close()
         channel.close()
@@ -86,14 +97,15 @@ def _receive(channel: _ConnectionBase[object, object]) -> object:
     return channel.recv()
 
 
-@pytest.mark.parametrize("manual", [False, True])
-def test_two_processes_initialize_once(tmp_path: Path, manual: bool) -> None:
+@pytest.mark.parametrize("owner_mode", ["automatic", "manual", "explicit"])
+@pytest.mark.parametrize("waiter_mode", ["automatic", "manual", "explicit"])
+def test_two_processes_initialize_once(tmp_path: Path, owner_mode: str, waiter_mode: str) -> None:
     context = mp.get_context("spawn")
     owner_parent, owner_child = context.Pipe()
     waiter_parent, waiter_child = context.Pipe()
     path = str(tmp_path / "shared.sqlite3")
-    owner = context.Process(target=_owner, args=(path, owner_child, False))
-    waiter = context.Process(target=_waiter, args=(path, waiter_child, manual))
+    owner = context.Process(target=_owner, args=(path, owner_child, False, owner_mode))
+    waiter = context.Process(target=_waiter, args=(path, waiter_child, waiter_mode))
     owner.start()
     try:
         assert _receive(owner_parent) == "migration-open"
@@ -101,7 +113,7 @@ def test_two_processes_initialize_once(tmp_path: Path, manual: bool) -> None:
         assert _receive(waiter_parent) == "requesting-ownership"
         owner_parent.send("continue")
         assert _receive(owner_parent) == "initialized"
-        assert _receive(waiter_parent) == ("manual-upgrade-complete" if manual else "ready")
+        assert _receive(waiter_parent) == ("manual-upgrade-complete" if waiter_mode == "manual" else "ready")
         owner.join(20)
         waiter.join(20)
         assert owner.exitcode == waiter.exitcode == 0

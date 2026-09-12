@@ -3,7 +3,9 @@
 import json
 import shutil
 import sqlite3
+from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -90,7 +92,7 @@ def test_override_and_invalid_memory_target(target: Path, tmp_path: Path, comman
 
 def test_incompatible_status_and_upgrade_preserve_storage(target: Path) -> None:
     target.parent.mkdir()
-    with sqlite3.connect(target) as connection:
+    with closing(sqlite3.connect(target, autocommit=True)) as connection:
         connection.execute("CREATE TABLE private_records (value TEXT)")
         connection.execute("INSERT INTO private_records VALUES ('secret-payload')")
     before = target.read_bytes()
@@ -153,3 +155,66 @@ def test_db_upgrade_command_busy_lock(target: Path, monkeypatch: pytest.MonkeyPa
     assert report["database_path"] == str(target)
     assert report["expected_revision"] == "0001_persistence"
     assert "synthetic busy lock" not in result.output
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+def test_empty_status_is_fresh_and_does_not_create_sidecars(target: Path, json_output: bool) -> None:
+    target.parent.mkdir()
+    target.touch()
+    before = set(target.parent.iterdir())
+    result = CliRunner().invoke(app, ["db", "status", *(["--json"] if json_output else [])])
+    assert result.exit_code == 1, result.output
+    assert not result.stderr
+    assert set(target.parent.iterdir()) == before
+    assert target.read_bytes() == b""
+    if json_output:
+        report = json.loads(result.stdout)
+        assert report["state"] == "fresh"
+        assert report["status"] == "success"
+        assert report["current_revision"] is None
+        assert report["expected_revision"] == "0001_persistence"
+        assert report["database_path"] == str(target)
+        assert "db upgrade" in report["message"]
+    else:
+        assert "State: fresh" in result.stdout
+
+
+@pytest.mark.parametrize("command", ["status", "upgrade"])
+@pytest.mark.parametrize(
+    "url", ["not-a-url", "postgresql://user:private-password@host/db", "sqlite:///file.db?mode=ro"]
+)
+def test_invalid_target_is_sanitized_usage_error(target: Path, command: str, url: str) -> None:
+    result = CliRunner().invoke(app, ["db", command, "--database-url", url, "--json"])
+    assert result.exit_code == 2
+    assert not result.stdout
+    assert "private-password" not in result.output
+    assert not target.parent.exists()
+
+
+@pytest.mark.parametrize("command", ["status", "upgrade"])
+def test_missing_resources_emit_one_safe_report(target: Path, command: str) -> None:
+    with patch.object(readiness, "migration_resources", side_effect=RuntimeError("private-resources")):
+        result = CliRunner().invoke(app, ["db", command, "--json"])
+    assert result.exit_code == 1
+    report = json.loads(result.stdout)
+    assert report["reason"] == "database_resources_unavailable"
+    assert report["expected_revision"] is None
+    assert not result.stderr
+    assert "private-resources" not in result.output
+    assert not target.parent.exists()
+
+
+def test_relative_override_keeps_base_directory_after_chdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    base = tmp_path / "base"
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.setattr("src.cli_database.settings", ProjectSettings(base_dir=base))
+    monkeypatch.chdir(elsewhere)
+    target = base / "nested" / "selected % café.sqlite3"
+    result = CliRunner().invoke(
+        app, ["db", "status", "--database-url", "sqlite:///nested/selected % café.sqlite3", "--json"]
+    )
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["database_path"] == str(target)
+    assert not base.exists()
+    assert not list(elsewhere.iterdir())
