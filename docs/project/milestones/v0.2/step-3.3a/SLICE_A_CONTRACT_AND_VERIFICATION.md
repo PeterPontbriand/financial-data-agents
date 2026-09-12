@@ -1,6 +1,6 @@
 # Step 3.3A Slice A — Concrete readiness contract and verification
 
-**Status:** Contract preparation and baseline verification complete; Gate A approval and Slice B implementation authorization requested. No production source, permanent tests, dependencies or migration revisions changed during Slice A.
+**Status:** Gate A approved and Slice B implementation explicitly authorized by the project owner on 2026-09-12: “Gate A is approved and Slice B implementation is authorized. Proceed.” The approved contract was checkpointed at `d912d4d`. Implementation proceeds on `codex/step-3.3a-readiness`; Slice B was approved and Slice C authorized on 2026-09-12, including the [hidden maintenance amendment](SLICE_C_MAINTENANCE_AMENDMENT.md). No production source, permanent tests, dependencies or migration revisions changed during Slice A.
 
 **Authority:** [Step 3.3A contract and gates](STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md). ESC-C is accepted. The project owner created `docs/step-3.3a-contract-planning` and explicitly authorized Slice A planning and verification. Source examined: `634164b` (merged PR #34), with a clean initial working tree. This document freezes the proposed implementation choices for review; it does not approve itself.
 
@@ -30,6 +30,7 @@ class ReadinessOutcome(StrEnum):
     READY = "ready"
     INITIALIZED = "initialized"
 
+
 class ReadinessReason(StrEnum):
     UPGRADE_REQUIRED = "database_upgrade_required"
     INCOMPATIBLE_SCHEMA = "database_incompatible_schema"
@@ -40,13 +41,16 @@ class ReadinessReason(StrEnum):
     RESOURCES_UNAVAILABLE = "database_resources_unavailable"
     INITIALIZATION_FAILED = "database_initialization_failed"
 
+
 def ensure_database_ready(database: SQLiteDatabase) -> ReadinessOutcome: ...
+
 
 class DatabaseReadinessError(RuntimeError):
     # Read-only, typed attributes; constructor sets a sanitized message.
     reason: ReadinessReason
     database_path: Path | None
     expected_revision: str | None
+
 
 # SQLiteDatabase: no setters; values come from the already resolved instance.
 @property
@@ -61,10 +65,10 @@ def busy_timeout_ms(self) -> int: ...
 | :--- | :--- |
 | B | New `src/data/repositories/readiness.py`: classification, schema signature, typed outcomes/errors and orchestration. New `src/data/repositories/readiness_lock.py`: private cross-process ownership helper and typed polling policy. `sqlite.py`: two read-only properties only, unless a demonstrated memory-scope defect requires a reviewed expansion. `migrations.py`: resource discovery, programmatic fresh upgrade and borrowed/manual branches. `__init__.py`: export the readiness API. |
 | B tests | New `tests/data/repositories/test_readiness.py` and `test_readiness_concurrency.py`; extend `test_migrations.py`, `test_sqlite.py`, `test_schema.py` only for the new seams. Synthetic migration graphs/failure hooks stay in tests. |
-| C | `src/cli_support.py`: two composition calls and typed exception translation. New `tests/test_cli_database_readiness.py`; adjust existing financial/historical-cache, CLI-support and failure-output tests where their setup/expectations require it. Add fail-open assertions to `tests/core/telemetry/test_sqlite_sink.py` only as needed. |
+| C | Extended by the [authorized maintenance amendment](SLICE_C_MAINTENANCE_AMENDMENT.md), which adds hidden commands and inspection/explicit-upgrade seams. `src/cli_support.py`: two composition calls and typed exception translation. New `tests/test_cli_database_readiness.py`; adjust existing financial/historical-cache, CLI-support and failure-output tests where their setup/expectations require it. Add fail-open assertions to `tests/core/telemetry/test_sqlite_sink.py` only as needed. |
 | D | README, `docs/user/INSTALLATION.md`, `QUICKSTART.md`, `DATABASE.md`, `SMOKE_TESTING.md`, `docs/project/ARCHITECTURE.md`, and these milestone records. Update applicable ownership docstrings in files already in scope. |
 
-`src/cli.py`, reporting serializers, financial algorithms, provider adapters, schema metadata definitions, frozen migration `0001_persistence.py`, `alembic/env.py`, `alembic.ini`, configuration defaults, `pyproject.toml` and `uv.lock` need no production edits under this contract. The existing Alembic environment delegates to the module being changed. No table, schema version, dependency or standalone packaging change is proposed. Any necessary expansion must be explained before its dependent edits.
+Except for the subsequently authorized `src/cli.py` registration and repository seams in the [Slice C amendment](SLICE_C_MAINTENANCE_AMENDMENT.md), reporting serializers, financial algorithms, provider adapters, schema metadata definitions, frozen migration `0001_persistence.py`, `alembic/env.py`, `alembic.ini`, configuration defaults, `pyproject.toml` and `uv.lock` need no production edits under this contract. The existing Alembic environment delegates to the module being changed. No table, schema version, dependency or standalone packaging change is proposed. Any necessary expansion must be explained before its dependent edits.
 
 ## 3. State classification and schema invariants
 
@@ -174,6 +178,6 @@ Disposable offline experiments used `.tmp/readiness_contract_probe.py` and recor
 
 Only disposable local databases were used. No operational database was read or migrated, no live provider/LLM was called, and no dependencies were installed. The temporary probes are not permanent acceptance tests; B/C must implement the matrix above. POSIX locks, full startup races, interrupted migration processes, schema-drift classification and final CLI wording remain implementation acceptance work, not completed claims.
 
-## 9. Gate A decision requested
+## 9. Gate A decision
 
-Approve this concrete contract and authorize Slice B only: ownership sidecar, state/signature rules, same-instance memory support, Alembic injection, source-installation resource boundary, typed failures and exact file scope. After B's full gate, stop for its review before C composition; after C stop before D documentation/acceptance. No commit, push, PR, dependency change or migration against user data is requested by this handoff.
+Gate A approval and Slice B authorization were granted on 2026-09-12 for the ownership sidecar, state/signature rules, same-instance memory support, Alembic injection, source-installation resource boundary, typed failures and exact file scope. Slice B subsequently passed its full gate and was explicitly approved on 2026-09-12; Slice C is authorized with the linked amendment. After C, stop for review before D documentation/acceptance. No commit, push, PR, dependency change or migration against user data is authorized by this handoff.
