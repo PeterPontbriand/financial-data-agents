@@ -338,7 +338,11 @@ class SecEdgarFinancialFactsAdapter:
                 if source_accession(leaf) == accession:
                     context_ids.update(parsed.verify(leaf))
             titles.add(parsed.class_title)
-            documents.append(SecurityUnitDocument(accession, url, tuple(sorted(context_ids)), accepted, self._clock()))
+            documents.append(
+                SecurityUnitDocument(
+                    accession, url, tuple(sorted(context_ids)), accepted, self._clock(), parsed.listing_venue
+                )
+            )
         if len(titles) != 1:
             return SecurityUnitResolution(SecurityUnitResolutionReason.AMBIGUOUS_CLASS)
         return SecurityUnitResolution(

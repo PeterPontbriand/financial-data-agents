@@ -20,6 +20,10 @@ The exact formulas are documented in [Financial Math](../FINANCE_MATH.md#graham-
 
 ## Quick start
 
+Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship. `--no-cache` bypasses financial cache reads and writes.
+
+Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
+
 Graham Number:
 
 ```bash
@@ -163,11 +167,11 @@ When supported provider evidence supplies an instrument name, the heading shows 
 
 ### `--details`
 
-Shows resolved financial values, dates, bases, data sources, and derivations.
+Shows compact financial inputs, reporting dates, bases, sources, calculation formulas and material assumptions. Repeated source components appear once. Inferred preferred-share zero is explicitly qualified. Where retained, the filing link and its historical exchange evidence are shown separately from current listing verification. Display rounding does not change the calculation.
 
 ### `--diagnostics`
 
-Shows software resolution behavior such as override/cache/provider selection and failures. This view is intentionally more technical than the ordinary investor report.
+Retains the full technical input evidence and software resolution behavior: provider fields, recursive lineage, notes, retrieval timestamps, share contexts, and override/cache/provider selection or failures. JSON also retains this evidence.
 
 ### `--json`
 

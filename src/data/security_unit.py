@@ -84,6 +84,7 @@ class SecurityUnitDocument:
     context_ids: tuple[str, ...]
     available_at: datetime
     retrieved_at: datetime
+    listing_venue: str | None = None
 
 
 @dataclass(frozen=True)

@@ -8,6 +8,7 @@ from datetime import datetime
 
 from src.data.financial.facts import FinancialFactRequest, FinancialField
 from src.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from src.data.financial.quote_freshness import QuoteFreshnessEvidence
 from src.data.financial.resolver import InputResolutionResult, InputResolver
 from src.data.instrument_profile import InstrumentKind, InstrumentProfile
 from src.data.security_unit import SecurityUnitEvidence, SecurityUnitResolution, evaluate_security_unit_compatibility
@@ -21,6 +22,7 @@ class PriceComparison:
     reason: str
     percent: float | None = None
     security_unit_resolution: SecurityUnitResolution | None = None
+    quote_freshness: QuoteFreshnessEvidence | None = None
 
     def __post_init__(self) -> None:
         """Keep percentage and status consistent and finite."""

@@ -12,7 +12,8 @@ from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueRes
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.core.analysis_status import CalculationStatus
 from src.data.financial.provenance import ResolvedInput, SourceKind
-from src.data.financial.resolution_trace import ResolutionTrace
+from src.data.financial.quote_freshness import evaluate_quote_freshness
+from src.data.financial.resolution_trace import ResolutionOutcome, ResolutionTrace
 from src.data.instrument_profile import (
     InstrumentProfile,
     instrument_kind_evidence_payload,
@@ -24,6 +25,7 @@ from src.data.security_identity import (
     security_display_label,
     security_identity_payload,
 )
+from src.reporting.input_provenance import financial_basis, input_detail_lines, input_source_label, investor_input_lines
 from src.reporting.presentation import (
     PresentationMode,
     format_as_of,
@@ -116,7 +118,7 @@ def units_display_name(units: str | None) -> str:
 # Constants and models
 # ---------------------------------------------------------------------------
 
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 5
 _NUMBER_LIMITATION = (
     "The Graham Number is a maximum indicated price / screening ceiling, "
     "not a complete intrinsic-value conclusion or investment recommendation."
@@ -221,22 +223,9 @@ def render_graham_number(
 
     lines = _number_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
-        if presentation.result is None:
-            status, reason = _effective_status_and_reason(
-                presentation.assembly.status, presentation.assembly.reason, presentation.result
-            )
-            lines = [
-                _analysis_heading(
-                    presentation.ticker,
-                    "Graham Number",
-                    presentation.as_of,
-                    presentation.identity_resolution,
-                ),
-                f"Status: {_status_label(status)}",
-                f"Reason: {reason or 'No reason was retained.'}",
-            ]
         lines.extend(_number_detail_lines(presentation))
     elif mode is PresentationMode.DIAGNOSTICS:
+        lines.extend(_number_technical_lines(presentation))
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
         lines.extend(_profile_diagnostic_lines(presentation.instrument_profile, presentation.identity_resolution))
         lines.extend(_comparison_details(presentation.price_comparison))
@@ -269,6 +258,7 @@ def render_graham_growth(
             ]
         lines.extend(_growth_detail_lines(presentation))
     elif mode is PresentationMode.DIAGNOSTICS:
+        lines.extend(_growth_technical_lines(presentation))
         lines.extend(_diagnostic_lines(presentation.assembly.resolution_trace, presentation.assembly))
         lines.extend(_profile_diagnostic_lines(presentation.instrument_profile, presentation.identity_resolution))
         lines.extend(_comparison_details(presentation.price_comparison))
@@ -309,8 +299,10 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
     else:
         lines = [
             _analysis_heading(p.ticker, "Graham Number", p.as_of, p.identity_resolution),
-            f"Status: {_status_label(status)}",
         ]
+        if p.result is None:
+            lines.append("Graham Number could not be calculated.")
+        lines.append(f"Status: {_status_label(status)}")
         if reason:
             lines.append(f"Reason: {_number_reason(p, status, reason)}")
 
@@ -319,6 +311,10 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
     if basis_summary is not None:
         lines.append(f"Basis: {basis_summary}")
     lines.extend(_headline_input_lines(p.assembly.eps, p.assembly.bvps))
+    if p.result is None:
+        lines.append("Price comparison was not performed because the Graham Number could not be calculated.")
+        if _number_quote_not_requested(p):
+            lines.append("Current price: not requested because required calculation inputs could not be resolved.")
     lines.append(f"Sources / freshness: {_source_summary((p.assembly.eps, p.assembly.bvps))}")
     lines.extend(_number_warning_lines(p))
     lines.append(f"Limitation: {_NUMBER_LIMITATION}")
@@ -406,18 +402,29 @@ def _result_heading(
 # ---------------------------------------------------------------------------
 
 
-def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
+def _number_technical_lines(p: GrahamNumberPresentation) -> list[str]:
     lines = ["", "Details", "-------"]
     lines.extend(_identity_detail_lines(p.identity_resolution))
     lines.extend(_kind_detail_lines(p.instrument_profile))
     lines.extend(_comparison_details(p.price_comparison))
     lines.extend(_input_detail_lines("EPS", p.assembly.eps))
     lines.extend(_input_detail_lines("BVPS", p.assembly.bvps))
-    lines.extend(_input_detail_lines("Current price", p.assembly.current_price))
+    if not _number_quote_not_requested(p):
+        lines.extend(_input_detail_lines("Current price", p.assembly.current_price))
     return lines
 
 
-def _growth_detail_lines(p: GrahamGrowthPresentation) -> list[str]:
+def _number_quote_not_requested(p: GrahamNumberPresentation) -> bool:
+    """Distinguish early assembly failure from an attempted quote resolution."""
+    return (
+        p.assembly.status is not CalculationStatus.OK
+        and p.assembly.current_price is None
+        and p.assembly.quote_status is None
+        and not any(event.field_name == "current_price" for event in p.assembly.resolution_trace.events)
+    )
+
+
+def _growth_technical_lines(p: GrahamGrowthPresentation) -> list[str]:
     lines = ["", "Details", "-------"]
     lines.extend(_identity_detail_lines(p.identity_resolution))
     lines.extend(_kind_detail_lines(p.instrument_profile))
@@ -437,6 +444,63 @@ def _growth_detail_lines(p: GrahamGrowthPresentation) -> list[str]:
     return lines
 
 
+def _number_detail_lines(p: GrahamNumberPresentation) -> list[str]:
+    lines = ["", "Details — calculation inputs", "----------------------------"]
+    if p.instrument_profile and p.instrument_profile.kind_evidence:
+        lines.append(_kind_detail_lines(p.instrument_profile)[0])
+    lines.extend(investor_input_lines("Diluted EPS used", p.assembly.eps))
+    lines.extend(investor_input_lines("Book value per common share", p.assembly.bvps))
+    if p.assembly.eps is not None and p.assembly.eps.basis == "three_year_average":
+        lines.append("Average EPS is the arithmetic mean of the three annual diluted EPS values.")
+    if p.assembly.bvps is not None and p.assembly.bvps.lineage is not None:
+        lines.append("Book value per common share = common equity / period-end common shares outstanding.")
+    lines.extend(
+        [
+            "Graham Number = sqrt(22.5 × selected EPS × book value per share).",
+            "The formula uses unrounded inputs; displayed inputs are rounded.",
+        ]
+    )
+    lines.extend(_investor_comparison_evidence(p.price_comparison))
+    lines.append("Full source fields, assumptions and retrieval history: --diagnostics or --json.")
+    return lines
+
+
+def _growth_detail_lines(p: GrahamGrowthPresentation) -> list[str]:
+    lines = ["", "Details — calculation inputs", "----------------------------"]
+    if p.instrument_profile and p.instrument_profile.kind_evidence:
+        lines.append(_kind_detail_lines(p.instrument_profile)[0])
+    for label, value in (
+        ("Diluted EPS", p.assembly.eps),
+        ("Expected annual growth", p.assembly.expected_growth),
+        ("AAA bond yield", p.assembly.current_aaa_yield),
+    ):
+        lines.extend(investor_input_lines(label, value))
+    lines.extend(
+        [
+            f"Growth Value = EPS × ({format_number(p.base_pe)} + {format_number(p.growth_multiplier)} × growth) "
+            f"× {format_number(p.baseline_aaa_yield)} / AAA yield.",
+            "Growth and yield use percentage points (5 means 5%). Growth is an assumption, not a forecast guarantee.",
+            "Calculated using unrounded inputs; displayed inputs are rounded.",
+        ]
+    )
+    lines.extend(_investor_comparison_evidence(p.price_comparison))
+    lines.append("Full source fields, assumptions and retrieval history: --diagnostics or --json.")
+    return lines
+
+
+def _investor_comparison_evidence(comparison: PriceComparison | None) -> list[str]:
+    if comparison is None or comparison.reason == "calculation_unavailable":
+        return []
+    lines = ["", "Evidence and assumptions", f"Share-unit comparison: {comparison.reason.replace('_', ' ')}"]
+    resolution = comparison.security_unit_resolution
+    if resolution is not None and resolution.provenance is not None:
+        for document in resolution.provenance.documents:
+            if document.listing_venue:
+                lines.append(f"Filing lists {document.listing_venue}; current venue not independently verified.")
+            lines.append(f"Filing accepted {format_date(document.available_at)}: {document.url}")
+    return lines
+
+
 def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> list[str]:
     """Describe current identity metadata separately from historical financial inputs."""
     if resolution is None or resolution.identity is None:
@@ -444,7 +508,7 @@ def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> lis
     identity = resolution.identity
     return [
         f"Instrument name: {identity.instrument_name or 'unavailable'}",
-        f"Listing venue: {identity.listing_venue or 'unavailable'}",
+        f"Current listing venue: {identity.listing_venue or 'not supplied by selected identity provider'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_utc_minute(identity.resolved_at)} (current descriptive metadata)",
     ]
@@ -484,42 +548,7 @@ def _profile_diagnostic_lines(
 
 
 def _input_detail_lines(label: str, value: ResolvedInput | None) -> list[str]:
-    if value is None:
-        return [f"{label}: unavailable"]
-
-    source = _source_label(value)
-    lines = [
-        f"{label}: {format_number(value.value, decimals=6)}",
-        f"  basis: {basis_display_name(_display_basis(value))}",
-        f"  units: {units_display_name(value.units)}",
-        f"  currency: {value.currency or 'n/a'}",
-        f"  source: {source}",
-        f"  provider: {provider_display_name(value.provider_id)}",
-        f"  provider field: {value.provider_field or 'n/a'}",
-        f"  period start: {format_date(value.observation_period_start)}",
-        f"  period end: {format_date(value.observation_period_end)}",
-        f"  observed at: {format_utc_minute(value.observed_at)}",
-        f"  available at: {format_utc_minute(value.available_at)}",
-    ]
-    if value.notes:
-        lines.append(f"  notes: {'; '.join(value.notes)}")
-    if value.lineage is not None:
-        lines.append(f"  derivation: {value.lineage.transformation}")
-        for index, component in enumerate(value.lineage.components, start=1):
-            lines.extend(
-                [
-                    f"  component {index}:",
-                    f"    field name: {component.field_name}",
-                    f"    value: {format_number(component.value, decimals=6)}",
-                    f"    source: {_source_label(component)}",
-                    f"    provider: {provider_display_name(component.provider_id)}",
-                    f"    provider field: {component.provider_field or 'n/a'}",
-                    f"    basis: {basis_display_name(component.basis)}",
-                    f"    period end: {format_date(component.observation_period_end)}",
-                    f"    available at: {format_utc_minute(component.available_at)}",
-                ]
-            )
-    return lines
+    return input_detail_lines(label, value)
 
 
 # ---------------------------------------------------------------------------
@@ -633,6 +662,16 @@ def _comparison_payload(comparison: PriceComparison | None) -> dict[str, Any] | 
         "status": comparison.status,
         "reason": comparison.reason,
         "percent": comparison.percent,
+        "quote_freshness": None
+        if comparison.quote_freshness is None
+        else {
+            "status": comparison.quote_freshness.status,
+            "evaluated_at": comparison.quote_freshness.evaluated_at.isoformat(),
+            "retrieved_at": _json_datetime(comparison.quote_freshness.retrieved_at),
+            "retrieval_age_seconds": comparison.quote_freshness.retrieval_age_seconds,
+            "max_retrieval_age_seconds": comparison.quote_freshness.max_retrieval_age_seconds,
+            "market_observed_at": _json_datetime(comparison.quote_freshness.market_observed_at),
+        },
         "security_unit_evidence": None
         if evidence is None
         else {
@@ -656,6 +695,7 @@ def _comparison_payload(comparison: PriceComparison | None) -> dict[str, Any] | 
                     "context_ids": list(item.context_ids),
                     "available_at": item.available_at.isoformat(),
                     "retrieved_at": item.retrieved_at.isoformat(),
+                    "listing_venue": item.listing_venue,
                 }
                 for item in provenance.documents
             ],
@@ -681,6 +721,11 @@ def _comparison_details(comparison: PriceComparison | None) -> list[str]:
         provenance = resolution.provenance
         lines.extend([f"Share-unit mapping: {provenance.mapping_id}", f"Share class: {provenance.class_title}"])
         for document in provenance.documents:
+            if document.listing_venue:
+                lines.append(
+                    f"Filing listing venue: {document.listing_venue} "
+                    f"(filing available {format_utc_minute(document.available_at)})"
+                )
             lines.append(
                 f"Share evidence: SEC EDGAR {document.accession}; "
                 f"available {format_utc_minute(document.available_at)}; "
@@ -702,7 +747,22 @@ def _comparison_lines(  # noqa: PLR0913
     if current_price is None:
         return ["Current price: unavailable", "Price comparison: unavailable (no current quote)"]
 
-    lines = [f"Current price: {format_money(current_price.value, current_price.currency)}"]
+    label = "User-supplied price" if current_price.source_kind is SourceKind.OVERRIDE else "Latest available quote"
+    lines = [f"{label}: {format_money(current_price.value, current_price.currency)}"]
+    if current_price.source_kind is not SourceKind.OVERRIDE:
+        lines.append(f"Quote retrieved: {format_utc_minute(current_price.retrieved_at)}")
+        timing = comparison.quote_freshness if comparison is not None else None
+        if timing is not None and timing.retrieval_age_seconds is not None:
+            lines.append(f"Quote response age: {timing.retrieval_age_seconds:.0f} seconds")
+        observed = (
+            timing.market_observed_at
+            if timing is not None
+            else evaluate_quote_freshness(current_price, now=current_price.resolved_at).market_observed_at
+        )
+        if observed is None:
+            lines.append("Market observation time not supplied.")
+        else:
+            lines.append(f"Market observation: {format_utc_minute(observed)}")
     if reference_value is not None and reference_value <= 0:
         lines.append(f"Price comparison: unavailable ({reference_label} is non-positive)")
     elif (
@@ -789,19 +849,16 @@ def _source_summary(inputs: tuple[ResolvedInput | None, ...]) -> str:
         if item is None:
             continue
         label = field_display_name(item.field_name)
-        parts.append(f"{label} — {_source_label(item)} ({_freshness_label(item)})")
+        source = _source_label(item)
+        if item.source_kind is SourceKind.CACHE:
+            source = f"{provider_display_name(item.provider_id)} (saved input)"
+        parts.append(f"{label} — {source} ({_freshness_label(item)})")
     return "; ".join(parts) if parts else "unavailable"
 
 
 def _display_basis(value: ResolvedInput) -> str:
     """Return explicit basis, or infer fiscal-year-end BVPS from its lineage."""
-    if value.basis is not None:
-        return value.basis
-    if value.field_name == "bvps" and value.lineage is not None and value.lineage.components:
-        component_bases = {component.basis for component in value.lineage.components}
-        if component_bases == {"fiscal_year_end"}:
-            return "fiscal_year_end"
-    return "unspecified"
+    return financial_basis(value) or "unspecified"
 
 
 def _status_label(status: CalculationStatus) -> str:
@@ -809,12 +866,32 @@ def _status_label(status: CalculationStatus) -> str:
     return humanized_status(status)
 
 
-def _number_reason(
+def _number_reason(  # noqa: PLR0911
     presentation: GrahamNumberPresentation,
     status: CalculationStatus,
     fallback: str,
 ) -> str:
-    """Translate Number applicability failures without changing typed results."""
+    """Translate retained input and applicability evidence without exposing raw errors."""
+    if status is CalculationStatus.INPUT_UNAVAILABLE:
+        assembly = presentation.assembly
+        if assembly.eps is None:
+            return "Eligible earnings per share could not be resolved for the requested basis and analysis date."
+        if assembly.bvps is None:
+            labels = {
+                "preferred_shares_outstanding": "preferred-share evidence",
+                "stockholders_equity": "stockholders' equity",
+                "common_shares_outstanding": "period-end common shares outstanding",
+            }
+            for event in reversed(assembly.resolution_trace.events):
+                if event.field_name in labels and event.outcome is ResolutionOutcome.UNAVAILABLE:
+                    explanation = (
+                        "Book value per common share could not be established because eligible "
+                        f"{labels[event.field_name]} could not be resolved."
+                    )
+                    if event.field_name == "preferred_shares_outstanding":
+                        explanation += " Missing preferred-share data is not assumed to be zero."
+                    return explanation
+            return "Eligible book value per common share could not be resolved for the requested analysis date."
     if status is not CalculationStatus.NOT_APPLICABLE:
         return fallback
     eps = presentation.assembly.eps
@@ -836,6 +913,8 @@ def _number_reason(
 
 def _freshness_label(value: ResolvedInput) -> str:
     """Describe the best retained freshness boundary using date semantics."""
+    if value.source_kind is SourceKind.OVERRIDE:
+        return "user supplied; not provider verified"
     if value.available_at is not None:
         return f"available {format_date(value.available_at)}"
     if value.observed_at is not None:
@@ -846,33 +925,7 @@ def _freshness_label(value: ResolvedInput) -> str:
 
 
 def _source_label(value: ResolvedInput) -> str:
-    if value.source_kind is SourceKind.OVERRIDE:
-        return "user override"
-    if value.source_kind is SourceKind.CACHE:
-        origin = value.origin_source_kind.value if value.origin_source_kind is not None else "unknown"
-        provider = f", provider={provider_display_name(value.provider_id)}" if value.provider_id else ""
-        return f"cache (original={origin}{provider})"
-    if value.source_kind is SourceKind.PROVIDER and value.provider_field is not None:
-        provider = provider_display_name(value.provider_id)
-        if value.provider_field.startswith("inferred:"):
-            return f"inferred ({provider})"
-        if value.provider_field.startswith("derived:"):
-            return f"provider-derived ({provider})"
-    if value.source_kind is SourceKind.DERIVED:
-        providers = (
-            sorted(
-                {
-                    provider_display_name(component.provider_id)
-                    for component in value.lineage.components
-                    if component.provider_id
-                }
-            )
-            if value.lineage is not None
-            else []
-        )
-        provider_text = ", ".join(providers) if providers else provider_display_name(value.provider_id)
-        return f"derived from {provider_text}"
-    return f"provider ({provider_display_name(value.provider_id)})"
+    return input_source_label(value)
 
 
 # ---------------------------------------------------------------------------

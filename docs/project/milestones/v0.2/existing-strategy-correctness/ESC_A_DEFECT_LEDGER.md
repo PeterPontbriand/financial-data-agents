@@ -1,6 +1,6 @@
 # ESC-A — Defect ledger
 
-**Source revision for every entry:** `8d7fba0`, including Graham implementation `e8f4a95`. **Disposition:** all entries remain open for repair/verification; no ESC-C acceptance is claimed. **Repair commit:** none in this stage. The earlier Graham parser repair is retained under ESC-05, not relabelled as newly implemented work.
+**Original source revision:** `8d7fba0`, including Graham implementation `e8f4a95`. **Current disposition:** ESC-01–17 implemented and verified in the working tree based on approved `cb1e9ef`; ESC-B reviewed and approved on 2026-09-11 (Toronto). [ESC-C acceptance](ESC_C_FINAL_ACCEPTANCE.md) was granted on 2026-09-11 (Toronto), accepting ESC-01–17 and their documented dispositions. **Repair commit:** not yet committed. The earlier Graham parser repair is retained under ESC-05, not relabelled as newly implemented work. Original reproductions below describe pre-repair behavior; the closure record is authoritative for current implementation status.
 
 Severity means impact within this application: **high** for misleading financial/data claims or inconsistent validation, **medium** for missing/misleading explanations or failure contracts. These are not security severity ratings. Contract references and exact file groups are in the [repair contract](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md). Every closure must add repair revision, permanent regression names, relevant live evidence and acceptance disposition here.
 
@@ -42,7 +42,61 @@ These recipes identify the public boundaries and complete distinguishing inputs.
 | FCF consensus EPS / market capitalization | No evidence-approved mapping exists in the current analyzer; typed unavailable and reason are legitimate. No new provider is authorized. Required forward evidence can make classification indeterminate under existing policy. |
 | No direct provider field on an arithmetic mean | Inapplicable parent field; component concepts must remain visible. |
 | No fiscal period on a quote/user assumption | Inapplicable, not a failed annual-data lookup. |
-| Latest KO OHLC missing | External data-quality condition observed on this date. Rejection is correct; failure presentation is defective. No successful live Momentum run claimed. Valid live history remains required for ESC-C. |
+| Latest KO OHLC missing | External data-quality condition observed in the early September 11 run. Rejection was correct; failure presentation is now repaired. Later valid provider history succeeded in the 11:18 UTC live run; no row filling or omission was introduced. |
 | Historical adjusted prices | Observation-date filtering exists, but provider vintage/adjustment history and an exchange session schedule are not retained. Do not call this proof of full historical knowability. Boundary cases remain required in the matrix. |
 
 The ledger is not frozen against discovery. New discrepancies during implementation must be added with evidence; materially different financial policy must be reviewed before dependent changes. No entry may be closed merely by linking an issue or changing wording while its underlying calculation/data defect persists.
+
+## ESC-B closure evidence — accepted at ESC-C
+
+All entries share repair revision **uncommitted working tree based on `cb1e9ef`**, final gate **2,054 passed / 89%**, and the dated live checks in the [review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md). ESC-B and ESC-C final acceptance are approved. Paths below are repository-relative permanent regression anchors, not raw operational artifacts.
+
+| ID | Implemented repair and permanent regression evidence |
+| :--- | :--- |
+| ESC-01 | Separate quote policy and truthful timing; `tests/data/test_quote_freshness.py` covers 299/300/301 seconds, future/missing timing, zero TTL, refresh failure, legacy metadata, overrides, and actual Yahoo-adapter/SQLite round trip. `tests/test_cli_financial_cache.py` and `tests/test_graham_comparison_composition.py` retain composition coverage. |
+| ESC-02 | Filing venue retained separately; `tests/data/test_sec_security_unit.py`, `tests/data/test_security_unit.py`, `tests/reporting/test_security_identity_presenters.py`; live KO displays filing venue/accession without claiming current identity enrichment. |
+| ESC-03 | Shared typed detail wording; `tests/reporting/test_input_provenance.py`, `tests/reporting/test_graham_concise_hierarchy.py`, Graham/FCF presenter and CLI suites. Legacy direct-call market observation evidence is preserved. |
+| ESC-04 | Recursive inferred-zero and share-component evidence; `tests/reporting/test_input_provenance.py`, `tests/test_graham_comparison_composition.py`, SEC BVPS/security-unit suites. Live KO details retain inferred guard and issued/treasury grandchildren. |
+| ESC-05 | Prior parser repair preserved; Graham comparison composition, FCF `test_sec_edgar_integration.py` / `test_production_composition.py`, CLI historical-cache composition and all-four dated live successes. Independent arithmetic is recorded in the review packet. |
+| ESC-06 | Require valid previous SMA pair; `tests/analysis/momentum/test_momentum_hardening.py` and `test_momentum_analyzer.py`, plus presenter null/reason semantics. |
+| ESC-07 | CLI retains typed trace; `tests/test_cli_historical_cache.py`; `tests/reporting/test_momentum_presenter.py` explicitly checks legacy/typed trace deduplication in text and JSON. |
+| ESC-08 | Transient cache provenance retains original retrieval; `tests/data/test_cached_client.py`, `tests/test_cli_historical_cache.py` and repository round-trip suite. No persistence schema change. |
+| ESC-09 | Basis-aware explanation and reason; `tests/test_existing_strategy_output_contracts.py` exercises both bases across all four modes with independently checked opposite total/per-share trends; classification suite retains policy truth tables. |
+| ESC-10 | Shared component renderer retains currency/source/notes; `tests/reporting/test_input_provenance.py`, FCF CLI suites and the dated live details. |
+| ESC-11 | Sanitized failure document and bounded field/date evidence; `tests/test_existing_strategy_failure_output.py`, `tests/test_cli.py`, analyzer hardening and cache suites. Invalid provider data remains rejected. |
+| ESC-12 | Shared validation for supplied/fetched frames; `tests/analysis/momentum/test_momentum_hardening.py` includes NaN/Inf outside calculation windows, plus existing invalid-frame cases. |
+| ESC-13 | Execution boundary now reaches annual input resolution; `tests/test_existing_strategy_output_contracts.py` reproduces and checks different execution/resolver clocks; orchestrator and FCF analyzer suites preserve direct/tool contracts. |
+
+### ESC-13 — FCF execution boundary was only a result label
+
+**Scope/severity:** FCF direct and composed execution; high. **Source:** pre-repair working tree based on `cb1e9ef`. A request with effective execution January 15, 2024 and a resolver clock in September 2026 selected later annual evidence while labelling the result with the earlier execution time. The analyzer did not pass `effective_as_of` into the production annual resolver. This violates the existing availability boundary; it does not require a new financial policy.
+
+The analyzer now forwards the aware effective boundary, and the resolver uses that boundary for eligibility rather than its later clock. The regression checks eligible fiscal periods as well as the reported time. Calculations, fiscal selection rules and cache request identities remain unchanged. Implemented, verified and accepted at ESC-C with the other entries.
+
+### ESC-14 — Shell setup exposed in investor-facing help
+
+**Scope/severity:** Root CLI help; medium usability defect. During smoke review, the project owner reproduced `--help` advertising `--show-completion` / `--install-completion`, with the former emitting a PowerShell script, and explicitly requested removal of this exposure. Typer enables completion options by default; the application had not opted out. This behavior was framework functionality rather than an analysis exception, but was inappropriate for the intended public interface.
+
+Set `add_completion=False` and use a purpose-oriented help description. Preserve all analysis commands and `evaluate`. `tests/test_cli.py::test_root_help_exposes_analysis_commands_without_shell_setup` failed before the repair; it now checks the supported command inventory and absence of completion options. `test_shell_setup_options_are_not_public_commands` checks both options are rejected with parser exit 2 rather than generating scripts or modifying shell setup. The smoke guide's first command now checks this boundary. This public-option removal is explicitly authorized by the project owner's request; no dependency or financial behavior changes are involved.
+
+### ESC-15 — Details overwhelmed investors and contradicted the BVPS basis
+
+**Scope/severity:** All four details reports; medium presentation defect. The stakeholder's live KO report exposed recursive repeated technical metadata, excessive precision and a BVPS detail basis of “not supplied by provider” despite a supported fiscal-year-end basis in the summary. The shared detail renderer used only the explicit basis while the summary recognized consistent retained BVPS component bases. The project owner explicitly approved investor-readable details with complete technical evidence retained in diagnostics/JSON.
+
+Graham details now explain the input values, formulas, material assumptions and filing evidence. A shared basis helper resolves the inconsistency without manufacturing missing evidence. Identical displayed component rows appear once, even when their retained provenance differs; full records remain in diagnostics/JSON. Momentum explains windows, crossover eligibility and the existing RSI convention. FCF uses a compact annual table with formulas and optional-metric reasons. Monetary magnitudes use readable precision; calculations and JSON schemas are unchanged.
+
+Permanent evidence: `test_details_explain_calculation_and_diagnostics_retain_raw_evidence`, shared investor-provenance tests (including differing-source duplicate rows, inferred versus reported zero, mixed-basis rejection, missing inputs and user assumptions), all-mode Graham CLI composition, Momentum presenter tests and FCF analyzer presentation parity. Earlier technical assertions now check diagnostics rather than being discarded. The revised smoke guide retains twelve primary commands and distinguishes top-level presentation schema from cache schema. The review packet records final gate and dated live evidence. Stakeholder acceptance was granted at ESC-C.
+
+### ESC-16 — Recoverable quality rejection printed before the report heading
+
+**Scope/severity:** Shared quality reporting, exposed by Graham cache refresh; medium presentation defect. The stakeholder's successful KO details command began with `Data quality rejected an input (financial.cache).` The resolver publishes individual rejected candidates before knowing the final result, and `publish_quality` logged each decision at WARNING, leaking routine recovery into the investor console.
+
+Candidate rejections now log at DEBUG; quality observers and retained resolver traces remain unchanged. Explicit execution error handling still reports genuine unrecovered failures and nonzero exit codes. This changes the severity of candidate diagnostics, not data validation or cache eligibility. The new `test_candidate_rejection_is_diagnostic_without_console_warning` reproduced the warning before the fix and verifies debug severity, observer retention and safe message content. Existing CLI composition checks now assert that successful combined output starts with the instrument heading and contains no generic quality preamble. The complete gate also covers typed failure JSON and historical field/date errors. The smoke guide includes the heading-first requirement.
+
+### ESC-17 — Historical Graham input failure hid the actionable reason
+
+**Scope/severity:** Graham Number failed-input text reports; medium presentation defect. Command 8 (`MSFT --as-of 2025-12-31 --diagnostics`) resolved EPS but displayed a generic missing-financial-data reason. The CLI sanitized the assembly reason, the presenter did not use retained component events for the opening, and details replaced that opening. An unrequested quote was labelled unavailable without explaining that required-input resolution stopped first.
+
+The presenter now identifies missing EPS/BVPS or the unresolved BVPS component using typed resolver evidence, states that missing preferred-share data is not assumed zero, and distinguishes an unrequested quote from an attempted failure. Details preserve the opening. Existing not-applicable result layout, financial calculations, JSON schema and exit codes remain intact. Permanent regressions: `tests/reporting/test_graham_presenter.py::test_number_missing_component_explains_failure_before_diagnostics` (three components across three text modes), `test_number_failure_does_not_relabel_attempted_quote_as_not_requested`, and the CLI missing-input assertion in `tests/test_cli.py`.
+
+Read-only SEC evidence on 2026-09-12 UTC confirmed direct common shares and equity for the eligible MSFT annual period, but no preferred/preference concepts or issued-minus-treasury components. This is a verified unsupported inference shape, not proof that the issuer has no preferred shares. `tests/analysis/graham_value/test_sec_bvps_hardening.py::test_generic_missing_preferred_tag_with_direct_common_shares_remains_unavailable` protects this boundary. Live isolated-storage diagnostics/details/JSON reproduced exit 1, EPS 11.71 USD, and the corrected text; evidence paths and final 2,054-test gate are in the implementation record. ESC-B and ESC-C acceptance approved.

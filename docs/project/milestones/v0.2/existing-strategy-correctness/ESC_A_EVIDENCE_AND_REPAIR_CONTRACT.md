@@ -1,6 +1,6 @@
 # ESC-A — Evidence and proposed repair contract
 
-**Status:** Prepared for review. ESC-A investigation is complete enough to propose the bounded contracts below; expanded production changes have not started. Approval of this document authorizes ESC-B within these contracts. ESC-C and ESC-D remain separate acceptance gates. The coverage matrix deliberately retains work required during implementation and acceptance.
+**Status:** C1–C6 reviewed and approved by the project owner after pushing `cb1e9ef50bcef5f549cdabba91c853629da78eed`. ESC-B implementation and verification are recorded in the [final review packet](ESC_B_IMPLEMENTATION_AND_REVIEW.md). ESC-C final acceptance was granted on 2026-09-11 (Toronto); ESC-D remains a separate future renewal gate. The original evidence below is historical; the ledger and matrix contain current repair dispositions.
 
 **Authority:** [Approved correctness plan](EXISTING_STRATEGY_CORRECTNESS_PLAN.md). Companion records: [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage matrix](ESC_A_COVERAGE_MATRIX.md).
 

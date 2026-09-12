@@ -71,7 +71,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
             assert result.exit_code == 0, result.output
             if mode == "--json":
                 payload = json.loads(result.stdout)
-                assert payload["schema_version"] == 4
+                assert payload["schema_version"] == 5
                 comparison = payload["price_comparison"]
                 assert comparison["status"] == "available", comparison
                 assert comparison["provenance"]["documents"][0]["accession"] == "0001628280-26-010047"
@@ -80,10 +80,16 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
                 assert comparison["percent"] == pytest.approx(expected)
                 assert comparison["percent"] == payload["result"]["margin_of_safety_percent"]
             else:
+                assert result.output.startswith("Synthetic KO (KO) —")
+                assert "Data quality rejected an input" not in result.output
                 assert "Price relationship:" in result.stdout, result.stdout
-                if mode:
+                if mode == "--diagnostics":
                     assert "Share contexts:" in result.stdout
                     assert "Share-unit provider: SEC EDGAR" in result.stdout
+                elif mode == "--details":
+                    assert "Share contexts:" not in result.stdout
+                    assert "Share-unit comparison: compatible" in result.stdout
+                    assert "https://www.sec.gov/" in result.stdout
     assert len(fixture.documents) == 2
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 from src.core.analysis_status import CalculationStatus
@@ -24,6 +24,12 @@ from src.data.financial.provenance import (
     SourceKind,
 )
 from src.data.financial.quality import financial_quality_error
+from src.data.financial.quote_freshness import (
+    DEFAULT_QUOTE_FRESHNESS_POLICY,
+    QuoteFreshnessEvidence,
+    QuoteFreshnessPolicy,
+    evaluate_quote_freshness,
+)
 from src.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
@@ -114,6 +120,7 @@ class InputResolutionResult:
     resolved_input: ResolvedInput | None = None
     reason: str | None = None
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
+    quote_freshness: QuoteFreshnessEvidence | None = None
 
     def __post_init__(self) -> None:
         """Enforce status/value invariants."""
@@ -166,11 +173,14 @@ class InputResolver:
         cache: ResolvedInputCacheProtocol | None = None,
         clock: Callable[[], datetime] | None = None,
         cache_schema_version: int = 1,
+        *,
+        quote_freshness_policy: QuoteFreshnessPolicy = DEFAULT_QUOTE_FRESHNESS_POLICY,
     ) -> None:
         """Create an ``InputResolver``.
 
         Args:
             provider: The configured ``FinancialFactsProvider``.
+            quote_freshness_policy: Independent maximum age for quote-response reuse.
             cache: Optional resolved-input cache.
             clock: Clock callable returning a timezone-aware datetime.
             cache_schema_version: Positive integer schema version for cache keys.
@@ -185,6 +195,7 @@ class InputResolver:
         self._cache = cache
         self._clock: Callable[[], datetime] = clock if clock is not None else self._DEFAULT_CLOCK
         self._schema_version = cache_schema_version
+        self._quote_freshness_policy = quote_freshness_policy
 
     @property
     def provider(self) -> FinancialFactsProvider:
@@ -196,6 +207,29 @@ class InputResolver:
         return self._provider
 
     def resolve(
+        self,
+        request: FinancialFactRequest,
+        *,
+        override: float | None = None,
+        use_cache: bool = True,
+    ) -> InputResolutionResult:
+        """Resolve a fact and retain independently evaluated quote-response timing."""
+        result = self._resolve(request, override=override, use_cache=use_cache)
+        if request.field_name is not FinancialField.CURRENT_PRICE or result.resolved_input is None:
+            return result
+        evidence = evaluate_quote_freshness(
+            result.resolved_input, now=self._clock(), policy=self._quote_freshness_policy
+        )
+        if evidence.status in ("expired", "unknown_retrieval_time", "future_timestamp"):
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=f"Quote response timing is unusable: {evidence.status}.",
+                resolution_trace=result.resolution_trace,
+                quote_freshness=evidence,
+            )
+        return replace(result, quote_freshness=evidence)
+
+    def _resolve(
         self,
         request: FinancialFactRequest,
         *,
@@ -970,7 +1004,13 @@ class InputResolver:
             subject_kind=request.subject_kind,
             subject_id=request.subject_id,
             field_name=request.field_name.value,
-            basis=request.basis,
+            basis=(
+                "latest_provider_quote"
+                if request.field_name is FinancialField.CURRENT_PRICE
+                and request.as_of is None
+                and request.basis is None
+                else request.basis
+            ),
             provider_id=request.provider_id,
             analysis_as_of=request.as_of,
             schema_version=self._schema_version,
@@ -988,6 +1028,13 @@ class InputResolver:
         """
         if financial_quality_error(stored, input_id=str(key), now=self._clock(), as_of=request.as_of):
             return None
+        if request.field_name is FinancialField.CURRENT_PRICE and request.as_of is None:
+            timing = evaluate_quote_freshness(stored, now=self._clock(), policy=self._quote_freshness_policy)
+            if (
+                timing.status != "recent_retrieval"
+                or self._quote_freshness_policy.max_retrieval_age.total_seconds() == 0
+            ):
+                return None
         # Current-request temporal check: available_at must not be in the future.
         if request.as_of is None and stored.available_at is not None and stored.available_at > self._clock():
             return None
@@ -1107,7 +1154,13 @@ class InputResolver:
             value=fact.value,
             source_kind=SourceKind.DERIVED if fact.source_facts else SourceKind.PROVIDER,
             resolved_at=self._clock(),
-            basis=fact.basis,
+            basis=(
+                "latest_provider_quote"
+                if request.field_name is FinancialField.CURRENT_PRICE
+                and request.as_of is None
+                and request.basis is None
+                else fact.basis
+            ),
             units=fact.units.value,
             currency=fact.currency,
             provider_id=fact.provider_id,
@@ -1127,6 +1180,22 @@ class InputResolver:
             lineage=_provider_lineage(fact, resolved_at=self._clock(), as_of=request.as_of),
         )
 
+        if request.field_name is FinancialField.CURRENT_PRICE:
+            timing = evaluate_quote_freshness(ri, now=self._clock(), policy=self._quote_freshness_policy)
+            if timing.status in ("expired", "unknown_retrieval_time", "future_timestamp"):
+                return InputResolutionResult(
+                    status=CalculationStatus.INPUT_UNAVAILABLE,
+                    reason=f"Quote response timing is unusable: {timing.status}.",
+                    quote_freshness=timing,
+                    resolution_trace=trace.append(
+                        _event(
+                            field_name,
+                            ResolutionStage.VALIDATION,
+                            ResolutionOutcome.REJECTED,
+                            f"Quote response timing is unusable: {timing.status}.",
+                        )
+                    ),
+                )
         if use_cache and self._cache is not None:
             key = self._build_cache_key(request)
             self._cache.put(key, ri)
@@ -1193,12 +1262,7 @@ def _prepend_trace(
     """Return a result with earlier trace events prepended in execution order."""
     if not prefix:
         return result
-    return InputResolutionResult(
-        status=result.status,
-        resolved_input=result.resolved_input,
-        reason=result.reason,
-        resolution_trace=prefix.extend(result.resolution_trace),
-    )
+    return replace(result, resolution_trace=prefix.extend(result.resolution_trace))
 
 
 def _derivation_outcome_trace(
@@ -1335,7 +1399,12 @@ def _validate_provider_response(
             f"Provider fact provider_id ({fact.provider_id!r}) does not match request ({request.provider_id!r}).",
         ),
         (
-            fact.basis == request.basis,
+            fact.basis == request.basis
+            or (
+                request.field_name is FinancialField.CURRENT_PRICE
+                and request.basis is None
+                and fact.basis == "latest_provider_quote"
+            ),
             f"Provider fact basis ({fact.basis!r}) does not match request ({request.basis!r}).",
         ),
     )

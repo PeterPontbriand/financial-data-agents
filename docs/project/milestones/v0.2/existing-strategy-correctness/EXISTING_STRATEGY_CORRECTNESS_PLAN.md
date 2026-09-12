@@ -1,10 +1,12 @@
 # Existing Strategy Correctness — Audit, Repair, and Acceptance
 
-**Status:** Expanded audit and repair plan approved. ESC-A evidence and proposed concrete contracts are prepared for review in the [review packet](ESC_A_EVIDENCE_AND_REPAIR_CONTRACT.md), with a populated [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage matrix](ESC_A_COVERAGE_MATRIX.md). Policy approval, expanded repairs, and final acceptance remain open.
+**Status:** ESC-B reviewed and approved by the project owner on 2026-09-11 (Toronto), including the historical MSFT explanation follow-up. Implementation remains in the working tree based on pushed `cb1e9ef`. The [ESC-C acceptance packet](ESC_C_FINAL_ACCEPTANCE.md), [implementation record](ESC_B_IMPLEMENTATION_AND_REVIEW.md), [defect ledger](ESC_A_DEFECT_LEDGER.md) and [coverage matrix](ESC_A_COVERAGE_MATRIX.md) reconcile 2,054 passing tests / 89% coverage, all-four live checks, and the historical MSFT case. ESC-C final acceptance is approved on 2026-09-11 (Toronto); ESC-D renewal remains pending.
 
-**Approval record:** Following review of the expanded planning documents, the project owner instructed: “Record approval and propose a docs-only checkpoint commit description.” Approval covers the four-analysis scope, defect accounting, execution/review structure, readiness deferral, and renewed acceptance before Step 3.5. After pushing checkpoint `8d7fba0`, the project owner authorized ESC-A evidence and concrete repair-contract preparation. The resulting C1–C6 proposals require review before ESC-B production edits; neither ESC-C nor ESC-D is complete.
+**Approval record:** Following review of the expanded planning documents, the project owner instructed: “Record approval and propose a docs-only checkpoint commit description.” Approval covers the four-analysis scope, defect accounting, execution/review structure, readiness deferral, and renewed acceptance before Step 3.5. After pushing checkpoint `8d7fba0`, the project owner authorized ESC-A. After reviewing C1–C6 and pushing `cb1e9ef50bcef5f549cdabba91c853629da78eed`, the project owner explicitly authorized ESC-B. The project owner subsequently approved ESC-C final existing-analysis acceptance on 2026-09-11 (Toronto), closing the current correctness acceptance gate. ESC-D renewal remains pending.
 
 **Authority:** [Active milestone](../IMPLEMENTATION_PLAN.md). This work supersedes the Graham-only acceptance boundary. Complete it before resuming database readiness; no further strategy development may start while known correctness defects remain unresolved.
+
+**ESC-B approval and continuation:** The project owner instructed, “ESC-B is now reviewed and approved. Proceed.” This closes ESC-B and authorizes ESC-C reconciliation and preparation of its final acceptance packet. ESC-C was subsequently explicitly approved; see the acceptance packet. Publication remains separate, and Step 3.3A may resume only at its existing planning gates. ESC-D approval is not implied.
 
 **Branch:** `fix/existing-strategy-correctness`, renamed by the project owner. The prior Graham repair and README correction are checkpointed in `e8f4a95`. Preserve that history. Use focused commits by diagnosed defect, separate from planning commits and database-readiness implementation. No commit, push, PR, dependency change, migration against user data, or destructive operation is authorized by this documentation checkpoint.
 
@@ -80,7 +82,7 @@ One implementation owner maintains coherent changes. An optional independent Cli
 
 **Existing-strategy audit/repair → ESC-C acceptance → Step 3.3A at its existing gates → Step 3.4 at its existing gates → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6.**
 
-Database-readiness planning is retained but its design/implementation continuation waits for ESC-C. Step 3.4's prior start authorization is retained with the revised deferral; it does not bypass the prerequisites. Step 3.5's existing plan approval does not waive ESC-D.
+ESC-C acceptance releases the database-readiness deferral; resume Step 3.3A contract planning at its existing gates, with production implementation still separately gated. Step 3.4's prior start authorization is retained with the revised deferral; it does not bypass the prerequisites. Step 3.5's existing plan approval does not waive ESC-D.
 
 After readiness changes, rerun all four analysis regressions plus relevant cold-database/cache lifecycle tests. Carry the same regression obligation through workspace/profile changes. Newly discovered correctness defects in any existing analysis block further strategy development until repaired and reviewed, including defects discovered after ESC-C. Shared cache/profile/presentation changes must not invalidate the earlier acceptance silently.
 

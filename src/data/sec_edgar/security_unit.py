@@ -191,6 +191,7 @@ class ParsedUnitDocument:
     contexts: dict[str, _Context]
     facts: tuple[_Node, ...]
     units: dict[str, tuple[str, ...]]
+    listing_venue: str | None = None
 
     def verify(self, value: ResolvedInput) -> tuple[str, ...]:
         """Match a resolved source leaf to an entity-wide filing fact."""
@@ -338,7 +339,12 @@ def parse_unit_document(markup: str, *, cik: str, ticker: str) -> ParsedUnitDocu
     ):
         raise UnitMappingError("Positive common-stock evidence is missing.")
     return ParsedUnitDocument(
-        common[0][1], tuple(sorted(item[0] for item in common)), contexts, tuple(financial), units
+        common[0][1],
+        tuple(sorted(item[0] for item in common)),
+        contexts,
+        tuple(financial),
+        units,
+        "; ".join(sorted({titles[item[0]]["SecurityExchangeName"] for item in common})),
     )
 
 

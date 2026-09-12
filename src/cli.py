@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -32,6 +32,7 @@ from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAss
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.cli_support import (
+    AnalysisConfigurationError,
     _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
@@ -59,6 +60,7 @@ from src.data.financial.providers import (
     ProductionFinancialFactsProvider,
     SecEdgarFinancialFactsAdapter,
 )
+from src.data.financial.quote_freshness import QuoteFreshnessPolicy
 from src.data.instrument_profile import (
     InstrumentProfile,
     InstrumentProfileCandidate,
@@ -91,7 +93,9 @@ from src.reporting.graham import (
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
 
-app = typer.Typer(help="Financial Data Agents Command Line Interface")
+app = typer.Typer(
+    help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False
+)
 
 _MOMENTUM_CLI_DEFAULTS = MomentumConfig()
 
@@ -159,6 +163,10 @@ def momentum(  # noqa: PLR0913
 
     label = target_ticker or "the configured default ticker"
     with execution_errors(
+        mode=mode,
+        analysis="momentum",
+        method="sma_crossover",
+        ticker=target_ticker,
         data_error=lambda _exc: (
             f"Unable to analyze {label}: the configured market-data provider returned no usable price history."
         ),
@@ -181,6 +189,8 @@ def momentum(  # noqa: PLR0913
             metrics=run.metrics,
             config=config,
             market_data=run.market_data,
+            resolution_trace=run.resolution_trace,
+            data_resolution=run.data_resolution,
             identity_resolution=profile_identity_resolution(profile),
             instrument_profile=profile,
         )
@@ -249,10 +259,20 @@ def graham_number(  # noqa: PLR0913
             }
         )
     with (
-        execution_errors(unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}."),
+        execution_errors(
+            mode=mode,
+            analysis="graham",
+            method="graham_number",
+            ticker=target_ticker,
+            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
+        ),
         _production_financial_cache(enabled=config.use_cache) as cache,
     ):
         with execution_errors(
+            mode=mode,
+            analysis="graham",
+            method="graham_number",
+            ticker=target_ticker,
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
@@ -345,10 +365,20 @@ def graham_growth(  # noqa: PLR0913
             }
         )
     with (
-        execution_errors(unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}."),
+        execution_errors(
+            mode=mode,
+            analysis="graham",
+            method="graham_growth_value",
+            ticker=target_ticker,
+            unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
+        ),
         _production_financial_cache(enabled=config.use_cache) as cache,
     ):
         with execution_errors(
+            mode=mode,
+            analysis="graham",
+            method="graham_growth_value",
+            ticker=target_ticker,
             invalid=lambda exc: f"Unable to start Graham analysis: {exc}",
             unexpected=lambda _exc: f"Graham analysis failed unexpectedly for {target_ticker}.",
         ):
@@ -415,6 +445,10 @@ def fcf_growth(  # noqa: PLR0913
 
     with (
         execution_errors(
+            mode=mode,
+            analysis="fcf_earnings_growth",
+            method="reported_fcf_eps_cagr",
+            ticker=target_ticker,
             invalid=lambda exc: f"Unable to start FCF & earnings-growth analysis: {exc}",
             unexpected=lambda _exc: f"FCF & earnings-growth analysis failed unexpectedly for {target_ticker}.",
         ),
@@ -663,7 +697,7 @@ def _build_sec_production_provider() -> ProductionFinancialFactsProvider:
     """Build the SEC-backed production provider from declared application identity."""
     user_agent = settings.sec_user_agent
     if user_agent is None or not user_agent.strip():
-        raise ValueError(
+        raise AnalysisConfigurationError(
             "SEC EDGAR access is not configured. "
             "Set SEC_USER_AGENT to a declared identity such as "
             '"Your Name your-email@example.com" and retry.'
@@ -676,7 +710,7 @@ def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     """Build Massive only when usable API credentials are configured."""
     massive = MassiveFinancialFactsAdapter()
     if not massive.is_configured:
-        raise ValueError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
+        raise AnalysisConfigurationError("Massive access is not configured. Set MASSIVE_API_KEY and retry.")
     return massive
 
 
@@ -711,14 +745,18 @@ def _build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthIn
     elif data_provider == SEC_PROVIDER_ID:
         provider = _build_sec_production_provider()
     elif data_provider is not None:
-        raise ValueError(
+        raise AnalysisConfigurationError(
             f"Unsupported valuation data provider {data_provider!r}; "
             f"supported providers are {SEC_PROVIDER_ID!r} and {MASSIVE_PROVIDER_ID!r}."
         )
     else:
         provider = _build_sec_production_provider()
 
-    return resolver_type(provider, cache=cache if cache is not None else InMemoryResolvedInputCache())
+    return resolver_type(
+        provider,
+        cache=cache if cache is not None else InMemoryResolvedInputCache(),
+        quote_freshness_policy=QuoteFreshnessPolicy(timedelta(seconds=settings.quote_cache_ttl_seconds)),
+    )
 
 
 def _run_graham_number(  # noqa: PLR0913

@@ -83,6 +83,10 @@ signal    = 1 if short_sma > long_sma else 0
 crossover = signal[t] - signal[t-1]
 ```
 
+A crossover requires valid short and long SMAs at both `t` and `t-1`. At the first valid long-SMA observation, the current trend can be classified while crossover remains unavailable. Zero means no transition between two valid states.
+
+RSI uses the simple mean of gains and losses over the configured number of price changes, not Wilder smoothing: `100 - 100 / (1 + mean_gain / mean_loss)`. Rising-only changes produce 100, falling-only changes produce 0, and an entirely flat window produces 50. A period of `n` requires at least `n+1` prices. Invalid observations are rejected in both fetched and preloaded frames; they are not dropped or filled.
+
 Interpretation:
 
 - `signal == 1` → short SMA above long SMA → bullish price-momentum state;
@@ -231,6 +235,8 @@ Interpretation:
 - negative → current price exceeds the reference value.
 
 The concise investor report describes this as a **price relationship** (for example, “25.00% below the Graham Number”) rather than requiring a reader to interpret an internal sign convention.
+
+The relationship is to the latest available quote response, whose retrieval age is bounded independently from annual financial-fact age. The default maximum reuse age is 300 seconds, including equality; zero disables quote cache reuse. Missing or future retrieval times cannot establish eligibility. Yahoo retrieval time is not treated as an exchange observation or publication timestamp. User price overrides remain explicitly unverified assumptions.
 
 If a current quote is unavailable, the Graham calculation can still remain valid while the price comparison is omitted.
 

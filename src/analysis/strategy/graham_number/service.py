@@ -127,6 +127,8 @@ def run_graham_number_analysis(  # noqa: PLR0913
             security_unit_resolution=(instrument_profile.security_unit_resolution if instrument_profile else None),
         )
 
+    comparison = replace(comparison, quote_freshness=assembly.quote_freshness)
+
     return GrahamNumberAnalysis(
         ticker=ticker,
         as_of=as_of,

@@ -34,6 +34,7 @@ POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, basel
 class OwnedProvider(FixtureFinancialFactsProvider):
     def __init__(self) -> None:
         """Initialize observable provider ownership."""
+        super().__init__()
         self.calls = 0
         self.closed = False
 

@@ -1,12 +1,12 @@
 # Step 3.3A — Fresh Database Initialization and Schema Readiness
 
-**Status:** Deferred until [existing-strategy correctness audit](../existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) ESC-C final acceptance (all four analyses, incorporating the Graham repair). Planning requested on 2026-09-09. Proposed contract and implementation slices; production implementation is not authorized by this documentation request. No baseline or implementation acceptance is claimed.
+**Status:** The [existing-strategy correctness audit](../existing-strategy-correctness/ESC_C_FINAL_ACCEPTANCE.md) received ESC-C final acceptance on 2026-09-11 (Toronto), releasing the readiness planning deferral. Planning was requested on 2026-09-09 and may now resume at Slice A. The contract and implementation slices remain proposed; production implementation requires Gate A approval. No readiness baseline or implementation acceptance is claimed.
 
 **Authority:** [Milestone implementation plan](../IMPLEMENTATION_PLAN.md#49a-step-33a--fresh-database-initialization--schema-readiness). This bounded prerequisite precedes Step 3.4 contract design and implementation. Step 3.4's 2026-09-08 start authorization is retained but deferred until this work receives final acceptance; its own contract/review gates still apply. Subsequent sequence remains Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6, following the active milestone's latest ordering.
 
 **Branch history:** Renamed locally to `codex/step-3.3a-database-readiness` on 2026-09-09 for this planning/implementation work. The starting local branch was `feat/step-3.4-research-workspace`, at `b6a84e0`, with two documentation commits after Step 3.3 and no configured upstream. Renaming preserves those commits and working-tree content. No commit, push, or PR is authorized by this plan.
 
-**Current sequencing:** Preserve this design without continuing it until ESC-C acceptance. Readiness implementation belongs on a separate descriptive branch such as `feat/database-readiness`; no branch creation is requested here. Its acceptance must rerun the four-analysis regressions and relevant fresh/current/cache lifecycle cases. ESC-D renewal remains mandatory before Step 3.5.
+**Current sequencing:** ESC-C is accepted. Resume contract planning and verification at Slice A; retain its explicit review gate before production edits. Readiness implementation belongs on a separate descriptive branch such as `feat/database-readiness`; no branch creation is requested here. Its acceptance must rerun the four-analysis regressions and relevant fresh/current/cache lifecycle cases. ESC-D renewal remains mandatory before Step 3.5.
 
 ## 1. Problem and decision
 
