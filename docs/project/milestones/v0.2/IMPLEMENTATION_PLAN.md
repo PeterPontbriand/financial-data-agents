@@ -13,7 +13,7 @@
 **Revised:** 2026-09-09 — Prioritized the immediate Graham price-comparison repair ahead of Step 3.3A. Planning was accepted with caveats on 2026-09-09; production changes are not authorized. Both Graham methods must receive validated share-unit evidence and report structured comparison-unavailability reasons.<br/>
 **Status:** Step 2.2 → implementation complete; Steps 2.3, 2.4, 2.5, 2.5A, and 2.6 → complete and approved; Step 3.1 → complete and approved, including Slice G and Gate G; R1-A → approved on 2026-09-06; R1-B approved; R1-C approved on 2026-09-06; R1 complete and approved; R2 plan/resolver design and retirements accepted, all gates approved; R2 complete and approved on 2026-09-07; Step 3.2 started on 2026-09-07 — Gates 3.2-A/B/C approved; implementation and acceptance verification complete; Gate 3.2-D approved; Step 3.2 complete on 2026-09-07; Step 3.3 → complete and approved on 2026-09-08; Step 3.3A → planning in progress, implementation not authorized; Step 3.4 → start approved on 2026-09-08, deferred until 3.3A acceptance.
 **Current amendment:** ESC-B reviewed and approved on 2026-09-11 (Toronto), including the historical MSFT follow-up. The [ESC-C acceptance packet](existing-strategy-correctness/ESC_C_FINAL_ACCEPTANCE.md) reconciles seventeen repaired findings and the final 2,054-test / 89% gate. Graham-only final acceptance is incorporated into ESC-C; ESC-C final acceptance was granted on 2026-09-11 (Toronto), releasing readiness contract planning at its existing gates. ESC-D still blocks Step 3.5 implementation.<br/>
-**Next work item:** [Existing Strategy Correctness Audit and Repair](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md) (ESC-C accepted on 2026-09-11; ready for publication handoff) → [Step 3.3A Fresh Database Initialization & Schema Readiness](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → ESC-D renewed acceptance → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support. [accepted closeout record](issue-17/ISSUE_17_TELEMETRY_CLOSEOUT_PLAN.md) records final review and pending publication.
+**Next work item:** [Step 3.3A Gate A contract review](step-3.3a/SLICE_A_CONTRACT_AND_VERIFICATION.md), following ESC-C acceptance and merged PR #34 → Step 3.3A implementation at its approved gates → Step 3.4 (Local Research Workspace & Analysis Run Library) → P2-Profiles → ESC-D renewed acceptance → **Step 3.5 Deterministic Quantitative Screening Strategies** → Step 3.6 Light Mode Support.
 ↳ Follow-up validation: empirically verify native schema support for the actual Light Mode model configuration.
 
 ---
@@ -1597,7 +1597,7 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 ### 4.9A Step 3.3A – Fresh Database Initialization & Schema Readiness
 
-**Status:** Planning requested on 2026-09-09; the ESC-C deferral was released by final acceptance on 2026-09-11 (Toronto). Contract planning may resume; production implementation remains subject to its own approval gates. [Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) owns the bounded behavior, verification matrix, and A–D review gates.
+**Status:** Slice A contract planning and verification complete on `docs/step-3.3a-contract-planning`, based on merged PR #34 (`634164b`). The [concrete contract](step-3.3a/SLICE_A_CONTRACT_AND_VERIFICATION.md) records exact interfaces/file scope, locking/transaction/resource/error policies, caller/schema reconciliation, offline probes and a fresh 2,054-test / 89% baseline. Gate A approval and Slice B authorization are pending. [Contract and Slice Plan](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md) owns the A–D review gates.
 
 **Goal:** Make the first persistence-backed analysis initialize verified empty SQLite storage through bundled Alembic migrations, while preserving explicit upgrades of existing databases and reporting actionable typed readiness errors.
 
@@ -1605,7 +1605,7 @@ Validate incoming financial data (FX adjustments, corporate actions, staleness) 
 
 **Sequencing:** Complete and accept 3.3A before Step 3.4 contract preparation and implementation. The 2026-09-08 Step 3.4 authorization is retained, not revoked; its start is deferred. Preserve the subsequent sequence: Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. This supersedes older P2-before-workspace sequencing statements.
 
-**Acceptance:** The companion matrix and full managed quality gate must pass. Gate A requires explicit contract/implementation approval; B and C require review before proceeding; Gate D requires explicit final acceptance. This documentation checkpoint does not assert implementation or a fresh test baseline.
+**Acceptance:** The companion matrix and full managed quality gate must pass. Gate A requires explicit contract/implementation approval; B and C require review before proceeding; Gate D requires explicit final acceptance. Slice A's fresh baseline is recorded; no readiness implementation or later acceptance is claimed.
 
 ---
 
@@ -1864,7 +1864,7 @@ All of the following must be true before declaring the milestone complete and op
 
 ## 9. Next Immediate Actions
 
-1. ESC-B and [ESC-C final acceptance](existing-strategy-correctness/ESC_C_FINAL_ACCEPTANCE.md) are approved. Prepare the requested publication drafts for the reviewed changes on `fix/existing-strategy-correctness`. Then resume Step 3.3A at its existing contract/planning gates. Production readiness implementation and later strategy work remain separately gated; ESC-D renewal is still mandatory.
+1. PR #34 merged the accepted existing-analysis repairs into local `main` at `634164b`. Review the [Step 3.3A Slice A contract and verification](step-3.3a/SLICE_A_CONTRACT_AND_VERIFICATION.md) on `docs/step-3.3a-contract-planning`. Gate A approval must explicitly authorize B before readiness production edits. B/C/D review gates and ESC-D renewal remain mandatory.
 2. Preserve Step 3.4's prior start authorization while deferring its contract preparation and implementation until 3.3A final acceptance. Then prepare its companion contract before implementing workspace functionality.
 3. Retain the subsequent order: Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. Rerun the four-analysis regressions after readiness and workspace/profile changes; newly found defects block strategy development until repaired and reviewed. P2-ETF remains deferred beyond Step 3.6 with separate prioritization and policy approval.
 4. Steps 3.2 and 3.3 are complete and approved. Local history records telemetry closeout in PR #31 and Step 3.3 in PR #32; older publication-pending notes are historical and do not schedule repeat implementation/publication. GitHub issue closure has not been verified by this planning task.
