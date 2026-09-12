@@ -43,10 +43,17 @@ def upgrade_fresh_database(connection: Connection) -> None:
     if not connection.in_transaction():
         raise ValueError("Fresh initialization requires an active transaction.")
     resources = migration_resources()
+    upgrade_database_revision(connection, resources, resources.head)
+
+
+def upgrade_database_revision(connection: Connection, resources: MigrationResources, revision: str) -> None:
+    """Run a bundled revision in an active transaction owned by the caller."""
+    if not connection.in_transaction():
+        raise ValueError("Migration requires an active transaction.")
     config = Config(stdout=StringIO())
     config.set_main_option("script_location", str(resources.directory).replace("%", "%%"))
     config.attributes["connection"] = connection
-    command.upgrade(config, resources.head)
+    command.upgrade(config, revision)
 
 
 def _run_on_connection(connection: Connection) -> None:

@@ -4,6 +4,9 @@ import errno
 import json
 import re
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -13,7 +16,12 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.pool import NullPool
 
-from src.data.repositories.migrations import MigrationResources, migration_resources, upgrade_fresh_database
+from src.data.repositories.migrations import (
+    MigrationResources,
+    migration_resources,
+    upgrade_database_revision,
+    upgrade_fresh_database,
+)
 from src.data.repositories.readiness_lock import ReadinessLockTimeoutError, readiness_lock
 from src.data.repositories.schema import metadata
 from src.data.repositories.sqlite import SQLiteDatabase
@@ -24,6 +32,7 @@ class ReadinessOutcome(StrEnum):
 
     READY = "ready"
     INITIALIZED = "initialized"
+    UPGRADED = "upgraded"
 
 
 class ReadinessReason(StrEnum):
@@ -37,9 +46,14 @@ class ReadinessReason(StrEnum):
     IO_ERROR = "database_io_error"
     RESOURCES_UNAVAILABLE = "database_resources_unavailable"
     INITIALIZATION_FAILED = "database_initialization_failed"
+    MIGRATION_FAILED = "database_migration_failed"
 
 
 _MESSAGES = {
+    ReadinessReason.MIGRATION_FAILED: (
+        "schema migration did not complete. Preserve this database and inspect application diagnostics; "
+        "the migration transaction was rolled back."
+    ),
     ReadinessReason.UPGRADE_REQUIRED: (
         "schema upgrade required. Stop application processes and back up this database, then run "
         "uv run --no-sync alembic upgrade head from the installation folder with DATABASE_URL set to this target."
@@ -105,6 +119,54 @@ class _SchemaMismatchError(Exception):
 
 class _UpgradeRequiredError(Exception):
     pass
+
+
+class DatabaseState(StrEnum):
+    """Observable persistent storage states, without initialization side effects."""
+
+    READY = "ready"
+    MISSING = "missing"
+    FRESH = "fresh"
+    UPGRADE_REQUIRED = "upgrade_required"
+    INCOMPATIBLE = "incompatible"
+
+
+@dataclass(frozen=True)
+class DatabaseInspection:
+    """Safe evidence from a single inspection snapshot."""
+
+    state: DatabaseState
+    current_revision: str | None
+    expected_revision: str
+
+
+def _schema_objects(connection: Connection) -> dict[tuple[str, str], str | None]:
+    return {
+        (kind, name): _sql(sql)
+        for kind, name, sql in connection.exec_driver_sql("SELECT type, name, sql FROM sqlite_schema")
+        if not name.startswith("sqlite_")
+    }
+
+
+def _verify_ancestor(connection: Connection, resources: MigrationResources, revision: str) -> None:
+    # Build only the trusted bundled schema in disposable memory. Never use current
+    # metadata as a substitute for the schema that this older revision actually owns.
+    engine = sa.create_engine(
+        "sqlite://", creator=lambda: sqlite3.connect(":memory:", autocommit=False), poolclass=NullPool
+    )
+    try:
+        with engine.begin() as reference:
+            upgrade_database_revision(reference, resources, revision)
+            if _schema_objects(connection) != _schema_objects(reference):
+                raise _SchemaMismatchError()
+            if ("table", "schema_metadata") in _schema_objects(reference):
+                required = reference.exec_driver_sql("SELECT metadata_key, metadata_value FROM schema_metadata").all()
+                metadata_rows = connection.exec_driver_sql("SELECT metadata_key, metadata_value FROM schema_metadata")
+                actual = {key: value for key, value in metadata_rows}  # noqa: C416
+                if any(actual.get(key) != value for key, value in required):
+                    raise _SchemaMismatchError()
+    finally:
+        engine.dispose()
 
 
 def _sql(value: object) -> str | None:
@@ -187,11 +249,22 @@ def _actual_signature(table: str, inspector: sa.Inspector) -> dict[str, Any]:
     }
 
 
-def _schema_ready(connection: Connection, resources: MigrationResources) -> bool:
+def _schema_ready(connection: Connection, resources: MigrationResources) -> bool:  # noqa: PLR0912
     objects = connection.exec_driver_sql("SELECT type, name, sql FROM sqlite_schema").tuples().all()
     objects = [(kind, name, sql) for kind, name, sql in objects if not name.startswith("sqlite_")]
     if not objects:
         return False
+    if not any(kind == "table" and name == "alembic_version" for kind, name, _ in objects):
+        raise _SchemaMismatchError()
+    columns = sa.inspect(connection).get_columns("alembic_version")
+    if [column["name"] for column in columns] != ["version_num"]:
+        raise _SchemaMismatchError()
+    revisions = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars().all()
+    if len(revisions) != 1:
+        raise _SchemaMismatchError()
+    if revisions[0] in resources.ancestors:
+        _verify_ancestor(connection, resources, revisions[0])
+        raise _UpgradeRequiredError()
     tables = {name for kind, name, _ in objects if kind == "table"}
     if tables != set(metadata.tables) | {"alembic_version"} or any(
         kind in ("view", "trigger") for kind, _, _ in objects
@@ -227,8 +300,6 @@ def _schema_ready(connection: Connection, resources: MigrationResources) -> bool
     )
     if encoding != [1]:
         raise _SchemaMismatchError()
-    if revisions[0] in resources.ancestors:
-        raise _UpgradeRequiredError()
     if revisions[0] != resources.head:
         raise _SchemaMismatchError()
     for table in metadata.sorted_tables:
@@ -257,6 +328,14 @@ def _file_ready(database: SQLiteDatabase, resources: MigrationResources) -> bool
         path.stat()
     except FileNotFoundError:
         return False
+    with _read_file(database) as connection:
+        return _schema_ready(connection, resources)
+
+
+@contextmanager
+def _read_file(database: SQLiteDatabase) -> Iterator[Connection]:
+    path = database.database_path
+    assert path is not None
 
     def connect() -> sqlite3.Connection:
         return sqlite3.connect(
@@ -266,7 +345,7 @@ def _file_ready(database: SQLiteDatabase, resources: MigrationResources) -> bool
     engine = sa.create_engine("sqlite://", creator=connect, poolclass=NullPool)
     try:
         with engine.connect() as connection:
-            return _schema_ready(connection, resources)
+            yield connection
     finally:
         engine.dispose()
 
@@ -344,5 +423,93 @@ def ensure_database_ready(database: SQLiteDatabase) -> ReadinessOutcome:
         raise DatabaseReadinessError(ReadinessReason.INCOMPATIBLE_SCHEMA, path, resources.head) from exc
     except _UpgradeRequiredError as exc:
         raise DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, path, resources.head) from exc
+    except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
+        raise DatabaseReadinessError(_storage_reason(exc), path, resources.head) from exc
+
+
+def _inspect_connection(connection: Connection, resources: MigrationResources) -> DatabaseInspection:
+    try:
+        ready = _schema_ready(connection, resources)
+    except _SchemaMismatchError:
+        return DatabaseInspection(DatabaseState.INCOMPATIBLE, None, resources.head)
+    except _UpgradeRequiredError:
+        revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
+        return DatabaseInspection(DatabaseState.UPGRADE_REQUIRED, revision, resources.head)
+    return DatabaseInspection(
+        DatabaseState.READY if ready else DatabaseState.FRESH,
+        resources.head if ready else None,
+        resources.head,
+    )
+
+
+def _inspection(database: SQLiteDatabase, resources: MigrationResources) -> DatabaseInspection:
+    path = database.database_path
+    if path is None:
+        raise ValueError("Persistent inspection requires a file-backed database.")
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return DatabaseInspection(DatabaseState.MISSING, None, resources.head)
+    with _read_file(database) as connection:
+        return _inspect_connection(connection, resources)
+
+
+def _resources(database: SQLiteDatabase) -> MigrationResources:
+    try:
+        return migration_resources()
+    except Exception as exc:
+        raise DatabaseReadinessError(ReadinessReason.RESOURCES_UNAVAILABLE, database.database_path) from exc
+
+
+def inspect_database(database: SQLiteDatabase) -> DatabaseInspection:
+    """Inspect one read-only snapshot without acquiring a sidecar or initializing."""
+    resources = _resources(database)
+    try:
+        return _inspection(database, resources)
+    except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
+        raise DatabaseReadinessError(_storage_reason(exc), database.database_path, resources.head) from exc
+
+
+def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
+    """Explicitly upgrade validated storage and return its outcome and head revision."""
+    resources = _resources(database)
+    path = database.database_path
+    if path is None:
+        raise ValueError("Persistent maintenance requires a file-backed database.")
+    try:
+        with readiness_lock(path, database.busy_timeout_ms):
+            observed = _inspection(database, resources)
+            if observed.state is DatabaseState.INCOMPATIBLE:
+                raise DatabaseReadinessError(ReadinessReason.INCOMPATIBLE_SCHEMA, path, resources.head)
+            if observed.state is DatabaseState.READY:
+                return ReadinessOutcome.READY, resources.head
+            if observed.state in (DatabaseState.MISSING, DatabaseState.FRESH):
+                return _initialize(database, resources), resources.head
+            try:
+                with database.transaction() as connection:
+                    rechecked = _inspect_connection(connection, resources)
+                    if rechecked.state is DatabaseState.READY:
+                        return ReadinessOutcome.READY, resources.head
+                    if rechecked.state is not DatabaseState.UPGRADE_REQUIRED:
+                        raise DatabaseReadinessError(ReadinessReason.INCOMPATIBLE_SCHEMA, path, resources.head)
+                    upgrade_database_revision(connection, resources, resources.head)
+                    if not _schema_ready(connection, resources):
+                        raise _SchemaMismatchError()
+            except DatabaseReadinessError:
+                raise
+            except Exception as exc:
+                reason = _storage_reason(exc)
+                original = exc.orig if isinstance(exc, DBAPIError) else exc
+                # SQL syntax/migration logic failures are migration failures, not I/O.
+                if not isinstance(original, OSError) and reason is ReadinessReason.IO_ERROR:
+                    code = getattr(original, "sqlite_errorcode", None)
+                    if not isinstance(code, int) or (code & 0xFF) not in (
+                        sqlite3.SQLITE_IOERR,
+                        sqlite3.SQLITE_FULL,
+                        sqlite3.SQLITE_CANTOPEN,
+                    ):
+                        reason = ReadinessReason.MIGRATION_FAILED
+                raise DatabaseReadinessError(reason, path, resources.head) from exc
+            return ReadinessOutcome.UPGRADED, resources.head
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
         raise DatabaseReadinessError(_storage_reason(exc), path, resources.head) from exc

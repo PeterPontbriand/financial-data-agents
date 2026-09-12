@@ -1,6 +1,7 @@
 """Readiness verifies real disposable schemas and preserves rejected storage."""
 
 import errno
+import shutil
 import sqlite3
 from contextlib import closing
 from dataclasses import replace
@@ -30,6 +31,40 @@ def execute(path: Path, sql: str) -> None:
     """Apply an intentional test-only schema/data mutation and release the handle."""
     with closing(sqlite3.connect(path, autocommit=True)) as connection:
         connection.executescript(sql)
+
+
+def _synthetic_migration_resources(tmp_path: Path, *, failing: bool) -> migrations.MigrationResources:
+    """Materialize a two-revision graph (real base plus one synthetic child head).
+
+    ``upgrade_database`` must run a real on-disk revision to reach the successful
+    ``UPGRADED`` outcome, so the bundled base revision is copied and a single child
+    revision is added. When ``failing`` is set that child applies a partial table and
+    then raises, exercising the rollback path.
+    """
+    repository = Path(__file__).resolve().parents[3]
+    source = repository / "alembic"
+    directory = tmp_path / "synthetic-alembic"
+    shutil.copytree(source, directory, ignore=shutil.ignore_patterns("__pycache__"))
+    base_head = "0001_persistence"
+    head = "zz99_synthetic_failing" if failing else "zz99_synthetic_no_op"
+    preamble = "import sqlalchemy as sa\n\nfrom alembic import op\n\n" if failing else ""
+    upgrade_body = (
+        "    op.create_table('synthetic_partial', sa.Column('id', sa.Integer(), primary_key=True))\n"
+        "    raise RuntimeError('synthetic failure')\n"
+        if failing
+        else "    pass\n"
+    )
+    revision = directory / "versions" / f"{head}.py"
+    revision.write_text(
+        preamble
+        + f'revision: str = "{head}"\n'
+        + f'down_revision: str = "{base_head}"\n\n'
+        + "def upgrade() -> None:\n"
+        + upgrade_body
+        + "\ndef downgrade() -> None:\n    pass\n",
+        encoding="utf-8",
+    )
+    return migrations.MigrationResources(directory, head, frozenset({base_head}))
 
 
 @pytest.mark.parametrize("initial", ["missing", "zero_byte", "empty", "internal_only"])
@@ -225,6 +260,66 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
         assert "DATABASE_URL" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"
+    finally:
+        database.close()
+
+
+def test_upgrade_database_synthetic_older_schema_returns_upgraded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "upgraded.sqlite3"
+    database = database_for(path)
+    try:
+        assert ensure_database_ready(database) is ReadinessOutcome.INITIALIZED
+        resources = _synthetic_migration_resources(tmp_path, failing=False)
+        monkeypatch.setattr(readiness, "migration_resources", lambda: resources)
+        outcome, revision = readiness.upgrade_database(database)
+        assert outcome is ReadinessOutcome.UPGRADED
+        assert revision == resources.head
+        with closing(sqlite3.connect(path, autocommit=True)) as connection:
+            stamped = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+            assert stamped == resources.head
+    finally:
+        database.close()
+
+
+def test_upgrade_database_synthetic_older_schema_rollback_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "rollback.sqlite3"
+    database = database_for(path)
+    before = None
+    try:
+        assert ensure_database_ready(database) is ReadinessOutcome.INITIALIZED
+        before = path.read_bytes()
+        resources = _synthetic_migration_resources(tmp_path, failing=True)
+        monkeypatch.setattr(readiness, "migration_resources", lambda: resources)
+        with pytest.raises(DatabaseReadinessError) as caught:
+            readiness.upgrade_database(database)
+        assert caught.value.reason is ReadinessReason.MIGRATION_FAILED
+        assert "synthetic failure" not in str(caught.value)
+        with closing(sqlite3.connect(path, autocommit=True)) as connection:
+            tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_schema WHERE type='table'")}
+            assert "synthetic_partial" not in tables
+            stamped = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+            assert stamped == "0001_persistence"
+    finally:
+        database.close()
+    assert path.read_bytes() == before
+
+
+def test_upgrade_database_synthetic_newer_schema_returns_ready(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "current.sqlite3"
+    database = database_for(path)
+    try:
+        assert ensure_database_ready(database) is ReadinessOutcome.INITIALIZED
+        resources = _synthetic_migration_resources(tmp_path, failing=False)
+        monkeypatch.setattr(readiness, "migration_resources", lambda: resources)
+        first = readiness.upgrade_database(database)
+        assert first[0] is ReadinessOutcome.UPGRADED
+        outcome, revision = readiness.upgrade_database(database)
+        assert outcome is ReadinessOutcome.READY
+        assert revision == resources.head
     finally:
         database.close()
 
