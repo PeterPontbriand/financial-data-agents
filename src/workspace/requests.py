@@ -20,10 +20,17 @@ another; an unsupported version is rejected at validation time.
 """
 
 import math
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, field_validator, model_validator
 
+from src.analysis.strategy.fcf_earnings_growth.models import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthPolicy,
+    ForwardPolicy,
+    HistoricalHorizon,
+)
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.config import settings
@@ -112,24 +119,15 @@ class MomentumSelection(_FrozenSelection):
         )
 
 
-class GrahamNumberSelection(_FrozenSelection):
-    """Immutable snapshot of an effective Graham Number configuration.
-
-    The canonical analysis/method identifiers are fixed (``graham`` /
-    ``graham_number``). The security-fact provider is restricted to the CLI-supported
-    SEC EDGAR or Massive choices; the EPS basis and quote provider resolve from it
-    using the same rules as :class:`GrahamNumberConfig`. Non-finite financial
-    overrides are rejected here rather than deferred to execution.
-    """
+class _GrahamSelection(_FrozenSelection):
+    """Shared provider choices and immutable scalar configuration for Graham methods."""
 
     analysis_id: Literal["graham"] = "graham"
-    method_id: Literal["graham_number"] = "graham_number"
     config_schema_version: Literal[1] = 1
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
     eps_basis: Literal["three_year_average", "ttm"] | None = None
     eps_override: StrictFloat | None = None
-    bvps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
     as_of: AwareDatetime | None = None
     use_cache: bool = Field(default=True, strict=True)
@@ -162,7 +160,7 @@ class GrahamNumberSelection(_FrozenSelection):
             )
         return normalized
 
-    @field_validator("eps_override", "bvps_override", "quote_override")
+    @field_validator("eps_override", "quote_override")
     @classmethod
     def _require_finite_overrides(cls, value: float | None) -> float | None:
         """Reject NaN/Inf financial overrides at the workspace boundary."""
@@ -177,7 +175,7 @@ class GrahamNumberSelection(_FrozenSelection):
         return value.strip().lower() if isinstance(value, str) else value
 
     @model_validator(mode="after")
-    def _resolve_effective_configuration(self) -> "GrahamNumberSelection":
+    def _resolve_effective_configuration(self) -> "_GrahamSelection":
         """Resolve the effective EPS basis/quote provider and enforce compatibility."""
         security_provider_id = self.security_provider_id
         if self.quote_provider_id is None:
@@ -189,14 +187,29 @@ class GrahamNumberSelection(_FrozenSelection):
 
         if security_provider_id == "sec_edgar" and eps_basis != "three_year_average":
             raise ValueError("SEC EDGAR financial data requires the three-year average EPS basis.")
-        if security_provider_id == "massive":
-            if eps_basis != "ttm":
-                raise ValueError("Massive financial data requires the TTM EPS basis.")
-            if self.bvps_override is None:
-                raise ValueError("Massive provider requires an explicit book value per share override.")
+        if security_provider_id == "massive" and eps_basis != "ttm":
+            raise ValueError("Massive financial data requires the TTM EPS basis.")
 
         object.__setattr__(self, "quote_provider_id", resolved_quote)
         object.__setattr__(self, "eps_basis", eps_basis)
+        return self
+
+
+class GrahamNumberSelection(_GrahamSelection):
+    """Immutable Graham Number selection with an optional book-value override."""
+
+    method_id: Literal["graham_number"] = "graham_number"
+    bvps_override: StrictFloat | None = None
+
+    @field_validator("bvps_override")
+    @classmethod
+    def _finite_book_value(cls, value: float | None) -> float | None:
+        return cls._require_finite_overrides(value)
+
+    @model_validator(mode="after")
+    def _require_massive_book_value(self) -> "GrahamNumberSelection":
+        if self.security_provider_id == "massive" and self.bvps_override is None:
+            raise ValueError("Massive provider requires an explicit book value per share override.")
         return self
 
     def to_graham_number_config(self) -> GrahamNumberConfig:
@@ -211,3 +224,117 @@ class GrahamNumberSelection(_FrozenSelection):
             as_of=self.as_of,
             use_cache=self.use_cache,
         )
+
+
+class GrahamGrowthSelection(_GrahamSelection):
+    """Graham growth-value selection requiring explicit growth and AAA yield percentages."""
+
+    method_id: Literal["graham_growth_value"] = "graham_growth_value"
+    expected_growth: StrictFloat
+    aaa_yield_override: StrictFloat
+
+    @field_validator("expected_growth", "aaa_yield_override")
+    @classmethod
+    def _finite_assumption(cls, value: float) -> float:
+        cls._require_finite_overrides(value)
+        return value
+
+    def to_graham_growth_config(self) -> GrahamGrowthConfig:
+        """Return the existing config without deriving assumptions or calculation policy."""
+        return GrahamGrowthConfig(
+            security_provider_id=self.security_provider_id,
+            quote_provider_id=self.quote_provider_id,
+            eps_basis=self.eps_basis,
+            eps_override=self.eps_override,
+            quote_override=self.quote_override,
+            expected_growth=self.expected_growth,
+            aaa_yield_override=self.aaa_yield_override,
+            as_of=self.as_of,
+            use_cache=self.use_cache,
+        )
+
+
+class FCFPolicySnapshot(_FrozenSelection):
+    """Validated immutable copy of the existing FCF policy and its native enums."""
+
+    historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
+    classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
+    forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
+    include_fcf_yield: bool = Field(default=True, strict=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _copy_existing_policy(cls, value: object) -> object:
+        if isinstance(value, FCFEarningsGrowthPolicy):
+            return {
+                "historical_horizon": value.historical_horizon,
+                "classification_basis": value.classification_basis,
+                "forward_policy": value.forward_policy,
+                "include_fcf_yield": value.include_fcf_yield,
+            }
+        return value
+
+    def to_policy(self) -> FCFEarningsGrowthPolicy:
+        """Return a fresh instance of the analyzer's existing policy dataclass."""
+        return FCFEarningsGrowthPolicy(
+            historical_horizon=self.historical_horizon,
+            classification_basis=self.classification_basis,
+            forward_policy=self.forward_policy,
+            include_fcf_yield=self.include_fcf_yield,
+        )
+
+
+class FCFGrowthSelection(_FrozenSelection):
+    """Historical FCF/Earnings Growth request options, independent of Graham configs."""
+
+    analysis_id: Literal["fcf_earnings_growth"] = "fcf_earnings_growth"
+    method_id: Literal["reported_fcf_eps_cagr"] = "reported_fcf_eps_cagr"
+    config_schema_version: Literal[1] = 1
+    policy: FCFPolicySnapshot = Field(default_factory=FCFPolicySnapshot)
+    currency: str = "USD"
+    provider_id: Literal["sec_edgar"] = "sec_edgar"
+    as_of: AwareDatetime | None = None
+    use_cache: bool = Field(default=True, strict=True)
+
+    @field_validator("provider_id", mode="before")
+    @classmethod
+    def _normalize_provider(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("currency")
+    @classmethod
+    def _normalize_currency(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if len(normalized) != 3 or not normalized.isalpha():
+            raise ValueError("currency must be a three-letter ISO 4217 code.")
+        return normalized
+
+    def to_fcf_policy(self) -> FCFEarningsGrowthPolicy:
+        """Return the existing policy type for explicit analyzer invocation."""
+        return self.policy.to_policy()
+
+
+AnalysisSelection = Annotated[
+    MomentumSelection | GrahamNumberSelection | GrahamGrowthSelection | FCFGrowthSelection,
+    Field(discriminator="method_id"),
+]
+
+
+class AnalysisRequest(_FrozenSelection):
+    """Bind a normalized ticker to one fully specified immutable method selection."""
+
+    ticker: str
+    selection: AnalysisSelection
+
+    @field_validator("ticker")
+    @classmethod
+    def _normalize_ticker(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if not normalized:
+            raise ValueError("ticker must not be empty.")
+        return normalized
+
+
+def default_selections() -> tuple[AnalysisSelection, ...]:
+    """Materialize independent Momentum, Number and historical FCF defaults in order."""
+    return (MomentumSelection.from_settings(), GrahamNumberSelection(), FCFGrowthSelection())

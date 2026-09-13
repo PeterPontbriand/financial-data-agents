@@ -7,9 +7,25 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from src.analysis.strategy.fcf_earnings_growth.models import (
+    FCFClassificationBasis,
+    FCFEarningsGrowthPolicy,
+    ForwardPolicy,
+    HistoricalHorizon,
+)
+from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
-from src.workspace.requests import GrahamNumberSelection, MomentumSelection
+from src.workspace.requests import (
+    AnalysisRequest,
+    AnalysisSelection,
+    FCFGrowthSelection,
+    FCFPolicySnapshot,
+    GrahamGrowthSelection,
+    GrahamNumberSelection,
+    MomentumSelection,
+    default_selections,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -243,3 +259,217 @@ def test_round_trip_and_conversion_do_not_read_settings(monkeypatch: pytest.Monk
     assert momentum.to_momentum_config().short_window == 2
     assert graham.to_graham_number_config().as_of == graham.as_of
     assert MomentumSelection.from_settings(short_window=2, long_window=5) == momentum
+
+
+@pytest.mark.parametrize("missing", ["expected_growth", "aaa_yield_override"])
+def test_growth_requires_each_explicit_assumption(missing: str) -> None:
+    values = {"expected_growth": 5.0, "aaa_yield_override": 4.5}
+    del values[missing]
+    with pytest.raises(ValidationError) as error:
+        GrahamGrowthSelection.model_validate(values)
+    assert [item["loc"] for item in error.value.errors()] == [(missing,)]
+
+
+@pytest.mark.parametrize("provider", ["sec_edgar", "massive"])
+@pytest.mark.parametrize("growth", [0.0, -5.0, 5.0])
+def test_growth_conversion_preserves_assumptions(provider: str, growth: float) -> None:
+    selection = GrahamGrowthSelection(security_provider_id=provider, expected_growth=growth, aaa_yield_override=0.0)
+    expected_basis = "three_year_average" if provider == "sec_edgar" else "ttm"
+    expected_quote = "yfinance" if provider == "sec_edgar" else "massive"
+    expected = GrahamGrowthConfig(security_provider_id=provider, expected_growth=growth, aaa_yield_override=0.0)
+    assert selection.to_graham_growth_config() == expected
+    assert (selection.eps_basis, selection.quote_provider_id) == (expected_basis, expected_quote)
+
+
+@pytest.mark.parametrize("field", ["bvps_override", "calculation_policy", "policy"])
+def test_growth_rejects_number_and_calculation_policy_fields(field: str) -> None:
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        GrahamGrowthSelection.model_validate({"expected_growth": 5.0, "aaa_yield_override": 4.5, field: None})
+
+
+@pytest.mark.parametrize("field", ["expected_growth", "aaa_yield_override", "eps_override", "quote_override"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_growth_nonfinite_values_rejected(field: str, value: float) -> None:
+    values = {"expected_growth": 5.0, "aaa_yield_override": 4.5, field: value}
+    with pytest.raises(ValidationError, match="finite number"):
+        GrahamGrowthSelection.model_validate(values)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"security_provider_id": "injected"},
+        {"quote_provider_id": "quotes"},
+        {"security_provider_id": "sec_edgar", "eps_basis": "ttm"},
+        {"security_provider_id": "massive", "eps_basis": "three_year_average"},
+        {"as_of": datetime(2025, 1, 1)},
+        {"use_cache": "false"},
+        {"expected_growth": None},
+        {"aaa_yield_override": "4.5"},
+    ],
+)
+def test_growth_rejects_incompatible_options(options: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        GrahamGrowthSelection.model_validate({"expected_growth": 5.0, "aaa_yield_override": 4.5, **options})
+
+
+def test_growth_snapshot_is_independent_and_frozen() -> None:
+    supplied = {"expected_growth": 5.0, "aaa_yield_override": 4.5}
+    selection = GrahamGrowthSelection.model_validate(supplied)
+    supplied["expected_growth"] = 99.0
+    assert selection.to_graham_growth_config().expected_growth == 5.0
+    with pytest.raises(ValidationError, match="frozen_instance"):
+        selection.expected_growth = 99.0
+
+
+def test_fcf_defaults_match_existing_policy() -> None:
+    selection = FCFGrowthSelection()
+    assert selection.to_fcf_policy() == FCFEarningsGrowthPolicy()
+    assert (selection.currency, selection.provider_id, selection.as_of, selection.use_cache) == (
+        "USD",
+        "sec_edgar",
+        None,
+        True,
+    )
+
+
+@pytest.mark.parametrize("horizon", list(HistoricalHorizon))
+@pytest.mark.parametrize("basis", list(FCFClassificationBasis))
+@pytest.mark.parametrize("forward", list(ForwardPolicy))
+def test_fcf_native_enum_strings_round_trip(
+    horizon: HistoricalHorizon, basis: FCFClassificationBasis, forward: ForwardPolicy
+) -> None:
+    selection = FCFGrowthSelection.model_validate(
+        {
+            "policy": {
+                "historical_horizon": horizon.value,
+                "classification_basis": basis.value,
+                "forward_policy": forward.value,
+                "include_fcf_yield": False,
+            }
+        }
+    )
+    assert selection.to_fcf_policy() == FCFEarningsGrowthPolicy(horizon, basis, forward, False)
+    assert FCFGrowthSelection.model_validate_json(selection.model_dump_json()) == selection
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        {"unknown": 1},
+        {"historical_horizon": 3},
+        {"classification_basis": "momentum"},
+        {"forward_policy": "automatic"},
+        {"include_fcf_yield": "false"},
+    ],
+)
+def test_fcf_policy_rejects_invalid_nested_fields(policy: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        FCFGrowthSelection.model_validate({"policy": policy})
+
+
+def test_fcf_normalizes_currency_provider_and_preserves_time() -> None:
+    boundary = datetime(2025, 1, 1, tzinfo=UTC)
+    selection = FCFGrowthSelection.model_validate(
+        {"currency": " cad ", "provider_id": " SEC_EDGAR ", "as_of": boundary, "use_cache": False}
+    )
+    assert (selection.currency, selection.provider_id, selection.as_of, selection.use_cache) == (
+        "CAD",
+        "sec_edgar",
+        boundary,
+        False,
+    )
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"currency": ""},
+        {"currency": "US"},
+        {"currency": "123"},
+        {"provider_id": "massive"},
+        {"as_of": datetime(2025, 1, 1)},
+        {"use_cache": "false"},
+        {"config": {}},
+    ],
+)
+def test_fcf_rejects_invalid_request_options(values: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        FCFGrowthSelection.model_validate(values)
+
+
+def test_fcf_policy_copies_input_and_converts_independently() -> None:
+    caller_policy = {"historical_horizon": "3"}
+    selection = FCFGrowthSelection.model_validate({"policy": caller_policy})
+    caller_policy["historical_horizon"] = "5"
+    assert selection.policy.historical_horizon is HistoricalHorizon.THREE_YEARS
+    with pytest.raises(ValidationError, match="frozen_instance"):
+        selection.policy.include_fcf_yield = False
+    policy = FCFEarningsGrowthPolicy(historical_horizon=HistoricalHorizon.FOUR_YEARS)
+    snapshot = FCFPolicySnapshot.model_validate(policy)
+    assert snapshot.to_policy() == policy
+    assert snapshot.to_policy() is not policy
+    assert selection.to_fcf_policy() is not selection.to_fcf_policy()
+
+
+def test_default_selections_order_freshness_and_settings_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+    first = default_selections()
+    assert [item.method_id for item in first] == ["sma_crossover", "graham_number", "reported_fcf_eps_cagr"]
+    second = default_selections()
+    assert first == second
+    assert all(left is not right for left, right in zip(first, second, strict=True))
+    assert isinstance(first[2], FCFGrowthSelection)
+    assert isinstance(second[2], FCFGrowthSelection)
+    assert first[2].policy is not second[2].policy
+    monkeypatch.setattr(
+        "src.config.ProjectSettings.get_momentum_analysis",
+        lambda self: {"window_sizes": {"short_window": 10, "long_window": 30}},  # noqa: ARG005
+    )
+    assert isinstance(first[0], MomentumSelection)
+    assert first[0].short_window == 2
+    third = default_selections()
+    assert isinstance(third[0], MomentumSelection)
+    assert third[0].short_window == 10
+
+
+@pytest.fixture
+def all_selections() -> tuple[AnalysisSelection, ...]:
+    return (*default_selections(), GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5))
+
+
+def test_all_request_variants_round_trip_without_settings(
+    all_selections: tuple[AnalysisSelection, ...], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def forbidden_settings(_self: object) -> None:
+        pytest.fail("Request replay must not read settings")
+
+    monkeypatch.setattr("src.config.ProjectSettings.get_momentum_analysis", forbidden_settings)
+    for selection in all_selections:
+        request = AnalysisRequest(ticker=" cnr.to ", selection=selection)
+        assert request.ticker == "CNR.TO"
+        restored = AnalysisRequest.model_validate_json(request.model_dump_json())
+        assert restored == request
+        assert type(restored.selection) is type(selection)
+        with pytest.raises(ValidationError, match="frozen_instance"):
+            request.ticker = "KO"
+
+
+@pytest.mark.parametrize("ticker", ["", "  "])
+def test_request_rejects_empty_ticker(ticker: str) -> None:
+    with pytest.raises(ValidationError, match="ticker must not be empty"):
+        AnalysisRequest(ticker=ticker, selection=GrahamNumberSelection())
+
+
+@pytest.mark.parametrize("field", ["as_of", "use_cache"])
+def test_request_rejects_duplicated_method_options(field: str) -> None:
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        AnalysisRequest.model_validate({"ticker": "KO", "selection": GrahamNumberSelection(), field: None})
+
+
+def test_union_rejects_bad_identifiers_and_versions(all_selections: tuple[AnalysisSelection, ...]) -> None:
+    for selection in all_selections:
+        for field, invalid in [("analysis_id", "wrong"), ("method_id", "wrong"), ("config_schema_version", 2)]:
+            payload = selection.model_dump()
+            payload[field] = invalid
+            with pytest.raises(ValidationError):
+                AnalysisRequest.model_validate({"ticker": "KO", "selection": payload})

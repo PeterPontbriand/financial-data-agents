@@ -1,8 +1,23 @@
 """Local research workspace package for versioned analysis selections and runs."""
 
-from src.workspace.requests import GrahamNumberSelection, MomentumSelection
+from src.workspace.requests import (
+    AnalysisRequest,
+    AnalysisSelection,
+    FCFGrowthSelection,
+    FCFPolicySnapshot,
+    GrahamGrowthSelection,
+    GrahamNumberSelection,
+    MomentumSelection,
+    default_selections,
+)
 
 __all__ = [
+    "AnalysisRequest",
+    "AnalysisSelection",
+    "FCFGrowthSelection",
+    "FCFPolicySnapshot",
+    "GrahamGrowthSelection",
     "GrahamNumberSelection",
     "MomentumSelection",
+    "default_selections",
 ]
