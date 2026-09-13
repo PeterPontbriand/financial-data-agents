@@ -9,6 +9,7 @@ from src.workspace.requests import (
     GrahamNumberSelection,
     MomentumSelection,
     default_selections,
+    parse_selection,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "GrahamNumberSelection",
     "MomentumSelection",
     "default_selections",
+    "parse_selection",
 ]
