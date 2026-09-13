@@ -100,10 +100,144 @@ Run the complete managed quality wrapper specified in the contract. Report the
 starting revision, files, API choices, focused tests, full gate and limitations.
 Stop for B1 acceptance; do not start B2, commit, push or open a PR automatically.
 
-## Cline prompt
+## Phased Cline prompts
 
-> Implement Slice B1 only, following this handoff, AGENTS.md and the approved
-> Step 3.4 contract. Verify the checkpoint and branch, establish the focused
-> baseline, implement the typed requests/default selections with deterministic
-> tests, and run the managed quality gate. Keep all edits inside the allowlist.
-> Report evidence and stop for B1 review. Do not implement later slices or commit.
+Send only the current phase's prompt. Each phase ends the agent turn and waits
+for the next instruction; listing the phases here does not authorize automatic
+continuation. These are execution checkpoints within B1, not new acceptance
+slices. B1 acceptance still requires every interface and verification item above
+and a passing full managed quality gate. B2 remains subject to B1 acceptance.
+
+Implementation is divided into 2A–2C so the four variants, parser and complete
+test suite do not have to be generated together. Add meaningful tests with each
+increment; do not defer all testing until the end. Each checkpoint must leave
+valid, complete code for the implemented subset, without stubs or placeholders.
+An interface deferred to a later phase remains explicitly pending.
+
+### Context and output discipline
+
+- Follow AGENTS.md, this handoff and the approved contract. Read the contract's
+  §3 request matrix and §§9–10 scope/review rules, plus other sections when a
+  concrete dependency requires them. Do not repeatedly paste the full contract,
+  handoff, source files or test logs into the conversation.
+- Use edit/write tools for code and bounded edits for one coherent change at a
+  time. Never paste an entire source file into chat. Tool-call payloads also
+  need to remain small; using a write tool does not remove generation limits.
+- Keep status reports to roughly 200 words: completed work, changed files,
+  exact check commands/results, blockers and next phase. Prefer evidence paths
+  and concise failure excerpts over full logs. Do not narrate every tool call.
+- Do not rely on detecting an exact 8k-token threshold. If the next change is
+  too large, finish the current coherent increment, report what remains and
+  stop for a continuation instruction. Never truncate a file to meet a budget.
+- Use `uv run --no-sync` and repository-local unique temp/cache locations for
+  focused managed checks where needed; retain the full wrapper for acceptance.
+  Test-generated ignored artifacts are permitted during verification.
+
+Continue in the same Cline task while its context remains useful. For a fresh
+task, supply this handoff path, the next phase prompt and the latest checkpoint
+report. The report should retain the original starting commit, current HEAD,
+baseline evidence, completed interfaces/tests and remaining work. Reinspect
+Git status and relevant files rather than trusting a summary over current code.
+Do not repeat unchanged baselines when their recorded revision and scope remain
+valid; explain and rerun affected checks when the revision or relevant code differs.
+
+### Phase 1 — Verification only (start or restart here)
+
+```text
+Work on Slice B1 ONLY. Follow AGENTS.md and
+docs/project/milestones/v0.2/step-3.4/SLICE_B1_CLINE_HANDOFF.md,
+including its linked Step 3.4 contract and output discipline.
+Execute Phase 1 only, then report and stop for the next instruction.
+Do not implement B2+, commit, push or open a PR.
+
+Confirm the branch is feat/step-3.4-local-research-workspace. Verify that
+HEAD contains readiness closeout 60eb55501f3b19cbbd92444dceb8d97acc7b9bf3
+and the approved contract/documentation checkpoint. Record actual HEAD.
+Inspect Git status and any existing B1 edits from the interrupted attempt;
+preserve them and unrelated work. Do not reset or overwrite existing work.
+Retain the original implementation starting commit if verified evidence exists;
+otherwise distinguish the restart revision from an unknown original baseline.
+
+Inspect the relevant existing configs/models and identify their focused tests;
+the handoff specifies test categories, not an exact test-file list. Run those
+existing tests and record commands/results. If prior B1 edits already exist,
+do not describe today's run as a pre-edit baseline for those edits.
+Report entry checks, baseline results, existing B1 progress and the next
+unfinished phase. If entry requirements fail, report the blocker and stop.
+Do not edit source, tests or documentation in this phase.
+```
+
+### Phase 2A — First typed selections and tests
+
+```text
+Execute B1 Phase 2A only under the handoff and approved contract. Confirm
+Phase 1 entry checks passed. Inspect existing work before editing and preserve
+completed valid changes. Stay within the B1 allowlist.
+
+Create or extend src/workspace/__init__.py and src/workspace/requests.py.
+Implement the Momentum and Graham Number selection variants with fixed
+identifiers/version, strict field validation, independent immutable snapshots
+and typed conversion to existing configs. Preserve defaults and financial
+semantics. Add and run corresponding tests in tests/workspace/test_requests.py;
+add a test-package initializer only if existing conventions require it.
+Do not add placeholder interfaces for the remaining work.
+
+Run the relevant focused tests, report results and remaining interfaces, then
+stop. No full gate or completion claim yet. Do not commit, push, open a PR
+or begin the next phase.
+```
+
+### Phase 2B — Remaining selections, request and defaults
+
+```text
+Execute B1 Phase 2B only under the same handoff, contract and allowlist.
+Implement Graham Growth and FCF selection variants, AnalysisSelection,
+AnalysisRequest and default_selections. Preserve explicit Growth assumptions,
+FCF's distinct policy fields, ticker normalization, version/identifier checks,
+typed config conversions and independent snapshots of resolved defaults.
+Do not add the parser yet unless it already exists from the interrupted work;
+preserve existing valid work rather than removing it to match phase order.
+
+Add meaningful focused tests alongside these changes and run all current
+tests/workspace/test_requests.py tests. Report results and remaining work,
+then stop. Do not run the full gate, claim B1 completion, commit, push,
+open a PR or begin the next phase.
+```
+
+### Phase 2C — Parser and complete boundary coverage
+
+```text
+Execute B1 Phase 2C only under the same handoff, contract and allowlist.
+Implement parse_selection exactly as specified, using bounded edits. Add
+parser tests incrementally, including malformed/non-object JSON, duplicate
+keys, nonfinite values, aliases and nested extra-field rejection.
+Audit every item in the handoff's Verification and stop checklist and close
+remaining coverage gaps, including mutation isolation and deterministic
+round trips. Do not invoke providers, credentials, storage or LLMs.
+
+Run all B1 focused tests and the relevant existing config/model regressions.
+Report exact results and any unresolved requirements, then stop for the
+Phase 3 instruction. Do not claim full acceptance, commit, push or open a PR.
+```
+
+### Phase 3 — Full managed quality gate and evidence
+
+```text
+Execute B1 Phase 3 only under the handoff, contract and allowlist. Review the
+complete B1 diff against the required interfaces and verification checklist.
+Run from the repository in PowerShell:
+& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')
+
+Fix B1-caused failures within the allowlist and rerun affected checks and the
+full gate after code changes. Report unrelated failures or conflicts requiring
+out-of-scope changes as blockers; do not silently broaden scope or claim a pass.
+
+Write docs/project/milestones/v0.2/step-3.4/SLICE_B1_COMPLETION_EVIDENCE.md
+with verified starting/restart revisions, changed files, concise API/snapshot
+decisions, requirement-to-test mapping, exact focused/full-gate commands and
+results, coverage, artifact paths and limitations. Distinguish verified facts
+from missing evidence. Do not embed raw logs or repeat the full contract.
+Label the outcome ready for B1 review only when requirements and checks pass;
+approval remains pending. Give a concise final report and stop for B1 review.
+Do not implement B2+, commit, push or open a PR.
+```

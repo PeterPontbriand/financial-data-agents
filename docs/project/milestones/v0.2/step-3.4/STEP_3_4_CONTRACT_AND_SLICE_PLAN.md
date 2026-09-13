@@ -179,7 +179,7 @@ Do not combine adapter extraction with calculator refactoring. Codec tasks may a
 
 ## 10. Cline handoff and acceptance protocol
 
-For B1, use the [specific Cline handoff](SLICE_B1_CLINE_HANDOFF.md), which fixes request/selection ownership and avoids dependencies on B2 models. Use this instruction for later authorized tasks, replacing the slice ID:
+For B1, use the [phased Cline handoff](SLICE_B1_CLINE_HANDOFF.md#phased-cline-prompts), which fixes request/selection ownership and avoids dependencies on B2 models. Send one phase prompt at a time and stop after each phase. These execution checkpoints may span Cline tasks but retain one B1 acceptance gate, the same file allowlist and all required verification. Start or resume with its read-only Phase 1 verification; preserve existing work and recorded baseline evidence. Use this instruction for later authorized tasks, replacing the slice ID:
 
 > Implement only slice [ID] from this contract after verifying its predecessor's approval and the current branch/revision. Read AGENTS.md and the relevant source/tests. Establish the focused baseline before edits. Add meaningful deterministic tests; use injected providers/clock/IDs and disposable databases. Do not change financial math, dependencies, unrelated CLI behavior or later slices. If the frozen interface cannot work, document the concrete conflict and stop for a contract amendment. Run focused checks and the full managed quality wrapper before requesting slice acceptance. Report files, behavior, test evidence and limitations. Do not commit, push, open a PR, or start the next slice without authorization.
 
