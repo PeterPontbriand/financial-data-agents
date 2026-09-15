@@ -1,6 +1,6 @@
 # Slice B4 — Completion evidence
 
-**Review disposition:** awaiting B4 acceptance.
+**Review disposition:** B4 accepted by the project owner on 2026-09-15 (America/Toronto); B5 implementation authorized.
 **Date:** 2026-09-14 (America/Toronto).
 **Branch / starting revision:** `feat/step-3.4-local-research-workspace`, `7b364b7`.
 
