@@ -118,7 +118,7 @@ def test_full_typed_round_trip_through_json_envelope() -> None:
     restored = decode_evidence(AnalysisRun.model_validate_json(run.model_dump_json()))
     assert restored == expected
     assert restored is not expected
-    assert restored is not None
+    assert isinstance(restored, MomentumRun)
     assert isinstance(restored.metrics.status, TrendStatus)
     assert isinstance(restored.price_inputs[1].lineage, ComponentLineage)
     assert isinstance(restored.resolution_trace.events, tuple)

@@ -1,6 +1,8 @@
 """Explicit version dispatch and safe errors for stored workspace evidence."""
 
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
+from src.workspace.graham_number import decode_graham_number, encode_graham_number
 from src.workspace.models import StrictJsonMapping
 from src.workspace.momentum import decode_momentum, encode_momentum
 from src.workspace.runs import AnalysisRun
@@ -18,42 +20,47 @@ class InvalidStoredRunError(ValueError):
     reason_code = "invalid_stored_run"
 
 
-def encode_evidence(evidence: MomentumRun) -> StrictJsonMapping:
+def encode_evidence(evidence: MomentumRun | GrahamNumberAnalysis) -> StrictJsonMapping:
     """Encode the supported native evidence into an envelope-ready mapping."""
     try:
+        if isinstance(evidence, GrahamNumberAnalysis):
+            return encode_graham_number(evidence)
         return encode_momentum(evidence)
     except (ValueError, TypeError) as exc:
-        raise InvalidStoredRunError("Invalid Momentum evidence.") from exc
+        label = "Graham Number" if isinstance(evidence, GrahamNumberAnalysis) else "Momentum"
+        raise InvalidStoredRunError(f"Invalid {label} evidence.") from exc
 
 
-def decode_evidence(run: AnalysisRun) -> MomentumRun | None:
+def decode_evidence(run: AnalysisRun) -> MomentumRun | GrahamNumberAnalysis | None:
     """Decode supported evidence using the envelope's explicit version tuple.
 
     Attempts that ended before resolution may have no result. Version checks
     still apply; unsupported records must never trigger recomputation.
     """
-    if (
-        run.analysis_id != "momentum"
-        or run.method_id != "sma_crossover"
-        or any(
-            type(version) is not int or version != 1
-            for version in (
-                run.run_schema_version,
-                run.config_schema_version,
-                run.method_version,
-                run.result_schema_version,
-                run.evidence_codec_version,
-                run.projection_version,
-            )
+    if (run.analysis_id, run.method_id) not in (("momentum", "sma_crossover"), ("graham", "graham_number")) or any(
+        type(version) is not int or version != 1
+        for version in (
+            run.run_schema_version,
+            run.config_schema_version,
+            run.method_version,
+            run.result_schema_version,
+            run.evidence_codec_version,
+            run.projection_version,
         )
     ):
         raise UnsupportedRunVersionError("Unsupported Analysis Run method or version.")
     if run.result_evidence is None:
         return None
     try:
+        if run.method_id == "graham_number":
+            number = decode_graham_number(run.result_evidence)
+            if number.ticker != run.ticker:
+                raise ValueError("Ticker mismatch.")
+            return number
         evidence = decode_momentum(run.result_evidence)
         if evidence.metrics.ticker != run.ticker:
             raise ValueError("Ticker mismatch.")
         return evidence
     except (ValueError, TypeError) as exc:
-        raise InvalidStoredRunError("Invalid stored Momentum evidence.") from exc
+        label = "Graham Number" if run.method_id == "graham_number" else "Momentum"
+        raise InvalidStoredRunError(f"Invalid stored {label} evidence.") from exc
