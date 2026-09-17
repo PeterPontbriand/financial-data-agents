@@ -56,7 +56,7 @@ _MESSAGES = {
     ),
     ReadinessReason.UPGRADE_REQUIRED: (
         "schema upgrade required. Stop application processes and back up this database, then run "
-        "uv run --no-sync alembic upgrade head from the installation folder with DATABASE_URL set to this target."
+        "uv run --no-sync alembic upgrade head from the installation folder with database_url set to this target."
     ),
     ReadinessReason.INCOMPATIBLE_SCHEMA: (
         "schema is incompatible or incomplete. Preserve this database and inspect it with the matching "

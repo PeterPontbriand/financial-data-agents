@@ -257,7 +257,7 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
         with pytest.raises(DatabaseReadinessError) as caught:
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
-        assert "DATABASE_URL" in str(caught.value)
+        assert "database_url" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"
     finally:
