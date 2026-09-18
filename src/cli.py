@@ -27,7 +27,6 @@ from src.analysis.strategy.graham_growth.calculation import (
     GrowthValueInputAssembly,
 )
 from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
-from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
@@ -93,6 +92,8 @@ from src.reporting.graham import (
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.workspace.graham_number_execution import execute_graham_number
+from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.momentum_execution import run_momentum
 from src.workspace.requests import MomentumSelection
 
@@ -459,7 +460,7 @@ def fcf_growth(  # noqa: PLR0913
         _production_financial_cache(enabled=not no_cache) as cache,
     ):
         provider = _build_sec_production_provider()
-        profile = _compose_analysis_profile(
+        profile = compose_graham_profile(
             target_ticker,
             primary_provider=provider,
             primary_provider_id=provider_id,
@@ -718,27 +719,6 @@ def _build_massive_production_provider() -> MassiveFinancialFactsAdapter:
     return massive
 
 
-def _compose_analysis_profile(
-    ticker: str,
-    *,
-    primary_provider: object,
-    primary_provider_id: str,
-    yahoo_provider: object,
-) -> InstrumentProfile:
-    """Compose current profile evidence with explicit production precedence."""
-    yahoo_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo_provider)
-    identity_candidates: tuple[InstrumentProfileCandidate, ...] = (
-        InstrumentProfileCandidate(primary_provider_id, primary_provider),
-    )
-    if primary_provider_id != YFINANCE_PROVIDER_ID:
-        identity_candidates = (*identity_candidates, yahoo_candidate)
-    return compose_instrument_profile(
-        ticker,
-        identity_candidates=identity_candidates,
-        kind_candidate=yahoo_candidate,
-    )
-
-
 def _build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
     *, resolver_type: type[ResolverT], data_provider: str | None, cache: ResolvedInputCacheProtocol | None = None
 ) -> ResolverT:
@@ -772,16 +752,11 @@ def _run_graham_number(  # noqa: PLR0913
     profile_provider: object,
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham Number analysis."""
-    profile = _compose_analysis_profile(
-        ticker,
-        primary_provider=resolver.provider,
-        primary_provider_id=config.security_provider_id,
-        yahoo_provider=profile_provider,
-    )
-    analysis = GrahamNumberAnalyzer(resolver, instrument_profile=profile).run_analysis(config, ticker=ticker)
+    capture = execute_graham_number(resolver, ticker, config, profile_provider)
+    analysis = capture.analysis
+    profile = capture.profile
     as_of = config.as_of
     assembly = analysis.assembly
-    profile = analysis.instrument_profile or profile
     identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
@@ -831,7 +806,7 @@ def _run_graham_growth(  # noqa: PLR0913
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
     policy = _growth_assumptions()
-    profile = _compose_analysis_profile(
+    profile = compose_graham_profile(
         ticker,
         primary_provider=resolver.provider,
         primary_provider_id=config.security_provider_id,
