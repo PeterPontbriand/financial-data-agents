@@ -2,7 +2,7 @@
 
 **Review disposition:** B4 accepted by the project owner on 2026-09-15 (America/Toronto); B5 implementation authorized.
 **Date:** 2026-09-14 (America/Toronto).
-**Branch / starting revision:** `feat/step-3.4-local-research-workspace`, `7b364b7`.
+**Branch:** `feat/step-3.4-local-research-workspace`.
 
 B3 was explicitly accepted in the task conversation before its checkpoint commit.
 The user corrected the subsequent slice request to B4. The

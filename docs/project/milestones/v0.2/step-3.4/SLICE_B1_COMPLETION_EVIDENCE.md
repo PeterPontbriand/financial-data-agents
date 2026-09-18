@@ -4,30 +4,17 @@
 
 ## Revisions and scope
 
-Verified branch: `feat/step-3.4-local-research-workspace`.
-Readiness closeout `60eb55501f3b19cbbd92444dceb8d97acc7b9bf3` is an ancestor
-of the tested HEAD (`git merge-base --is-ancestor`, exit 0).
+Verified branch: `feat/step-3.4-local-research-workspace`. Readiness closeout
+is an ancestor of the tested HEAD. Companion evidence in this planning
+directory: [Phase 2A](PHASE_2A_REPAIR_EVIDENCE.md), [Phase 2B](PHASE_2B_EVIDENCE.md),
+[Phase 2C](PHASE_2C_EVIDENCE.md), and this final record; Phase 1's 149-test
+baseline was reported by Cline, not rerun retrospectively in Phase 3.
 
-| Checkpoint | Revision / evidence |
-| :--- | :--- |
-| Original Phase 1 verification | Reported at `707a199d835e8ffbc34e83860e44ea1dcd51acc4`; its 149-test baseline was reported by Cline, not rerun retrospectively in Phase 3. |
-| Committed phased handoff / base of delivered implementation | `62499e0cbebd6ad5da11e7bcc15cb8be182d44d9`; the Phase 2A takeover found uncommitted Cline implementation and partial repairs. |
-| Phase 2A repair checkpoint | `0436f16007a6226a34411eb2f2e3eda1d6988680` |
-| Phase 2B checkpoint | `7fd11fdf6d0bf27a33c82a7cb052354612e02b54` |
-| Phase 2C checkpoint / Phase 3 tested HEAD | `3f4b7a14d2f7368b4795f5bd8d723325f510d2cc` |
-
-The final diff from the phased-handoff base contains only:
-
-- `src/workspace/__init__.py`
-- `src/workspace/requests.py`
-- `tests/workspace/test_requests.py`
-- Companion evidence in this planning directory:
-  [Phase 2A](PHASE_2A_REPAIR_EVIDENCE.md), [Phase 2B](PHASE_2B_EVIDENCE.md),
-  [Phase 2C](PHASE_2C_EVIDENCE.md), and this final record.
-
-Phase 3 required no source/test changes. Unrelated uncommitted Step 3.5 planning
-and PIOTROSKI documents remained untouched. No dependency files, existing
-analyzers/calculators, CLI, migrations, repositories or settings were changed.
+Phase 3 required no source/test changes beyond `src/workspace/__init__.py`,
+`src/workspace/requests.py` and `tests/workspace/test_requests.py`. Unrelated
+uncommitted Step 3.5 planning and PIOTROSKI documents remained untouched. No
+dependency files, existing analyzers/calculators, CLI, migrations,
+repositories or settings were changed.
 
 ## Interfaces and design decisions
 
@@ -118,8 +105,8 @@ not separately exercised in this run.
 Full output: `.tmp/b1-phase3-quality.txt`.
 Isolated artifacts and HTML coverage:
 `.tmp/quality-runs/20260913175805271-33784-0a978d0ccfe543da9072c4a1f55d4185/`.
-The implementation diff from `62499e0` through tested HEAD passes whitespace
-checks. Only this evidence document was added after the successful gate.
+The implementation diff passes whitespace checks. Only this evidence document
+was added after the successful gate.
 
 ## Limitations and stop
 

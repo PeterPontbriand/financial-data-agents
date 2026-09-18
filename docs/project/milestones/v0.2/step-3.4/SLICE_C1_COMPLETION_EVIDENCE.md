@@ -2,7 +2,7 @@
 
 **Review disposition:** C1 reviewed and accepted by the project owner on 2026-09-16 (America/Toronto).
 **Date:** 2026-09-16 (America/Toronto).
-**Branch / starting revision:** `feat/step-3.4-local-research-workspace`, `16daf72`.
+**Branch:** `feat/step-3.4-local-research-workspace`.
 
 B6 was accepted and committed at the starting revision. The project owner directly
 authorized C1 implementation and required preservation of the uncommitted Step 3.5

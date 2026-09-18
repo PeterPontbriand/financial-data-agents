@@ -7,9 +7,9 @@
 
 ## 1. Authorization and source reconciliation
 
-The project owner approved Gate A on 2026-09-13 (America/Toronto) and requested preparation of the B1 handoff. The contracts and structural file scope below are approved. B1 is authorized after the documentation checkpoint; B2 and later slices remain subject to their predecessor review gates. This turn records approval and prepares documents only. Database readiness and [PR #36](https://github.com/PeterPontbriand/financial-data-agents/pull/36) are complete.
+The project owner approved Gate A on 2026-09-13 (America/Toronto) and requested preparation of the B1 handoff. The contracts and structural file scope below are approved. B1 is authorized after the documentation checkpoint; B2 and later slices remain subject to their predecessor review gates. This turn records approval and prepares documents only. Database readiness is complete.
 
-Initial planning inspected `ae62c98` (PR #35). GitHub verification subsequently confirmed PR #36 merged as `60eb55501f3b19cbbd92444dceb8d97acc7b9bf3` on 2026-09-13 at 07:40 Toronto time. The current branch has been fast-forwarded to that commit, resolving the earlier ancestry caveat. The planning changes are retained against its reorganized documents; readiness closeout and the selected sequence are already incorporated.
+The planning changes are retained against its reorganized documents; readiness closeout and the selected sequence are already incorporated.
 
 The selected order is readiness complete → Step 3.4 → P2-Profiles → ESC-D renewed acceptance → Step 3.5 → Step 3.6. Older P2-before-workspace prose is superseded. Persist the existing request-scoped `InstrumentProfile`; a durable profile cache is not a prerequisite. No new financial formulas, provider mappings, dependencies, autonomous scheduling, LLM synthesis, ETF aggregation, UI, or report-file exports are included.
 
@@ -145,7 +145,7 @@ Text refresh output lists persisted run IDs and a final count by outcome. JSON e
 
 ## 9. Fine-grained implementation slices
 
-Gate A approved this contract and verified readiness starting revision `60eb555`. Authorize **one slice at a time**, with focused evidence and explicit review before the next. Each row is one Cline task, normally 1–3 production files plus focused tests; if it exceeds that scope, stop and propose a split. Gate A approval covers the new package, migration and named structural file scope; implementation remains limited to the currently authorized slice.
+Gate A approved this contract and verified readiness. Authorize **one slice at a time**, with focused evidence and explicit review before the next. Each row is one Cline task, normally 1–3 production files plus focused tests; if it exceeds that scope, stop and propose a split. Gate A approval covers the new package, migration and named structural file scope; implementation remains limited to the currently authorized slice.
 
 | Slice | Prerequisites | Bounded edit surface and deliverable | Required focused proof / stop |
 | :--- | :--- | :--- | :--- |
@@ -189,7 +189,7 @@ Final evidence must map every §4.10 criterion to tests: named configuration/mem
 
 ## 11. Planning verification and review state
 
-Source inspection and the initial clean-worktree check are complete. The managed baseline initially could not query the existing Python interpreter (`Access is denied`); the same non-mutating wrapper was retried with approved elevated access. The retry passed: Ruff, formatting (327 files), strict mypy (248 source/test files), and 2,338 tests in 93.08 seconds; reported combined coverage was 90% (10,984 statements, 861 missed, approximately 92.16% line coverage). Artifacts: `.tmp/quality-runs/20260913074742304-42680-39da973f436c43e5a44455b461a42545/`. This baseline was run at `ae62c98`; PR #36 subsequently changed documentation only, and its merge ancestry is now verified. Subsequent edits are planning Markdown only. No dependency synchronization or user-data migration was requested.
+Source inspection and the initial clean-worktree check are complete. The managed baseline initially could not query the existing Python interpreter (`Access is denied`); the same non-mutating wrapper was retried with approved elevated access. The retry passed: Ruff, formatting (327 files), strict mypy (248 source/test files), and 2,338 tests in 93.08 seconds; reported combined coverage was 90% (10,984 statements, 861 missed, approximately 92.16% line coverage). Artifacts: `.tmp/quality-runs/20260913074742304-42680-39da973f436c43e5a44455b461a42545/`. Subsequent edits are planning Markdown only. No dependency synchronization or user-data migration was requested.
 
 Slice B1 was accepted on 2026-09-13 against its [completion evidence](SLICE_B1_COMPLETION_EVIDENCE.md) (full managed gate passed, combined coverage 90%). Slice B2 was accepted on 2026-09-14 against its [completion evidence](SLICE_B2_COMPLETION_EVIDENCE.md) (full managed gate passed: Ruff, formatting, strict mypy over 255 files, 2,670 tests; combined coverage 90%; zero deviations from the B2 field spec). B3 acceptance was recorded in the B4 completion evidence. B4 was accepted and B5 implementation authorized by the project owner on 2026-09-15 (America/Toronto). B5 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B5_COMPLETION_EVIDENCE.md). B6 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B6_COMPLETION_EVIDENCE.md). C1 was accepted by the project owner on 2026-09-16 against its [completion evidence](SLICE_C1_COMPLETION_EVIDENCE.md); C2 is the next slice and has not been started.
 
@@ -212,5 +212,4 @@ shows the incorrect casing in a form a reader could copy-paste and run. Also cor
 production schema/migration code, dependencies, or Slice C2/C3 work is in
 scope. Sequenced after C1 acceptance and before C2 begins, so the corrected
 convention is established before further CLI/subprocess-driven tests are
-added. [Resolution pending — commit/date and files changed to be recorded
-here on completion.]
+added.

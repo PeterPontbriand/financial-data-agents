@@ -1,7 +1,7 @@
 # B1 Phase 2C evidence
 
-Starting revision: `7fd11fdf6d0bf27a33c82a7cb052354612e02b54`, the approved
-Phase 2B checkpoint on `feat/step-3.4-local-research-workspace`.
+Starting point: the approved Phase 2B checkpoint on
+`feat/step-3.4-local-research-workspace`.
 
 ## Delivered
 

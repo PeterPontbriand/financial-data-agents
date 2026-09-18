@@ -8,10 +8,10 @@ its §3 method/config matrix owns the request semantics. This handoff makes B1
 concrete without extending its scope. B2 and later slices require further review.
 
 Work on `feat/step-3.4-local-research-workspace`, after the documentation checkpoint
-is committed by the project owner. Verify that HEAD contains readiness closeout
-`60eb55501f3b19cbbd92444dceb8d97acc7b9bf3` and this approved contract. Record the
-actual starting commit in the completion evidence; do not substitute the older
-`ae62c98` test baseline for verification of the implementation.
+is committed by the project owner. Verify that HEAD contains the readiness
+closeout and this approved contract. Record the actual starting commit in the
+completion evidence; do not substitute an older test baseline for verification
+of the implementation.
 
 ## Allowed files and boundaries
 

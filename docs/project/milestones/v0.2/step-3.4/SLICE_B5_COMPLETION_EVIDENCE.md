@@ -2,7 +2,7 @@
 
 **Review disposition:** B5 accepted by the project owner on 2026-09-15 (America/Toronto).
 **Date:** 2026-09-15 (America/Toronto).
-**Branch / starting revision:** `feat/step-3.4-local-research-workspace`, `58038ad`.
+**Branch:** `feat/step-3.4-local-research-workspace`.
 
 The project owner explicitly accepted B4 and authorized B5 implementation in the
 task conversation. B4 acceptance is recorded in its completion evidence and the

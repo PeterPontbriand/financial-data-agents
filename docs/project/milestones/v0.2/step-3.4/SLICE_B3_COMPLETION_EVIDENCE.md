@@ -2,7 +2,7 @@
 
 **Review disposition:** implementation complete; awaiting B3 acceptance.
 **Date:** 2026-09-14 (America/Toronto).
-**Branch / starting revision:** `feat/step-3.4-local-research-workspace`, `e53ec5c`.
+**Branch:** `feat/step-3.4-local-research-workspace`.
 
 B2 acceptance was verified against its [evidence record](SLICE_B2_COMPLETION_EVIDENCE.md).
 The user authorized B3 implementation. The [slice contract](STEP_3_4_CONTRACT_AND_SLICE_PLAN.md#9-fine-grained-implementation-slices)

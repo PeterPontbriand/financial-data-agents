@@ -1,7 +1,7 @@
 # B1 Phase 2A repair evidence
 
-Repair started at HEAD `62499e0cbebd6ad5da11e7bcc15cb8be182d44d9`,
-with Cline's uncommitted original selections and partially repaired requests.
+Repair started from Cline's uncommitted original selections and partially
+repaired requests.
 This record covers Momentum and Graham Number only. B1 acceptance remains
 pending; Phase 2B and later work have not been implemented.
 
