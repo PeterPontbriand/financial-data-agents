@@ -461,8 +461,8 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
             "src.cli._build_graham_resolver",
             return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
         ),
-        patch("src.cli.compose_graham_profile", return_value=profile),
         patch("src.workspace.graham_number_execution.compose_graham_profile", return_value=profile),
+        patch("src.workspace.graham_growth_execution.compose_graham_profile", return_value=profile),
         patch.object(
             fixture_resolver,
             "assemble_graham_number",

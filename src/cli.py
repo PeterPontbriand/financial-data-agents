@@ -20,7 +20,6 @@ from src.analysis.strategy.fcf_earnings_growth import (
     HistoricalHorizon,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthInputResolver,
@@ -92,6 +91,7 @@ from src.reporting.graham import (
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.workspace.graham_growth_execution import execute_graham_growth
 from src.workspace.graham_number_execution import execute_graham_number
 from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.momentum_execution import run_momentum
@@ -806,18 +806,11 @@ def _run_graham_growth(  # noqa: PLR0913
 ) -> tuple[str, int]:
     """Resolve, calculate, and render one Graham growth-value analysis."""
     policy = _growth_assumptions()
-    profile = compose_graham_profile(
-        ticker,
-        primary_provider=resolver.provider,
-        primary_provider_id=config.security_provider_id,
-        yahoo_provider=profile_provider,
-    )
-    analysis = GrahamGrowthAnalyzer(resolver, instrument_profile=profile, policy=policy).run_analysis(
-        config, ticker=ticker
-    )
+    capture = execute_graham_growth(resolver, ticker, config, policy, profile_provider)
+    analysis = capture.analysis
+    profile = capture.profile
     as_of = config.as_of
     assembly = analysis.assembly
-    profile = analysis.instrument_profile or profile
     identity_resolution = profile_identity_resolution(profile)
 
     if assembly.status is not CalculationStatus.OK:
