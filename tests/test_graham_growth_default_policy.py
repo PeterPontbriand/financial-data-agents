@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthInputResolver
 from src.cli import app
 from src.data.financial.providers import MASSIVE_PROVIDER_ID, SEC_PROVIDER_ID, YFINANCE_PROVIDER_ID
-from tests._cli_helpers import normalize_cli_output
+from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
 

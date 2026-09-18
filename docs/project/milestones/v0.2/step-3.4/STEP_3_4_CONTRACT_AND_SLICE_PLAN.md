@@ -220,5 +220,48 @@ to `tests/test_cli.py`, `tests/test_cli_graham_nonpositive_growth.py`,
 `tests/data/test_massive_cli_configuration.py` and
 `tests/test_graham_growth_default_policy.py`. Reverting to the pre-C2 working
 tree and rerunning one representative test reproduced the identical failure,
-confirming this predates C2 and is unrelated to its edit surface. Not
-investigated or fixed here; root cause and remediation scope remain open.
+confirming this predates C2 and is unrelated to its edit surface.
+
+Root cause, confirmed by direct reproduction with a full traceback (not
+inferred): `src/cli_support.py`'s `_production_historical_client` and
+`_production_financial_cache` both call `ensure_database_ready()` against the
+real local database at the default `database_url`
+(`data/financial-data-agents.sqlite3`), not an isolated or mocked one. Slice
+C1 added migration `0002_research_workspace` as the new schema head; this
+machine's real local database file predates that migration and was never
+upgraded, so `ensure_database_ready()` now correctly raises
+`DatabaseReadinessError(UPGRADE_REQUIRED)`, which the CLI's `execution_errors`
+handler converts to `typer.Exit(code=1)` — matching every failing test.
+`tests/test_cli_fcf_earnings_growth.py` is unaffected because it already
+patches `src.cli._production_financial_cache` to an in-memory cache instead of
+touching real storage; the 31 failing tests do not patch either production
+context manager and so fall through to the real, stale database.
+
+This is not a logic defect: readiness is behaving exactly as designed. It is
+a test-isolation gap — these tests implicitly assumed an always-ready ambient
+database and had never been exercised against a newer migration before. Two
+independent remediations exist: (1) an operational one-time
+`alembic upgrade head` against the real local database (a migration against
+user data; requires the project owner's explicit action, not an agent's), and
+(2) a durable test fix making the affected CLI tests database-isolated the
+same way `test_cli_fcf_earnings_growth.py` and `test_cli_database_readiness.py`
+already are.
+
+**Resolved:** remediation (2) was applied directly in this session, at the
+project owner's request, after an initial attempt to spin the fix off into a
+separate isolated-worktree session found the failure was not reproducible
+there — a fresh worktree has no ambient local database file at all, so a new
+one initializes cleanly at the current head and the failure's precondition
+never exists, which would have left any fix there unverifiable against the
+real symptom. A shared `isolated_cli_database` autouse pytest fixture was
+added to `tests/_cli_helpers.py`: it migrates a disposable SQLite database to
+head and points `src.cli_support.settings` at it via `monkeypatch`, exactly
+mirroring the isolation pattern already used by
+`tests/test_cli_historical_cache.py` and `tests/test_cli_financial_cache.py`.
+The four affected test modules import that fixture name (activating it for
+every test in each module, per pytest's normal cross-module fixture sharing)
+instead of relying on the real ambient database. The full managed gate now
+passes: Ruff, format and strict mypy clean, all 2,879 tests passing, 90%
+combined coverage. Remediation (1) — upgrading the real local database itself
+— remains a separate, optional operational step for the project owner and was
+not performed by the agent.

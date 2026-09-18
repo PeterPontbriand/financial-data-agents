@@ -12,6 +12,7 @@ from src.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
+from tests._cli_helpers import isolated_cli_database  # noqa: F401
 
 runner = CliRunner()
 

@@ -30,7 +30,7 @@ from src.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
 )
 from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from tests._cli_helpers import normalize_cli_output
+from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
 runner = CliRunner()
 
