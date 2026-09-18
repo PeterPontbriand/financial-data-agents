@@ -1,7 +1,7 @@
 # Step 3.4 — Workspace Contract and Cline Slice Plan
 
 **Prepared:** 2026-09-13 (America/Toronto).  
-**Status:** Gate A and Slices B1–B6 and C1 accepted; C1 accepted on 2026-09-16 (America/Toronto). C2 is the next slice and has not been started.
+**Status:** Gate A and Slices B1–B6, C1 and C2 accepted; C2 accepted on 2026-09-18 (America/Toronto). C3 is the next slice and has not been started.
 **Branch:** `feat/step-3.4-local-research-workspace`.  
 **Authority:** [Implementation Plan §4.10](../IMPLEMENTATION_PLAN.md#410-step-34--local-research-workspace--analysis-run-library).
 
@@ -191,7 +191,7 @@ Final evidence must map every §4.10 criterion to tests: named configuration/mem
 
 Source inspection and the initial clean-worktree check are complete. The managed baseline initially could not query the existing Python interpreter (`Access is denied`); the same non-mutating wrapper was retried with approved elevated access. The retry passed: Ruff, formatting (327 files), strict mypy (248 source/test files), and 2,338 tests in 93.08 seconds; reported combined coverage was 90% (10,984 statements, 861 missed, approximately 92.16% line coverage). Artifacts: `.tmp/quality-runs/20260913074742304-42680-39da973f436c43e5a44455b461a42545/`. Subsequent edits are planning Markdown only. No dependency synchronization or user-data migration was requested.
 
-Slice B1 was accepted on 2026-09-13 against its [completion evidence](SLICE_B1_COMPLETION_EVIDENCE.md) (full managed gate passed, combined coverage 90%). Slice B2 was accepted on 2026-09-14 against its [completion evidence](SLICE_B2_COMPLETION_EVIDENCE.md) (full managed gate passed: Ruff, formatting, strict mypy over 255 files, 2,670 tests; combined coverage 90%; zero deviations from the B2 field spec). B3 acceptance was recorded in the B4 completion evidence. B4 was accepted and B5 implementation authorized by the project owner on 2026-09-15 (America/Toronto). B5 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B5_COMPLETION_EVIDENCE.md). B6 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B6_COMPLETION_EVIDENCE.md). C1 was accepted by the project owner on 2026-09-16 against its [completion evidence](SLICE_C1_COMPLETION_EVIDENCE.md); C2 is the next slice and has not been started.
+Slice B1 was accepted on 2026-09-13 against its [completion evidence](SLICE_B1_COMPLETION_EVIDENCE.md) (full managed gate passed, combined coverage 90%). Slice B2 was accepted on 2026-09-14 against its [completion evidence](SLICE_B2_COMPLETION_EVIDENCE.md) (full managed gate passed: Ruff, formatting, strict mypy over 255 files, 2,670 tests; combined coverage 90%; zero deviations from the B2 field spec). B3 acceptance was recorded in the B4 completion evidence. B4 was accepted and B5 implementation authorized by the project owner on 2026-09-15 (America/Toronto). B5 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B5_COMPLETION_EVIDENCE.md). B6 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B6_COMPLETION_EVIDENCE.md). C1 was accepted by the project owner on 2026-09-16 against its [completion evidence](SLICE_C1_COMPLETION_EVIDENCE.md). The standalone env-var casing defect fix below was sequenced and completed before C2 began. C2 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_C2_COMPLETION_EVIDENCE.md); C3 is the next slice and has not been started.
 
 **Defect: env-var casing in subprocess environment (found during C1 review).**
 While reviewing Slice C1 completion evidence on 2026-09-16 (America/Toronto),
@@ -213,3 +213,12 @@ production schema/migration code, dependencies, or Slice C2/C3 work is in
 scope. Sequenced after C1 acceptance and before C2 begins, so the corrected
 convention is established before further CLI/subprocess-driven tests are
 added.
+
+**Defect: pre-existing Momentum/Graham CLI test failures (found during the C2 full-gate run).**
+The full managed wrapper run for C2 surfaced 31 pre-existing failures confined
+to `tests/test_cli.py`, `tests/test_cli_graham_nonpositive_growth.py`,
+`tests/data/test_massive_cli_configuration.py` and
+`tests/test_graham_growth_default_policy.py`. Reverting to the pre-C2 working
+tree and rerunning one representative test reproduced the identical failure,
+confirming this predates C2 and is unrelated to its edit surface. Not
+investigated or fixed here; root cause and remediation scope remain open.
