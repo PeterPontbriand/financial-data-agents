@@ -30,7 +30,7 @@ from src.analysis.strategy.graham_growth.config import GrahamGrowthConfig
 from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.config import GrahamNumberConfig
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.cli_database import app as database_app
 from src.cli_support import (
     AnalysisConfigurationError,
@@ -93,6 +93,8 @@ from src.reporting.graham import (
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.workspace.momentum_execution import run_momentum
+from src.workspace.requests import MomentumSelection
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False
@@ -178,10 +180,10 @@ def momentum(  # noqa: PLR0913
         unexpected=lambda _exc: f"Momentum analysis failed unexpectedly for {label}.",
     ):
         data_client = YFinanceClient()
+        config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
+        selection = MomentumSelection(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         with _production_historical_client(data_client) as historical_client:
-            analyzer = MomentumAnalyzer(default_ticker=target_ticker, data_client=historical_client)
-            config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
-            run = analyzer.run_with_context(config=config, ticker=target_ticker)
+            run = run_momentum(selection, target_ticker, historical_client)
         profile = compose_instrument_profile(
             run.metrics.ticker,
             identity_candidates=(InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client),),
