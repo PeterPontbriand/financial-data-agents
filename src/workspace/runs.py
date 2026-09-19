@@ -16,6 +16,7 @@ from uuid import UUID
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from src.core.analysis_status import CalculationStatus
+from src.data.instrument_profile import InstrumentProfile
 from src.workspace.models import EffectiveBoundary, RunOutcome, StrictJsonMapping, _FrozenModel
 from src.workspace.requests import AnalysisSelection
 
@@ -71,6 +72,7 @@ class AnalysisRun(_FrozenModel):
     # Evidence / Presentation
     result_evidence: StrictJsonMapping | None = None
     presentation_inputs: StrictJsonMapping | None = None
+    instrument_profile: InstrumentProfile | None = None
 
     @field_validator("ticker")
     @classmethod
@@ -125,6 +127,9 @@ class AnalysisRun(_FrozenModel):
             raise ValueError("failure_reason_code is required when status is failed.")
         if self.status is RunOutcome.COMPLETED and self.result_evidence is None:
             raise ValueError("result_evidence is required when status is completed.")
+
+        if self.instrument_profile is not None and self.instrument_profile.ticker != self.ticker:
+            raise ValueError("instrument_profile ticker must match ticker.")
 
         return self
 

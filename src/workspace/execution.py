@@ -168,6 +168,7 @@ def execute(
         failure_reason_code="execution_failed" if result.outcome is RunOutcome.FAILED else None,
         result_evidence=encode_evidence(result.native_evidence),
         presentation_inputs=result.presentation_inputs or None,
+        instrument_profile=result.profile,
     )
     repository.insert(run)
     return run

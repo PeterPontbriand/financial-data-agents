@@ -6,6 +6,8 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
+from src.data.instrument_profile import InstrumentKind
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.workspace.models import RunOutcome
 from src.workspace.requests import GrahamGrowthSelection, GrahamNumberSelection
 from src.workspace.runs import (
@@ -156,6 +158,24 @@ def test_identifiers_must_match_effective_config_when_present() -> None:
     growth = GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.0)
     with pytest.raises(ValidationError, match="match effective_config"):
         AnalysisRun.model_validate(_base_run(effective_config=growth))
+
+
+def test_instrument_profile_defaults_to_none() -> None:
+    run = AnalysisRun.model_validate(_base_run())
+    assert run.instrument_profile is None
+
+
+def test_instrument_profile_round_trips_through_json() -> None:
+    profile = fixture_instrument_profile("KO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
+    run = AnalysisRun.model_validate(_base_run(instrument_profile=profile))
+    restored = AnalysisRun.model_validate_json(run.model_dump_json())
+    assert restored.instrument_profile == profile
+
+
+def test_instrument_profile_ticker_must_match_run_ticker() -> None:
+    mismatched_profile = fixture_instrument_profile("PFE", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
+    with pytest.raises(ValidationError, match="instrument_profile ticker must match ticker"):
+        AnalysisRun.model_validate(_base_run(instrument_profile=mismatched_profile))
 
 
 def _base_watchlist(**overrides: object) -> dict[str, object]:

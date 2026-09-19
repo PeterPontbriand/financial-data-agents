@@ -90,16 +90,20 @@ def _fake_capture(outcome: RunOutcome) -> ExecutionCapture:
 def test_execute_assembles_and_inserts_a_completed_run() -> None:
     sink = _FakeSink()
     clock_values = iter([NOW, LATER])
+    profile = fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
 
     run = execute(
         _momentum_request(),
-        capture=lambda: _fake_capture(RunOutcome.COMPLETED),
+        capture=lambda: ExecutionCapture(
+            native_evidence=_momentum_native_evidence(), profile=profile, outcome=RunOutcome.COMPLETED
+        ),
         repository=sink,
         id_factory=lambda: RUN_ID,
         clock=lambda: next(clock_values),
     )
 
     assert sink.inserted == [run]
+    assert run.instrument_profile == profile
     assert run.analysis_run_id == RUN_ID
     assert run.started_at == NOW
     assert run.completed_at == LATER
@@ -251,6 +255,8 @@ def test_execute_persists_through_a_real_repository_and_reopens(tmp_path: Path) 
     try:
         reopened = SQLiteAnalysisRunRepository(second_database).get(RUN_ID)
         assert reopened == saved
+        assert reopened is not None
+        assert reopened.instrument_profile == saved.instrument_profile is not None
     finally:
         second_database.close()
 

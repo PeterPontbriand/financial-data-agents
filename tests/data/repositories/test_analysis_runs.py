@@ -12,6 +12,7 @@ from sqlalchemy import delete, select, update
 
 from alembic import command
 from src.config import ProjectSettings
+from src.data.instrument_profile import InstrumentKind
 from src.data.repositories.analysis_runs import AnalysisRunConflictError, SQLiteAnalysisRunRepository
 from src.data.repositories.schema import (
     analysis_runs,
@@ -21,6 +22,7 @@ from src.data.repositories.schema import (
 )
 from src.data.repositories.sqlite import SQLiteDatabase
 from src.data.repositories.watchlists import SQLiteWatchlistRepository
+from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from src.workspace.models import RunOutcome
 from src.workspace.runs import AnalysisRun, RunQuery
 from src.workspace.watchlists import WatchlistSpec
@@ -87,6 +89,31 @@ def test_four_typed_round_trips_after_reopen(tmp_path: Path) -> None:
             assert restored is not expected
     finally:
         second_database.close()
+
+
+def test_captured_instrument_profile_round_trips_after_reopen(tmp_path: Path) -> None:
+    url = f"sqlite:///{(tmp_path / 'reopen_profile.sqlite3').as_posix()}"
+    config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+    command.upgrade(config, "head")
+    profile = fixture_instrument_profile("CNR.TO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
+    run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID, "instrument_profile": profile})
+
+    first_database = SQLiteDatabase(ProjectSettings(database_url=url))
+    try:
+        SQLiteAnalysisRunRepository(first_database).insert(run)
+    finally:
+        first_database.close()
+
+    second_database = SQLiteDatabase(ProjectSettings(database_url=url))
+    try:
+        restored = SQLiteAnalysisRunRepository(second_database).get(MOMENTUM_ID)
+    finally:
+        second_database.close()
+
+    assert restored == run
+    assert restored is not None
+    assert restored.instrument_profile == profile
 
 
 def test_insert_duplicate_id_is_a_conflict_and_leaves_storage_unchanged(
