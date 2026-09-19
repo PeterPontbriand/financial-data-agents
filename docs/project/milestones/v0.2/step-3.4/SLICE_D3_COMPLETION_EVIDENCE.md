@@ -1,6 +1,6 @@
 # Slice D3 — Completion evidence
 
-**Review disposition:** implemented; pending project owner review and acceptance.
+**Review disposition:** D3 reviewed and accepted by the project owner on 2026-09-18 (America/Toronto).
 **Date:** 2026-09-18 (America/Toronto).
 **Branch:** `feat/step-3.4-local-research-workspace`.
 

@@ -34,7 +34,7 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
         return InstrumentProfile(ticker=ticker, identity=None, kind_evidence=None, diagnostics=())
 
     with (
-        patch("src.cli.compose_graham_profile", side_effect=unknown_profile),
+        patch("src.workspace.fcf_growth_execution.compose_graham_profile", side_effect=unknown_profile),
         patch("src.cli._production_financial_cache", side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache())),
     ):
         yield
@@ -75,7 +75,7 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
     )
     with (
         patch("src.cli._build_sec_production_provider", return_value=provider),
-        patch("src.cli.compose_graham_profile", return_value=profile),
+        patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
         patch.object(provider, "fetch_facts", wraps=provider.fetch_facts) as fetch_facts,
     ):
         result = runner.invoke(app, ["fcf-growth", "FLSW", "--json"])

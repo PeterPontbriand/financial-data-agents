@@ -14,7 +14,6 @@ import typer
 from src.analysis.shared.financial_resolution import PriceComparison
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFClassificationBasis,
-    FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     HistoricalHorizon,
@@ -91,9 +90,9 @@ from src.reporting.graham import (
 )
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
+from src.workspace.fcf_growth_execution import execute_fcf_growth
 from src.workspace.graham_growth_execution import execute_graham_growth
 from src.workspace.graham_number_execution import execute_graham_number
-from src.workspace.graham_shared import compose_graham_profile
 from src.workspace.momentum_execution import run_momentum
 from src.workspace.requests import MomentumSelection
 
@@ -460,27 +459,24 @@ def fcf_growth(  # noqa: PLR0913
         _production_financial_cache(enabled=not no_cache) as cache,
     ):
         provider = _build_sec_production_provider()
-        profile = compose_graham_profile(
-            target_ticker,
-            primary_provider=provider,
-            primary_provider_id=provider_id,
-            yahoo_provider=provider,
-        )
         resolver = ProductionAnnualGrowthSeriesResolver(
             provider,
             cache=cache,
             clock=lambda: boundary,
         )
-        result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
-            ticker=target_ticker,
+        capture = execute_fcf_growth(
+            resolver,
+            target_ticker,
             policy=policy,
             currency=normalized_currency,
             as_of=analysis_as_of,
             provider_id=provider_id,
             use_cache=not no_cache,
             effective_as_of=boundary,
-            instrument_profile=profile,
+            provider=provider,
         )
+        result = capture.result
+        profile = capture.profile
         identity_resolution = profile_identity_resolution(profile)
 
     output = render_fcf_earnings_growth(result, mode, identity_resolution, profile)
