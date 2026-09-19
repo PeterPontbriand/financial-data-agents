@@ -19,7 +19,9 @@ rather than guessing or upgrading silently.
 
 from dataclasses import dataclass
 
+from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumRun
+from src.reporting.graham import GrahamNumberPresentation, number_with_public_quote_reason, render_graham_number
 from src.reporting.momentum import MomentumPresentation, render_momentum
 from src.reporting.presentation import PresentationMode
 from src.workspace.codecs import decode_evidence
@@ -69,6 +71,8 @@ def project_run(run: AnalysisRun, options: ReplayOptions | None = None) -> str:
         raise UnsupportedProjectionError(f"Unsupported projection version: {run.projection_version}.")
     if (run.analysis_id, run.method_id) == ("momentum", "sma_crossover"):
         return _project_momentum_v1(run, resolved_options)
+    if (run.analysis_id, run.method_id) == ("graham", "graham_number"):
+        return _project_graham_number_v1(run, resolved_options)
     raise UnsupportedProjectionError(
         f"No v1 replay is implemented for analysis={run.analysis_id!r}, method={run.method_id!r}."
     )
@@ -116,6 +120,35 @@ def _project_momentum_v1(run: AnalysisRun, options: ReplayOptions) -> str:
         captured_sma_spread_percent=captured_spread_percent,
     )
     return render_momentum(presentation, options.mode)
+
+
+def _project_graham_number_v1(run: AnalysisRun, options: ReplayOptions) -> str:
+    """Reconstruct a Graham Number presentation from stored evidence only.
+
+    Identity/kind evidence comes from the envelope's own ``instrument_profile``
+    field rather than the native analysis's copy: the analyzer may leave
+    `GrahamNumberAnalysis.instrument_profile` unset, so replay must use the
+    profile captured on the run itself to render identity correctly.
+    """
+    # decode_evidence dispatches on (run.analysis_id, run.method_id), which project_run
+    # already confirmed is Graham Number's pair; neither assertion below is user-facing
+    # validation — both are internal invariants asserted here only so mypy can narrow the type.
+    evidence = decode_evidence(run)
+    assert isinstance(evidence, GrahamNumberAnalysis)
+
+    # Mirror the live command's presentation normalization (cli._run_graham_number): a stored
+    # quote failure carries a raw technical reason on the assembly, and replay must show the same
+    # investor-facing sentence the original execution showed — never the raw provider text.
+    presentation = GrahamNumberPresentation(
+        ticker=evidence.ticker,
+        assembly=number_with_public_quote_reason(evidence.assembly),
+        result=evidence.result,
+        as_of=evidence.as_of,
+        margin_of_safety_percent=evidence.margin_of_safety_percent,
+        instrument_profile=run.instrument_profile,
+        price_comparison=evidence.price_comparison,
+    )
+    return render_graham_number(presentation, options.mode)
 
 
 __all__ = [

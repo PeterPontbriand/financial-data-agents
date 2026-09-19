@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, Final
 
@@ -211,6 +211,34 @@ class GrahamGrowthPresentation:
 # ---------------------------------------------------------------------------
 # Public render entry points
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Presentation input normalization
+# ---------------------------------------------------------------------------
+
+
+def public_quote_reason(status: CalculationStatus) -> str:
+    """Return a stable investor-facing explanation for optional quote failure."""
+    if status is CalculationStatus.PROVIDER_ERROR:
+        return "The configured quote provider could not complete the request."
+    if status is CalculationStatus.INPUT_UNAVAILABLE:
+        return "No eligible current quote was available from the configured quote source."
+    return "The current quote could not be used for price comparison."
+
+
+def number_with_public_quote_reason(assembly: GrahamNumberInputAssembly) -> GrahamNumberInputAssembly:
+    """Classify optional quote failures while preserving raw resolver trace events."""
+    if assembly.quote_status is None:
+        return assembly
+    return replace(assembly, quote_reason=public_quote_reason(assembly.quote_status))
+
+
+def growth_with_public_quote_reason(assembly: GrowthValueInputAssembly) -> GrowthValueInputAssembly:
+    """Classify optional quote failures while preserving raw resolver trace events."""
+    if assembly.quote_status is None:
+        return assembly
+    return replace(assembly, quote_reason=public_quote_reason(assembly.quote_status))
 
 
 def render_graham_number(

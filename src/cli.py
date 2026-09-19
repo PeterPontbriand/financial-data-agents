@@ -85,6 +85,8 @@ from src.reporting.fcf_earnings_growth import render_fcf_earnings_growth
 from src.reporting.graham import (
     GrahamGrowthPresentation,
     GrahamNumberPresentation,
+    growth_with_public_quote_reason,
+    number_with_public_quote_reason,
     render_graham_growth,
     render_graham_number,
 )
@@ -777,7 +779,7 @@ def _run_graham_number(  # noqa: PLR0913
             price_comparison=analysis.price_comparison,
         )
 
-    presentation_assembly = _number_with_public_quote_reason(assembly)
+    presentation_assembly = number_with_public_quote_reason(assembly)
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
@@ -834,7 +836,7 @@ def _run_graham_growth(  # noqa: PLR0913
             price_comparison=analysis.price_comparison,
         )
 
-    presentation_assembly = _growth_with_public_quote_reason(assembly)
+    presentation_assembly = growth_with_public_quote_reason(assembly)
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
         assembly=presentation_assembly,
@@ -864,7 +866,7 @@ def _number_failure_output(  # noqa: PLR0913
 ) -> tuple[str, int]:
     """Render a failed Number analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    safe_assembly = _number_with_public_quote_reason(replace(assembly, reason=reason))
+    safe_assembly = number_with_public_quote_reason(replace(assembly, reason=reason))
     presentation = GrahamNumberPresentation(
         ticker=ticker,
         assembly=safe_assembly,
@@ -889,7 +891,7 @@ def _growth_failure_output(  # noqa: PLR0913
 ) -> tuple[str, int]:
     """Render a failed growth analysis without leaking low-level details by default."""
     reason = _friendly_graham_failure(ticker, assembly.status, assembly.reason)
-    safe_assembly = _growth_with_public_quote_reason(replace(assembly, reason=reason))
+    safe_assembly = growth_with_public_quote_reason(replace(assembly, reason=reason))
     policy = _growth_assumptions()
     presentation = GrahamGrowthPresentation(
         ticker=ticker,
@@ -904,29 +906,6 @@ def _growth_failure_output(  # noqa: PLR0913
         instrument_profile=instrument_profile,
     )
     return render_graham_growth(presentation, mode), 1
-
-
-def _number_with_public_quote_reason(assembly: GrahamNumberInputAssembly) -> GrahamNumberInputAssembly:
-    """Classify optional quote failures while preserving raw resolver trace events."""
-    if assembly.quote_status is None:
-        return assembly
-    return replace(assembly, quote_reason=_public_quote_reason(assembly.quote_status))
-
-
-def _growth_with_public_quote_reason(assembly: GrowthValueInputAssembly) -> GrowthValueInputAssembly:
-    """Classify optional quote failures while preserving raw resolver trace events."""
-    if assembly.quote_status is None:
-        return assembly
-    return replace(assembly, quote_reason=_public_quote_reason(assembly.quote_status))
-
-
-def _public_quote_reason(status: CalculationStatus) -> str:
-    """Return a stable investor-facing explanation for optional quote failure."""
-    if status is CalculationStatus.PROVIDER_ERROR:
-        return "The configured quote provider could not complete the request."
-    if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return "No eligible current quote was available from the configured quote source."
-    return "The current quote could not be used for price comparison."
 
 
 def _friendly_graham_failure(ticker: str, status: CalculationStatus, reason: str | None) -> str:
