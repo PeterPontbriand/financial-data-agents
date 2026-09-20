@@ -25,7 +25,6 @@ from src.workspace.requests import (
     GrahamGrowthSelection,
     GrahamNumberSelection,
     MomentumSelection,
-    default_selections,
     parse_selection,
 )
 
@@ -414,29 +413,14 @@ def test_fcf_policy_copies_input_and_converts_independently() -> None:
     assert selection.to_fcf_policy() is not selection.to_fcf_policy()
 
 
-def test_default_selections_order_freshness_and_settings_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
-    first = default_selections()
-    assert [item.method_id for item in first] == ["sma_crossover", "graham_number", "reported_fcf_eps_cagr"]
-    second = default_selections()
-    assert first == second
-    assert all(left is not right for left, right in zip(first, second, strict=True))
-    assert isinstance(first[2], FCFGrowthSelection)
-    assert isinstance(second[2], FCFGrowthSelection)
-    assert first[2].policy is not second[2].policy
-    monkeypatch.setattr(
-        "src.config.ProjectSettings.get_momentum_analysis",
-        lambda self: {"window_sizes": {"short_window": 10, "long_window": 30}},  # noqa: ARG005
-    )
-    assert isinstance(first[0], MomentumSelection)
-    assert first[0].short_window == 2
-    third = default_selections()
-    assert isinstance(third[0], MomentumSelection)
-    assert third[0].short_window == 10
-
-
 @pytest.fixture
 def all_selections() -> tuple[AnalysisSelection, ...]:
-    return (*default_selections(), GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5))
+    return (
+        MomentumSelection.from_settings(),
+        GrahamNumberSelection(),
+        FCFGrowthSelection(),
+        GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5),
+    )
 
 
 def test_all_request_variants_round_trip_without_settings(
@@ -577,7 +561,9 @@ def test_parser_enforces_method_and_nested_field_allowlists(alias: str, body: di
 
 def test_parser_materializes_omitted_defaults_and_preserves_explicit_fields() -> None:
     assert tuple(parse_selection(alias, "{}") for alias in ("momentum", "graham-number", "fcf-growth")) == (
-        default_selections()
+        MomentumSelection.from_settings(),
+        GrahamNumberSelection(),
+        FCFGrowthSelection(),
     )
     momentum = parse_selection("momentum", '{"config":{"short_window":1,"rsi_period":1}}')
     assert isinstance(momentum, MomentumSelection)

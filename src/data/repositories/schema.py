@@ -379,48 +379,30 @@ watchlists = sa.Table(
     sa.CheckConstraint("updated_at IS NULL OR updated_at >= created_at", name="ck_watchlists_timestamp_order"),
 )
 
-watchlist_members = sa.Table(
-    "watchlist_members",
+watchlist_entries = sa.Table(
+    "watchlist_entries",
     metadata,
     sa.Column("watchlist_id", sa.TEXT(), nullable=False),
+    sa.Column("position", sa.INTEGER(), nullable=False),
     sa.Column("ticker", sa.TEXT(), nullable=False),
-    sa.Column("position", sa.INTEGER(), nullable=False),
-    sa.PrimaryKeyConstraint("watchlist_id", "ticker", name="pk_watchlist_members"),
-    sa.UniqueConstraint("watchlist_id", "position", name="uq_watchlist_members_1"),
-    sa.ForeignKeyConstraint(
-        ["watchlist_id"], ["watchlists.watchlist_id"], ondelete="CASCADE", name="fk_watchlist_members_watchlist_id"
-    ),
-    sa.CheckConstraint("length(trim(watchlist_id)) > 0", name="ck_watchlist_members_watchlist_id_nonempty"),
-    sa.CheckConstraint("length(trim(ticker)) > 0", name="ck_watchlist_members_ticker_nonempty"),
-    sa.CheckConstraint("typeof(position) = 'integer' AND position >= 0", name="ck_watchlist_members_position_range"),
-)
-
-watchlist_selections = sa.Table(
-    "watchlist_selections",
-    metadata,
-    sa.Column("watchlist_id", sa.TEXT(), nullable=False),
     sa.Column("method_id", sa.TEXT(), nullable=False),
-    sa.Column("position", sa.INTEGER(), nullable=False),
     sa.Column("config_schema_version", sa.INTEGER(), nullable=False),
     sa.Column("selection_json", sa.TEXT(), nullable=False),
-    sa.PrimaryKeyConstraint("watchlist_id", "method_id", name="pk_watchlist_selections"),
-    sa.UniqueConstraint("watchlist_id", "position", name="uq_watchlist_selections_1"),
+    sa.PrimaryKeyConstraint("watchlist_id", "position", name="pk_watchlist_entries"),
     sa.ForeignKeyConstraint(
-        ["watchlist_id"],
-        ["watchlists.watchlist_id"],
-        ondelete="CASCADE",
-        name="fk_watchlist_selections_watchlist_id",
+        ["watchlist_id"], ["watchlists.watchlist_id"], ondelete="CASCADE", name="fk_watchlist_entries_watchlist_id"
     ),
-    sa.CheckConstraint("length(trim(watchlist_id)) > 0", name="ck_watchlist_selections_watchlist_id_nonempty"),
-    sa.CheckConstraint("length(trim(method_id)) > 0", name="ck_watchlist_selections_method_id_nonempty"),
-    sa.CheckConstraint("typeof(position) = 'integer' AND position >= 0", name="ck_watchlist_selections_position_range"),
+    sa.CheckConstraint("length(trim(watchlist_id)) > 0", name="ck_watchlist_entries_watchlist_id_nonempty"),
+    sa.CheckConstraint("length(trim(ticker)) > 0", name="ck_watchlist_entries_ticker_nonempty"),
+    sa.CheckConstraint("length(trim(method_id)) > 0", name="ck_watchlist_entries_method_id_nonempty"),
+    sa.CheckConstraint("typeof(position) = 'integer' AND position >= 0", name="ck_watchlist_entries_position_range"),
     sa.CheckConstraint(
         "typeof(config_schema_version) = 'integer' AND config_schema_version >= 1",
-        name="ck_watchlist_selections_config_schema_version_range",
+        name="ck_watchlist_entries_config_schema_version_range",
     ),
     sa.CheckConstraint(
         "json_valid(selection_json) AND json_type(selection_json) = 'object'",
-        name="ck_watchlist_selections_selection_json_object",
+        name="ck_watchlist_entries_selection_json_object",
     ),
 )
 

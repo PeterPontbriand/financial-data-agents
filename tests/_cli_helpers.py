@@ -6,15 +6,26 @@ sequences (colour, bold, underline) and Rich box/border-drawing characters
 strips both so that tests can assert on the semantic text without coupling
 to terminal-styling details.
 
-``isolated_cli_database`` points ``src.cli_support``'s database access at a
-disposable, already-migrated SQLite file instead of the real local database
-at the default ``database_url``. Momentum and Graham CLI commands call
-``ensure_database_ready`` (via ``_production_historical_client`` /
-``_production_financial_cache``) before doing any analysis work; without this
-isolation, tests that invoke those commands implicitly depend on the
-developer machine's real local database already being upgraded to the
-current schema head, which breaks after every migration until someone runs
-that upgrade by hand.
+``isolated_cli_database`` points ``src.cli_support``'s and
+``src.cli_workspace``'s database access at a disposable, already-migrated
+SQLite file instead of the real local database at the default
+``database_url``. Momentum/Graham CLI commands (via
+``_production_historical_client``/``_production_financial_cache``) and the
+watchlist/runs commands (via their own ``_workspace_database``) all call
+``ensure_database_ready`` before doing any work; without this isolation,
+tests that invoke those commands implicitly depend on the developer
+machine's real local database already being upgraded to the current schema
+head, which breaks after every migration until someone runs that upgrade by
+hand.
+
+Deliberately not extended to ``src.cli``'s own ``settings`` binding: that
+name is shared for configuration well beyond database access (for example
+SEC identity), and several already-accepted tests rely on
+``patch.object(settings, "some_field", value)`` mutating the real shared
+settings singleton `cli.py` reads. Rebinding `src.cli.settings` to a
+different object here would silently defeat those patches. Tests exercising
+the four direct commands' opt-in ``--save-run`` path isolate `src.cli`'s
+run-storage database locally instead — see ``tests/test_cli_save_run.py``.
 """
 
 import re
@@ -54,4 +65,6 @@ def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     command.upgrade(config, "head")
-    monkeypatch.setattr("src.cli_support.settings", ProjectSettings(database_url=url))
+    isolated = ProjectSettings(database_url=url)
+    monkeypatch.setattr("src.cli_support.settings", isolated)
+    monkeypatch.setattr("src.cli_workspace.settings", isolated)

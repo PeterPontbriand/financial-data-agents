@@ -26,7 +26,7 @@ def _growth_args(*extra: str) -> list[str]:
 
 def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
     with (
-        patch("src.cli._build_graham_resolver", return_value=MagicMock()) as mock_build,
+        patch("src.cli.build_graham_resolver", return_value=MagicMock()) as mock_build,
         patch("src.cli._run_graham_growth", return_value=("ok", 0)) as mock_run,
     ):
         result = runner.invoke(app, _growth_args())
@@ -43,7 +43,7 @@ def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
 
 def test_growth_explicit_massive_routes_ttm_and_massive_quote() -> None:
     with (
-        patch("src.cli._build_graham_resolver", return_value=MagicMock()) as mock_build,
+        patch("src.cli.build_graham_resolver", return_value=MagicMock()) as mock_build,
         patch("src.cli._run_graham_growth", return_value=("ok", 0)) as mock_run,
     ):
         result = runner.invoke(app, _growth_args("--data-provider", "massive"))

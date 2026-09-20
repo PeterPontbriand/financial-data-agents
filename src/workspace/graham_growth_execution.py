@@ -6,8 +6,8 @@ direct command and a future save/refresh service call identical code.
 Presentation, exit-code selection, and friendly failure rendering stay in
 ``src.cli``; this module captures execution evidence only. The effective
 calculation policy (base P/E, growth multiplier, baseline AAA yield) is
-supplied by the caller — exactly as ``src.cli``'s ``_growth_assumptions``
-already resolves it — and retained unmodified inside the native
+supplied by the caller — exactly as ``src.cli_composition``'s
+``growth_assumptions`` already resolves it — and retained unmodified inside the native
 ``GrahamGrowthAnalysis.policy`` field; no new assumption is derived here.
 
 ``classify_graham_growth_outcome`` freezes the exact native-status mapping

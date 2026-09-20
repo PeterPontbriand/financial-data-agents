@@ -344,11 +344,6 @@ class AnalysisRequest(_FrozenSelection):
         return normalized
 
 
-def default_selections() -> tuple[AnalysisSelection, ...]:
-    """Materialize independent Momentum, Number and historical FCF defaults in order."""
-    return (MomentumSelection.from_settings(), GrahamNumberSelection(), FCFGrowthSelection())
-
-
 def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     """Decode each JSON object without silently overwriting duplicate keys."""
     values: dict[str, object] = {}

@@ -20,6 +20,7 @@ from src.evaluation.fixtures.instrument_profiles import fixture_instrument_profi
 from src.evaluation.fixtures.market_data import FixtureDataClient
 from src.workspace.codecs import decode_evidence
 from src.workspace.execution import (
+    BatchContext,
     ExecutionCapture,
     execute,
     from_fcf_growth_capture,
@@ -120,6 +121,45 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.requested_config == run.effective_config == MomentumSelection(short_window=2, long_window=3)
     assert run.result_evidence is not None
     assert decode_evidence(run) is not None
+    assert run.refresh_id is None
+    assert run.batch_position is None
+    assert run.watchlist_id is None
+    assert run.watchlist_name is None
+
+
+def test_execute_without_batch_leaves_refresh_and_watchlist_fields_null() -> None:
+    """A direct (non-refresh) call passes no `batch`; every batch-identity field stays null."""
+    run = execute(
+        _momentum_request(),
+        capture=lambda: _fake_capture(RunOutcome.COMPLETED),
+        repository=_FakeSink(),
+        id_factory=lambda: RUN_ID,
+        clock=lambda: NOW,
+    )
+    assert run.refresh_id is None
+    assert run.batch_position is None
+    assert run.watchlist_id is None
+    assert run.watchlist_name is None
+
+
+def test_execute_with_batch_context_stamps_refresh_and_watchlist_identity() -> None:
+    refresh_id = UUID("22222222-2222-4222-8222-222222222222")
+    watchlist_id = UUID("33333333-3333-4333-8333-333333333333")
+    batch = BatchContext(refresh_id=refresh_id, batch_position=3, watchlist_id=watchlist_id, watchlist_name="My Watch")
+
+    run = execute(
+        _momentum_request(),
+        capture=lambda: _fake_capture(RunOutcome.COMPLETED),
+        repository=_FakeSink(),
+        id_factory=lambda: RUN_ID,
+        clock=lambda: NOW,
+        batch=batch,
+    )
+
+    assert run.refresh_id == refresh_id
+    assert run.batch_position == 3
+    assert run.watchlist_id == watchlist_id
+    assert run.watchlist_name == "My Watch"
 
 
 @pytest.mark.parametrize("outcome", [RunOutcome.NOT_APPLICABLE, RunOutcome.UNAVAILABLE, RunOutcome.COMPLETED])

@@ -19,9 +19,9 @@ _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelecti
 class WatchlistSpec(BaseModel):
     """Creation input for a new watchlist: a display name, nothing else.
 
-    Membership and selections are not accepted here; creation always starts
-    with no members and the contract's default selections, added afterward
-    through explicit member/selection edits.
+    Creation always starts with no entries (Amendment A1, §12): there is no
+    default selection materialized for a new watchlist. Seeding a freshly
+    created watchlist with entries is the caller's own, separate concern.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")

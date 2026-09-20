@@ -257,7 +257,9 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
         with pytest.raises(DatabaseReadinessError) as caught:
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
-        assert "database_url" in str(caught.value)
+        assert "synthetic_next" in str(caught.value)
+        assert "uv run financial-agents db upgrade" in str(caught.value)
+        assert "--database-url" in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"
     finally:
@@ -292,7 +294,7 @@ def test_real_predecessor_requires_explicit_upgrade_and_retains_existing_data(tm
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
 
-        assert readiness.upgrade_database(database) == (ReadinessOutcome.UPGRADED, "0002_research_workspace")
+        assert readiness.upgrade_database(database) == (ReadinessOutcome.UPGRADED, "0003_watchlist_entries")
         assert ensure_database_ready(database) is ReadinessOutcome.READY
         with database.read() as connection:
             assert (

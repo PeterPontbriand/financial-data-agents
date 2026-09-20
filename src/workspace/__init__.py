@@ -8,7 +8,6 @@ from src.workspace.requests import (
     GrahamGrowthSelection,
     GrahamNumberSelection,
     MomentumSelection,
-    default_selections,
     parse_selection,
 )
 
@@ -20,6 +19,5 @@ __all__ = [
     "GrahamGrowthSelection",
     "GrahamNumberSelection",
     "MomentumSelection",
-    "default_selections",
     "parse_selection",
 ]

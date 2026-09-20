@@ -36,8 +36,7 @@ EXPECTED_COLUMNS = {
     ),
     "market_price_observations": "entry_key row_position index_value open high low close adj_close volume",
     "watchlists": "watchlist_id normalized_name display_name created_at updated_at",
-    "watchlist_members": "watchlist_id ticker position",
-    "watchlist_selections": "watchlist_id method_id position config_schema_version selection_json",
+    "watchlist_entries": "watchlist_id position ticker method_id config_schema_version selection_json",
     "analysis_runs": (
         "analysis_run_id refresh_id batch_position ticker analysis_id method_id outcome completed_at "
         "run_schema_version config_schema_version method_version result_schema_version evidence_codec_version "
@@ -281,41 +280,40 @@ def test_observations_are_snapshot_scoped_with_cascade_and_integer_volume(databa
         assert connection.execute(observations.select()).mappings().one()["volume"] == 2**60 + 1
 
 
-def test_watchlist_children_enforce_order_and_cascade(database: SQLiteDatabase) -> None:
+def test_watchlist_entries_enforce_order_and_cascade(database: SQLiteDatabase) -> None:
     watchlists = metadata.tables["watchlists"]
-    members = metadata.tables["watchlist_members"]
-    selections = metadata.tables["watchlist_selections"]
+    entries = metadata.tables["watchlist_entries"]
     with database.transaction() as connection:
         connection.execute(watchlists.insert(), base_row("watchlists"))
-        connection.execute(members.insert(), {"watchlist_id": "watchlist-1", "ticker": "KO", "position": 0})
         connection.execute(
-            selections.insert(),
+            entries.insert(),
             {
                 "watchlist_id": "watchlist-1",
-                "method_id": "graham_number",
                 "position": 0,
+                "ticker": "KO",
+                "method_id": "graham_number",
                 "config_schema_version": 1,
                 "selection_json": "{}",
             },
         )
-    with pytest.raises(IntegrityError), database.transaction() as connection:
-        connection.execute(members.insert(), {"watchlist_id": "watchlist-1", "ticker": "MSFT", "position": 0})
+    # A second entry at the same (watchlist_id, position) collides with the primary key,
+    # even with a different ticker/method — position uniqueness is the PK itself now.
     with pytest.raises(IntegrityError), database.transaction() as connection:
         connection.execute(
-            selections.insert(),
+            entries.insert(),
             {
                 "watchlist_id": "watchlist-1",
+                "position": 0,
+                "ticker": "MSFT",
                 "method_id": "momentum",
-                "position": 1,
                 "config_schema_version": 1,
-                "selection_json": "[]",
+                "selection_json": "{}",
             },
         )
     with database.transaction() as connection:
         connection.execute(watchlists.delete())
     with database.read() as connection:
-        assert connection.execute(members.select()).all() == []
-        assert connection.execute(selections.select()).all() == []
+        assert connection.execute(entries.select()).all() == []
 
 
 def test_analysis_run_indexes_and_refresh_pair(database: SQLiteDatabase) -> None:

@@ -15,6 +15,7 @@ from src.workspace.runs import (
     AnalysisRunSummary,
     RunQuery,
     Watchlist,
+    WatchlistEntry,
     WatchlistSummary,
 )
 
@@ -184,30 +185,36 @@ def _base_watchlist(**overrides: object) -> dict[str, object]:
         "display_name": "My Watch",
         "normalized_name": "my watch",
         "created_at": STARTED_AT,
-        "members": ("KO", "PFE"),
-        "selections": [
-            GrahamNumberSelection(),
-            GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.0),
+        "entries": [
+            WatchlistEntry(ticker="KO", selection=GrahamNumberSelection()),
+            WatchlistEntry(ticker="PFE", selection=GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.0)),
         ],
     }
     data.update(overrides)
     return data
 
 
-def test_valid_watchlist_preserves_member_order() -> None:
+def test_valid_watchlist_preserves_entry_order() -> None:
     watchlist = Watchlist.model_validate(_base_watchlist())
-    assert watchlist.members == ("KO", "PFE")
-    assert [selection.method_id for selection in watchlist.selections] == ["graham_number", "graham_growth_value"]
+    assert [entry.ticker for entry in watchlist.entries] == ["KO", "PFE"]
+    assert [entry.selection.method_id for entry in watchlist.entries] == ["graham_number", "graham_growth_value"]
 
 
-def test_duplicate_method_id_across_selections_rejected() -> None:
-    with pytest.raises(ValidationError, match="distinct method_id"):
-        Watchlist.model_validate(_base_watchlist(selections=[GrahamNumberSelection(), GrahamNumberSelection()]))
-
-
-def test_duplicate_member_ticker_rejected() -> None:
-    with pytest.raises(ValidationError, match="members must be unique"):
-        Watchlist.model_validate(_base_watchlist(members=("KO", "PFE", "KO")))
+def test_duplicate_ticker_and_method_pair_is_allowed() -> None:
+    """Amendment A1 (§12): the same method may now appear more than once, even for one ticker."""
+    watchlist = Watchlist.model_validate(
+        _base_watchlist(
+            entries=[
+                WatchlistEntry(ticker="KO", selection=GrahamNumberSelection()),
+                WatchlistEntry(
+                    ticker="KO",
+                    selection=GrahamNumberSelection(security_provider_id="massive", bvps_override=1.0),
+                ),
+            ]
+        )
+    )
+    assert len(watchlist.entries) == 2
+    assert {entry.ticker for entry in watchlist.entries} == {"KO"}
 
 
 @pytest.mark.parametrize("normalized", ["MY WATCH", "mywatch", " my watch ", ""])
@@ -245,8 +252,7 @@ def test_summaries_construct() -> None:
     watchlist_summary = WatchlistSummary(
         watchlist_id=WATCHLIST_ID,
         display_name="My Watch",
-        member_count=2,
-        selection_count=2,
+        entry_count=2,
         created_at=STARTED_AT,
     )
-    assert watchlist_summary.member_count == 2
+    assert watchlist_summary.entry_count == 2

@@ -54,14 +54,13 @@ def test_cli_schema_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
                         "market_data_cache_entries",
                         "market_price_observations",
                         "watchlists",
-                        "watchlist_members",
-                        "watchlist_selections",
+                        "watchlist_entries",
                         "analysis_runs",
                     }
                 )
                 assert set(tables) == expected
                 versions = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars().all()
-                assert versions == ([] if operation == "downgrade" else ["0002_research_workspace"])
+                assert versions == ([] if operation == "downgrade" else ["0003_watchlist_entries"])
         finally:
             database.close()
     assert not unused.exists()
@@ -81,7 +80,7 @@ def test_workspace_revision_downgrade_retains_predecessor_data(tmp_path: Path) -
         command.downgrade(config, "0001_persistence")
         with database.read() as connection:
             tables = set(connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").scalars())
-            assert not tables.intersection({"watchlists", "watchlist_members", "watchlist_selections", "analysis_runs"})
+            assert not tables.intersection({"watchlists", "watchlist_entries", "analysis_runs"})
             assert (
                 connection.exec_driver_sql(
                     "SELECT metadata_value FROM schema_metadata WHERE metadata_key='retained_test_value'"
@@ -94,7 +93,7 @@ def test_workspace_revision_downgrade_retains_predecessor_data(tmp_path: Path) -
         command.upgrade(config, "head")
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
-                "0002_research_workspace"
+                "0003_watchlist_entries"
             )
     finally:
         database.close()
@@ -220,7 +219,7 @@ def test_borrowed_transaction_is_not_committed_or_closed(tmp_path: Path) -> None
             assert not connection.closed
             assert connection.in_transaction()
             revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
-            assert revision == "0002_research_workspace"
+            assert revision == "0003_watchlist_entries"
             raise RuntimeError("outer rollback")
 
     try:

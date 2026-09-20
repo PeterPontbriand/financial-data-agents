@@ -1,7 +1,7 @@
 # Step 3.4 — Workspace Contract and Cline Slice Plan
 
 **Prepared:** 2026-09-13 (America/Toronto).  
-**Status:** Gate A and Slices B1–B6, C1, C2, C3, D1, D2, D3, D4, D5, E1 and E2 accepted; see [E1 completion evidence](SLICE_E1_COMPLETION_EVIDENCE.md) and [E2 completion evidence](SLICE_E2_COMPLETION_EVIDENCE.md).
+**Status:** **Step 3.4 is complete and accepted** (final acceptance granted 2026-09-20). Gate A and Slices B1–B6, C1, C2, C3, D1, D2, D3, D4, D5, E1, E2, E3, E4, F1, F2, F3, G1, G2, G3 and H (batch 4) accepted; see [E1](SLICE_E1_COMPLETION_EVIDENCE.md), [E2](SLICE_E2_COMPLETION_EVIDENCE.md), [E3/E4/F1/F2](SLICE_E3_E4_F1_F2_COMPLETION_EVIDENCE.md), [F3/G1](SLICE_F3_G1_COMPLETION_EVIDENCE.md), [G2](SLICE_G2_COMPLETION_EVIDENCE.md) and [G3/H](SLICE_G3_H_COMPLETION_EVIDENCE.md) completion evidence. H's own review surfaced a watchlist-model UX defect (arbitrary default selections, file-based per-method configuration, no per-ticker/multi-variant selections); **Contract Amendment A1 (§12)** was authorized on 2026-09-19 to address it via new Slices I1–I3, all now accepted: I1 (entry model, repository, migration) accepted 2026-09-19 against its [completion evidence](SLICE_I1_COMPLETION_EVIDENCE.md); I2 (watchlist CLI surface) accepted 2026-09-19 against its [completion evidence](SLICE_I2_COMPLETION_EVIDENCE.md); I3 (docs, test revisit, full regression) accepted 2026-09-20 against its [completion evidence](SLICE_I3_COMPLETION_EVIDENCE.md), carrying explicit final Step 3.4 acceptance per its own §9 acceptance criteria — this closes out Step 3.4 in full, including the G3/H review that had remained outstanding since batch 4. A short, separately-authorized series of related UX fixes (not part of Amendment A1's own slices) was also made on this branch before final acceptance; see the note at the end of §12.
 **Branch:** `feat/step-3.4-local-research-workspace`.  
 **Authority:** [Implementation Plan §4.10](../IMPLEMENTATION_PLAN.md#410-step-34--local-research-workspace--analysis-run-library).
 
@@ -33,9 +33,9 @@ Paths below are repository-relative implementation targets, not claims that prop
 Planned modules: `src/workspace/models.py`, `requests.py`, `watchlists.py`. Use strict typed models and explicit method dispatch, not discovery, plugins, registration, or a generic strategy hierarchy.
 
 * A watchlist has an immutable UUID, unique normalized name, creation/update UTC timestamps, ordered unique ticker membership, and an ordered list of analysis selections. Trim names, reject empty names, compare names case-insensitively, preserve display spelling. Normalize tickers using current uppercase/trim conventions and preserve venue suffixes. No provider lookup occurs during editing.
-* Selections are watchlist-wide in this release. One configuration per supported method; every member receives that selection. Per-ticker overrides, multiple variants of one method, rename/delete watchlist, and run deletion are deferred. Removing membership never deletes historical runs.
-* Creation materializes a version-1 default selection containing Momentum, Graham Number and historical FCF/Earnings Growth. Resolve and save existing method defaults at creation; later settings changes or new strategies cannot change an existing list. Do not include Growth or enable forward-evidence requirements by default.
-* `watchlist configure NAME --analysis METHOD --config PATH` adds/replaces one selection from a UTF-8 JSON object. `watchlist disable NAME --analysis METHOD` removes it. Unknown methods, extra/foreign fields, non-finite numbers and malformed configs are usage errors. Validate the complete edit before opening a write transaction; never store partial edits. The config file is request data, not executable code or a settings/secrets dump.
+* **Superseded by Amendment A1 (§12):** ~~Selections are watchlist-wide in this release. One configuration per supported method; every member receives that selection. Per-ticker overrides, multiple variants of one method, rename/delete watchlist, and run deletion are deferred. Removing membership never deletes historical runs.~~
+* **Superseded by Amendment A1 (§12):** ~~Creation materializes a version-1 default selection containing Momentum, Graham Number and historical FCF/Earnings Growth. Resolve and save existing method defaults at creation; later settings changes or new strategies cannot change an existing list. Do not include Growth or enable forward-evidence requirements by default.~~
+* **Superseded by Amendment A1 (§12):** ~~`watchlist configure NAME --analysis METHOD --config PATH` adds/replaces one selection from a UTF-8 JSON object. `watchlist disable NAME --analysis METHOD` removes it. Unknown methods, extra/foreign fields, non-finite numbers and malformed configs are usage errors. Validate the complete edit before opening a write transaction; never store partial edits. The config file is request data, not executable code or a settings/secrets dump.~~
 * Growth configuration must explicitly supply both growth and AAA yield; never derive forecasts from historical growth. Preserve the existing validation of units/ranges and effective calculation policy. Show assumptions in watchlist details and run views.
 * `AnalysisRequest` contains normalized ticker, method discriminator, `config_schema_version=1`, the appropriate typed config, requested temporal boundary and cache-use choice. Method aliases map explicitly to current canonical analysis/method identifiers; do not derive persistent identifiers from CLI spelling. The matrix below freezes current identifiers; B1 asserts them in request/configuration fixtures. Result-evidence codecs begin at B3.
 * Momentum wraps `MomentumConfig`; Number and Growth wrap their existing configs plus effective calculation policy where applicable. FCF has a narrow request model containing its existing policy, currency, provider, requested `as_of` and `use_cache`. No shared financial field bag.
@@ -52,7 +52,7 @@ Planned modules: `src/workspace/models.py`, `requests.py`, `watchlists.py`. Use 
 | `graham-growth` | `graham` / `graham_growth_value` | `GrahamGrowthConfig`: same applicable shared fields, explicit growth and AAA yield, plus captured effective `GrahamGrowthCalculationPolicy`. No book-value override. |
 | `fcf-growth` | `fcf_earnings_growth` / `reported_fcf_eps_cagr` | Existing `FCFEarningsGrowthPolicy` (longest available horizon, total FCF, display-only forward policy, optional yield enabled), provider `sec_edgar`, currency `USD`, `as_of=null`, `use_cache=true`. |
 
-Config JSON uses existing Python model field names and enum values, not CLI flag spelling. The FCF wrapper nests its policy under `policy`; the Graham wrappers nest their existing config under `config` and captured calculation policy is execution evidence, not arbitrary user configuration. Momentum nests `MomentumConfig` under `config`. No requested ticker or method override is accepted inside the config file. Selection identity comes from `--analysis` and ticker identity from membership. Production provider choices remain restricted to those supported by the current CLI composition, even where a base config permits arbitrary identifiers for dependency injection.
+**Superseded by Amendment A1 (§12):** ~~Config JSON uses existing Python model field names and enum values, not CLI flag spelling. The FCF wrapper nests its policy under `policy`; the Graham wrappers nest their existing config under `config` and captured calculation policy is execution evidence, not arbitrary user configuration. Momentum nests `MomentumConfig` under `config`. No requested ticker or method override is accepted inside the config file. Selection identity comes from `--analysis` and ticker identity from membership.~~ Production provider choices remain restricted to those supported by the current CLI composition, even where a base config permits arbitrary identifiers for dependency injection.
 
 FCF retains native method version 2 and result schema 3. For Momentum/Graham native types without equivalent numeric version fields, define an explicit workspace evidence method/result version 1 at this checkpoint; it denotes the captured current semantics, not a claim about historical public JSON versions. All four evidence codecs start at version 1. Existing public presentation versions remain separate.
 
@@ -174,6 +174,9 @@ Gate A approved this contract and verified readiness. Authorize **one slice at a
 | G2 Bounded concurrency | G1 | Same refresh service plus scoped composition only. | Max N calls, bounded admission, connection ownership, shared egress budget, immediate save visible to another connection/process. Review G2. |
 | G3 Refresh CLI / interruption | G2 | Workspace CLI and refresh cancellation boundary. | Partial-failure exits, JSON isolation/counts, graceful interrupt and storage-failure stop; committed history survives. Review G3. |
 | H Acceptance/docs | G3 | `README.md`, durable `docs/user/` workflow, planning evidence; integration tests only unless separately reviewed defect. | Multi-command offline scenario, all four regressions, migration/readiness, pure replay, full managed gate and explicit final acceptance. Stop before P2. |
+| I1 Entry model & migration (Amendment A1, §12) | H | `workspace/runs.py`, `workspace/requests.py` (remove `default_selections`), new migration, `data/repositories/schema.py`, `data/repositories/watchlists.py`; `cli_workspace.py` narrowly (see note below). | Lossless upgrade in exact prior order; downgrade rejects a diverged watchlist rather than corrupting it; position uniqueness/duplicate-method-allowed invariants; `refresh_watchlist`'s one-line adjustment verified against G1-G3's existing test suite; `create`/`list`/`show` still work (rendering `.entries`); `add`/`remove`/`configure`/`disable` removed rather than left calling a deleted repository method. Review I1. |
+| I2 Watchlist CLI surface (Amendment A1, §12) | I1 | `cli_workspace.py`: revised `create`; new `add-selection`, `remove-entry`; repurposed `remove`/`disable`; revised `show` with `--group-by`; `configure` removed. | One-command seeded creation; fan-out add; index-addressed single removal; bulk-by-ticker/bulk-by-method removal; a method's own missing required fields rejected exactly as its direct command rejects them; no `--config` file path remains anywhere. Review I2. |
+| I3 Regression, docs, and final acceptance (Amendment A1, §12) | I2 | `docs/user/WORKSPACE.md`, `docs/user/GLOSSARY.md`; `tests/test_workspace_integration.py` rewritten for the new model; full managed gate. | Existing E1-E4/G1-G3 suites pass unchanged; docs and examples corrected for the new commands; full managed gate; explicit final Step 3.4 acceptance. Stop before P2. |
 
 Do not combine adapter extraction with calculator refactoring. Codec tasks may add private serialization helpers for their own evidence; do not prebuild universal serializers. Parallel implementation is not assumed: despite shared prerequisites, use the listed order to avoid Cline editing shared dispatch/CLI files concurrently.
 
@@ -192,6 +195,8 @@ Final evidence must map every §4.10 criterion to tests: named configuration/mem
 Source inspection and the initial clean-worktree check are complete. The managed baseline initially could not query the existing Python interpreter (`Access is denied`); the same non-mutating wrapper was retried with approved elevated access. The retry passed: Ruff, formatting (327 files), strict mypy (248 source/test files), and 2,338 tests in 93.08 seconds; reported combined coverage was 90% (10,984 statements, 861 missed, approximately 92.16% line coverage). Artifacts: `.tmp/quality-runs/20260913074742304-42680-39da973f436c43e5a44455b461a42545/`. Subsequent edits are planning Markdown only. No dependency synchronization or user-data migration was requested.
 
 Slice B1 was accepted on 2026-09-13 against its [completion evidence](SLICE_B1_COMPLETION_EVIDENCE.md) (full managed gate passed, combined coverage 90%). Slice B2 was accepted on 2026-09-14 against its [completion evidence](SLICE_B2_COMPLETION_EVIDENCE.md) (full managed gate passed: Ruff, formatting, strict mypy over 255 files, 2,670 tests; combined coverage 90%; zero deviations from the B2 field spec). B3 acceptance was recorded in the B4 completion evidence. B4 was accepted and B5 implementation authorized by the project owner on 2026-09-15 (America/Toronto). B5 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B5_COMPLETION_EVIDENCE.md). B6 was accepted by the project owner on 2026-09-15 against its [completion evidence](SLICE_B6_COMPLETION_EVIDENCE.md). C1 was accepted by the project owner on 2026-09-16 against its [completion evidence](SLICE_C1_COMPLETION_EVIDENCE.md). The standalone env-var casing defect fix below was sequenced and completed before C2 began. C2 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_C2_COMPLETION_EVIDENCE.md). The CLI test-isolation defect fix above was completed in the same session before C3 began. C3 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_C3_COMPLETION_EVIDENCE.md). D1 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_D1_COMPLETION_EVIDENCE.md). D2 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_D2_COMPLETION_EVIDENCE.md). D3 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_D3_COMPLETION_EVIDENCE.md). D4 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_D4_COMPLETION_EVIDENCE.md). D5 implementation was authorized by the project owner on 2026-09-18 (America/Toronto) and accepted by the project owner on 2026-09-18 (America/Toronto) against its [completion evidence](SLICE_D5_COMPLETION_EVIDENCE.md). D5 completes the D-series (Momentum, Number, Growth, and FCF adapters plus the save service). E1 implementation was authorized by the project owner on 2026-09-19 (America/Toronto) and accepted by the project owner on 2026-09-19 (America/Toronto) against its [completion evidence](SLICE_E1_COMPLETION_EVIDENCE.md). E1 uncovered a Momentum-specific profile-persistence gap in D5's `execute()`; the project owner authorized fixing it as an amendment to the already-accepted `AnalysisRun` model (B2) and `execute()` (D5), applied within this same E1 session and covered by the same completion evidence. E2 (Number replay) was authorized for a Cline-driven implementation attempt now that E1 is accepted. A first attempt (Cline running glm-4.7-flash) was reviewed and rejected before any acceptance: it dispatched on an incorrect method identifier, making its new code path unreachable, and its replacement presentation constructor did not match the real target dataclass's fields. That change was discarded via `git checkout` before any commit. A second attempt (Cline running qwen3.8:27b) implemented E2 correctly on the merits — correct dispatch, correct field mapping, and a sound relocation of Graham Number's/Growth's quote-reason label helpers from `cli.py` into `src/reporting/graham.py` (authorized as a narrow scope extension beyond `analysis_runs.py`/tests/docs, since it removes a duplication-drift risk that would otherwise recur identically in E3) — but review found the relocated helper was never actually invoked from the new replay path, so a stored optional-quote-failure would have replayed with a raw technical reason instead of the investor-facing sentence the live command originally showed; none of that submission's own tests exercised the `quote_status`/`quote_reason` path, so this passed a fully green gate undetected. Cline was sent a corrective follow-up naming the exact gap; the correction applied `number_with_public_quote_reason(evidence.assembly)` at the replay call site and added a regression test that verifiably fails without the fix. Both the original submission and the correction are documented in [E2's completion evidence](SLICE_E2_COMPLETION_EVIDENCE.md), which was independently verified (diff, code paths, and a from-scratch full managed-gate re-run) before acceptance. E2 was accepted by the project owner on 2026-09-19 (America/Toronto).
+
+The project owner then authorized batching the remaining slices (E3 onward) into four review checkpoints instead of one-at-a-time, given the contract's per-slice granularity was calibrated for a local model rather than direct implementation in this session; Cline's involvement in Step 3.4 ended with E2. Batch 1 — E3 (Growth replay), E4 (FCF replay), F1 (Watchlist CLI), F2 (Run browsing CLI) — was authorized and implemented on 2026-09-19 (America/Toronto) against its [completion evidence](SLICE_E3_E4_F1_F2_COMPLETION_EVIDENCE.md); acceptance is pending project owner review. Building E3 surfaced a second retroactive gap in the already-accepted E2 code, of the same kind as the quote-reason gap E2's own correction fixed: Number's stored failure `reason` was never normalized through `friendly_graham_failure` at replay time either. That helper was relocated from `cli.py` into `src/reporting/graham.py` (the same authorized pattern as E2's quote-reason relocation) and applied retroactively to Number alongside its new use in Growth, with regression tests for both. F2's own development separately surfaced a live defect (not retroactive): `runs show` did not catch the plain `ValueError` `SQLiteAnalysisRunRepository.get()` raises for a corrupted stored row, which would have printed a raw traceback instead of the contract's required sanitized exit 1; this was found and fixed within the same batch, before requesting review. Batch 1 (E3, E4, F1, F2) was accepted by the project owner on 2026-09-19 (America/Toronto). Batch 2 — F3 (direct-command `--save-run` wiring) and G1 (sequential refresh) — was authorized and implemented on 2026-09-19 (America/Toronto) against its [completion evidence](SLICE_F3_G1_COMPLETION_EVIDENCE.md); acceptance is pending project owner review. This batch required one small additive extension to the already-accepted D5 `execute()`: an optional `batch: BatchContext | None = None` parameter stamping `refresh_id`/`batch_position`/`watchlist_id`/`watchlist_name`, fields `AnalysisRun` (B2) already defined but D5 never wired through, since batch identity was explicitly out of D5's own scope — omitted by every existing caller, leaving prior behavior unchanged. Building F3's `_maybe_save_run` helper surfaced a real defect before any test was written: its first draft constructed the workspace `AnalysisRequest`/selection eagerly as a call argument, which Python evaluates unconditionally even on the non-saving path; this broke 15 existing Graham tests that use a synthetic test-only provider id the stricter workspace selection types reject. Fixed by deferring construction to a `request_factory` callable invoked only when saving, confirmed by the full pre-existing CLI/Graham/FCF/existing-strategy-output suite passing unchanged. G1 (`src/workspace/refresh.py`) is the pure sequential service only; no CLI wiring exists yet — that is G3. Batch 2 (F3, G1) was accepted by the project owner on 2026-09-19 (America/Toronto). Batch 3 — G2 (bounded concurrency), isolated as its own review checkpoint given its distinct risk profile (races, connection ownership, admission control) — was authorized by the project owner on 2026-09-19 (America/Toronto) to begin, and was implemented the same day against its [completion evidence](SLICE_G2_COMPLETION_EVIDENCE.md); acceptance is pending project owner review. `refresh_watchlist` gained a `policy: RefreshPolicy` parameter selecting between the unmodified G1 sequential path (`workers=1`, the function's own default, distinct from `RefreshPolicy`'s own class-level default of `workers=2`, so no existing caller's behavior changes) and a new bounded-concurrent-admission path (`workers>1`): at most `workers` jobs run at once, a worker's only role is calling the injected `executor` and reporting its outcome back, and this function's own calling thread is the only thread that ever calls `execute()`/`repository.insert`, persisting one finished job before admitting its replacement. A worker measures its own `started_at`/`completed_at` around the real work in its own thread; a small `_replay_clock` helper replays those two already-measured instants through the already-accepted D5 `execute()`'s existing two-call clock contract, so the persisted run's timing reflects real work time without any further change to `execute()` itself. Every new concurrency test synchronizes via `threading.Event` and a shared causal-ordering log rather than timing guesses, per the contract's own testing requirement; one test proves immediate cross-connection visibility against real SQLite storage while a refresh is deliberately still in flight. Batch 3 (G2) was accepted by the project owner on 2026-09-19 (America/Toronto). Batch 4 — G3 (refresh CLI wiring and cooperative interruption) and H (acceptance/docs), completing the contract's full slice table — was authorized by the project owner on 2026-09-19 (America/Toronto) to begin, and was implemented the same day against its [completion evidence](SLICE_G3_H_COMPLETION_EVIDENCE.md); acceptance is pending project owner review. G3 added the contract's bare `refresh NAME [--workers N] [--json]` command to `src/cli_workspace.py`, dispatching each stored selection to its method's existing production adapter by `isinstance`, and added a cooperative `cancellation: threading.Event | None` parameter to `refresh_watchlist`/`_refresh_concurrently` (never raising `KeyboardInterrupt`, never killing a running thread — a job already admitted always finishes and persists, a job never admitted never appears in the summary). Building the dispatch executor required calling the SEC/Massive provider and Graham resolver builders (previously private to `cli.py`) from `cli_workspace.py` too; relocating them into the existing `src.cli_support` was tried first and reverted upon discovering it would have silently defeated existing tests that patch the real shared settings singleton for SEC identity, since that module's own `settings` binding is deliberately rebound for database isolation by the shared test fixture. A new module, `src/cli_composition.py`, holds these four functions instead, with its own `settings` binding never rebound by any fixture. A defect in the first draft of the cancellation logic — not removing a successfully-cancelled `Future` from the pending set, which would have crashed on `CancelledError` the first time a genuinely-queued-but-unstarted job was cancelled — was found and fixed before any test caught it. H added `docs/user/WORKSPACE.md` (linked from the user documentation index and the root README, with four new Glossary terms) and one end-to-end integration test proving the full documented workflow — create, configure, disable, add, refresh, then browse every saved run through all four presentation modes — works together offline, specifically confirming E1-E4's "no recalculation" replay guarantee also holds for a run `refresh` produced, not only one saved directly. A CLI-level test that ran a real `ThreadPoolExecutor` under `--workers 2` through Click's `CliRunner` was found to trigger a rare, Windows-specific test-harness race unrelated to refresh's own correctness (already exhaustively proven concurrent-safe directly against `refresh_watchlist` in G2/G3's own tests); removed and every CLI-level test pinned to `--workers 1` instead. With G3 and H implemented, every slice in the contract's table has been implemented; per the contract's own sequencing, P2-Profiles, ESC-D renewed acceptance, and Step 3.5 are separate, subsequent items not started in this batch.
 
 **Defect: env-var casing in subprocess environment (found during C1 review).**
 While reviewing Slice C1 completion evidence on 2026-09-16 (America/Toronto),
@@ -265,3 +270,228 @@ passes: Ruff, format and strict mypy clean, all 2,879 tests passing, 90%
 combined coverage. Remediation (1) — upgrading the real local database itself
 — remains a separate, optional operational step for the project owner and was
 not performed by the agent.
+
+## 12. Contract Amendment A1 — Watchlist Entry Model
+
+**Status:** authorized by the project owner on 2026-09-19 (America/Toronto);
+implementation not yet started (slices I1-I3 below).
+
+**Trigger.** Reviewing H's own `docs/user/WORKSPACE.md` deliverable
+(2026-09-19) surfaced that §3's "selections are watchlist-wide" model does
+not serve users well: watchlist creation materializes three methods a user
+did not choose (§3's original third bullet — Momentum, Graham Number, and
+FCF/Earnings Growth were simply the first three methods this project
+happened to implement, not a considered default set), the same method
+cannot be configured differently for different tickers or compared across
+providers on one watchlist, and per-method configuration required writing a
+JSON file to disk before running a command (§3's original fourth bullet).
+Per §10's own protocol — "If the frozen interface cannot work, document the
+concrete conflict and stop for a contract amendment" — this is that
+amendment, discovered during H's own review before final Step 3.4
+acceptance was granted. It supersedes §3's second, third, and fourth
+bullets and the file-based config-JSON paragraph in the "Method/config
+matrix" subsection (each struck through in place with a pointer to this
+section). §3's other provisions — ticker/name normalization, `AnalysisRequest`'s
+shape, the method/config canonical-identifier matrix itself, snapshot/redaction
+rules, and refresh's frozen-read/no-dedup semantics — are unchanged.
+
+**New model.** A watchlist holds one ordered list of entries, not two
+separate properties. Each entry is `{position, ticker, selection}`:
+`position` is a stable ordinal unique within its watchlist. Stored/internal
+`position` stays 0-based, matching the existing `watchlist_members`/
+`watchlist_selections` position-column convention it replaces; every
+user-facing surface (`watchlist show`'s display and the `INDEX` argument to
+`remove-entry`) instead shows and accepts a 1-based number derived from it
+(displayed index = `position + 1`; a supplied index N addresses stored
+`position` N-1) — a non-technical investor reads and counts entries as an
+ordinary numbered list, never a zero-based one. `ticker` and `selection` are
+exactly as validated today. The same method may appear more than once
+within a watchlist (different tickers, or the same ticker with a different
+provider/config); the previous "one selection per method" constraint is
+removed. `refresh`/execution read the entry list directly; there is no
+implicit cross product of two separate lists.
+
+**Creation.** `watchlist create NAME` with no further arguments creates an
+empty watchlist — zero entries, no method materialized by default.
+`watchlist create NAME --analysis METHOD [method-specific flags] TICKER...`
+additionally seeds the new watchlist with one entry per given ticker for
+that method, in the same command. Method-specific flags mirror the
+corresponding direct command's own flags exactly, including which are
+required (for example, `graham-growth` requires `--expected-growth`/
+`--aaa-yield` here exactly as the direct command already requires them); a
+method missing a required flag is a usage error exactly as the direct
+command's own validation already produces — no separate "unsupported at
+creation" rejection list is needed.
+
+**Editing.** `watchlist add-selection NAME --analysis METHOD
+[method-specific flags] TICKER...` appends one entry per given ticker to an
+existing watchlist — the same one-command fan-out as creation, for the
+common single-method/multiple-ticker case. `watchlist remove-entry NAME
+INDEX` removes exactly one entry by its displayed 1-based index (as shown by
+`watchlist show`). `watchlist remove NAME
+TICKER...` removes every entry for the given ticker(s) (bulk, across every
+method — preserving the old command's bulk convenience). `watchlist disable
+NAME --analysis METHOD` removes every entry for the given method (bulk,
+across every ticker — likewise preserved). `watchlist configure` and its
+file-based `--config PATH` are retired; there is no in-place edit of one
+entry's configuration — replace it with `remove-entry` followed by
+`add-selection`.
+
+**Display.** `watchlist show NAME [--group-by ticker|method] [--json]`;
+default `--group-by ticker`. Text output groups entries under their ticker
+(or method, if requested) for readability; `--json` emits the flat, ordered
+entry list, each carrying the same 1-based `index` a human sees and would
+type back into `remove-entry` — not the raw internal 0-based `position` —
+so there is one number to learn across text, JSON, and command input alike.
+
+**Persistence.** A new migration replaces `watchlist_members`/
+`watchlist_selections` with one `watchlist_entries` table: `(watchlist_id,
+position)` primary key, `ticker`, `method_id`, `config_schema_version`,
+`selection_json` columns, matching the existing schema's non-blank/
+JSON-object check-constraint conventions. Upgrade is lossless: every
+existing watchlist's member-position-then-selection-position cross product
+becomes its entries list in that exact order, so no watchlist created under
+the old model changes behavior. Downgrade is the inverse where the data
+still forms a clean cross product; a watchlist that has since diverged
+(duplicate methods, gaps) cannot roll back losslessly, and the downgrade
+must fail loudly rather than silently drop data, matching C1's own
+established "reject rather than corrupt" convention.
+
+**Effect on already-accepted work.** `refresh_watchlist` (G1) changes by one
+line — the job list is read directly from `watchlist.entries` instead of
+computed as a cross product of `members`/`selections`. G2 (bounded
+concurrency), G3 (cancellation, CLI wiring, exit codes, output format), D1-D5
+(adapters/save service), and E1-E4 (replay) are unaffected: all operate on
+one `(ticker, selection)` pair, or an already-flattened job list, never on
+the watchlist's own internal shape.
+
+**I1/I2 boundary clarification (found during I1 planning, authorized by the
+project owner on 2026-09-19).** `cli_workspace.py`'s existing `add`/`remove`/
+`configure`/`disable` commands call repository methods
+(`add_members`/`remove_members`/`set_selection`/`disable_selection`) that
+have no coherent meaning once a ticker only exists as part of an entry —
+there is no interim shape that preserves their old behavior without
+prejudging I2's own command design. I1 therefore removes those four
+commands outright (rather than leaving them calling a deleted repository
+method, or building a throwaway interim semantic), keeping `create`/`list`/
+`show` working and adapted to render `.entries`. Watchlist add/remove/
+configure/disable are unavailable for the short window between I1 and I2;
+I2 restores equivalent and expanded capability under the new command names
+(`add-selection`, `remove-entry`, repurposed `remove`/`disable`, `show
+--group-by`).
+
+**Deferred, not included in this amendment.** Watchlist rename and delete
+were separately flagged during this review as a plain missing-CRUD gap;
+they are not part of Amendment A1 and remain open for a future, separately
+authorized change. The `--analysis` alias vs. canonical `method_id`
+vocabulary inconsistency across commands (`watchlist configure/disable`
+use hyphenated aliases; `runs list --method` uses the canonical identifier)
+was also separately flagged and is likewise not addressed here. Neither
+gap blocks I1-I3.
+
+Final Step 3.4 acceptance (previously targeted at H) is deferred until I3
+(see §9's slice table) completes. P2-Profiles, ESC-D renewed acceptance, and
+Step 3.5 remain unstarted until then, per §1's existing sequencing note.
+
+I1 (entry model, repository, migration) was implemented on 2026-09-19
+(America/Toronto) against its [completion evidence](SLICE_I1_COMPLETION_EVIDENCE.md)
+and accepted by the project owner the same day. `Watchlist.members`/
+`.selections` became one `entries: tuple[WatchlistEntry, ...]` field
+(`src/workspace/runs.py`); `default_selections()` was removed
+(`src/workspace/requests.py`); the repository (`src/data/repositories/watchlists.py`)
+was rewritten around `add_entries`/`remove_entry`/`remove_entries_for_ticker`/
+`remove_entries_for_method`, renumbering survivors contiguously on every
+removal so the amendment's `displayed index = position + 1` rule never
+drifts from stored positions; a new migration, `0003_watchlist_entries`,
+replaces `watchlist_members`/`watchlist_selections` with one table,
+upgrading existing watchlists losslessly (their old cross product becomes
+their entries list in the same order) and rejecting rather than corrupting
+a downgrade of a watchlist that has since diverged from a clean cross
+product. Implementing I1 surfaced that `cli_workspace.py`'s `add`/`remove`/
+`configure`/`disable` commands call repository methods with no coherent
+replacement under the new model; the project owner authorized removing
+those four commands outright within I1 (rather than an interim shim or
+merging I1/I2), keeping `create`/`list`/`show` working and adapted to the
+new model, with I2 restoring equivalent and expanded capability under new
+command names. `refresh_watchlist` (G1) changed by one line; G2/G3/D1-D5/
+E1-E4 were unaffected. Full managed gate: 3,056 tests passed, 91% combined
+coverage, with `cli_workspace.py`, the rewritten repository, the schema
+module, and `runs.py` all at 100% line/branch coverage.
+
+I2 (watchlist CLI surface) was implemented on 2026-09-19 (America/Toronto)
+against its [completion evidence](SLICE_I2_COMPLETION_EVIDENCE.md) and
+accepted by the project owner the same day. Entirely within
+`src/cli_workspace.py`:
+`create` gained an optional `--analysis METHOD [flags] TICKER...` seeding
+form; a new `add-selection` command provides the same one-command fan-out
+for an existing watchlist; `remove-entry NAME INDEX` removes one entry by its
+displayed 1-based index; `remove`/`disable` are repurposed onto the
+repository's bulk-by-ticker/bulk-by-method removal methods; `show` gained
+`--group-by ticker|method` and its `--json` output now carries an explicit
+1-based `index` per entry rather than the internal 0-based `position`.
+Method-specific flags mirror each direct command's own flags and validation
+exactly, including graham-growth's required `--expected-growth`/
+`--aaa-yield`; no `--config` file path exists anywhere in the module. Full
+managed gate: 3,086 tests passed, 91% combined coverage, with
+`cli_workspace.py` at 100% line/branch coverage.
+
+I3 (docs, test revisit, full regression) was implemented on 2026-09-20
+(America/Toronto) against its [completion evidence](SLICE_I3_COMPLETION_EVIDENCE.md)
+and accepted by the project owner the same day, carrying explicit final Step
+3.4 acceptance per its own §9 acceptance criteria — Step 3.4 is now complete,
+including the G3/H review that had remained outstanding since batch 4.
+`docs/user/WORKSPACE.md`'s "Watchlists" section and
+`docs/user/GLOSSARY.md`'s `Selection`/`Watchlist`/`Refresh` entries (plus a
+new `Entry` entry) were rewritten around the entry model and I2's commands,
+retiring the default-selection-materialization and file-based `--config`
+examples; `tests/test_workspace_integration.py`'s one full-workflow scenario
+now seeds its entries through the real `watchlist create --analysis`/
+`add-selection` commands instead of I1/I2's interim direct-repository
+seeding. Full managed gate: 3,086 tests passed, 91% combined coverage,
+identical to I2's run, confirming every previously-accepted slice's tests
+are unaffected. Amendment A1 (I1, I2, I3) is now complete end to end.
+
+**Related UX fixes made on this branch after I3, before final acceptance.**
+None of the following are Amendment A1 slices or otherwise part of this
+plan's own sequencing; each was raised, scoped, and separately authorized
+in conversation, gated with its own full managed run, and is recorded here
+only so this plan's history stays complete:
+
+- `financial-agents graham-number ... --save-run` against a database
+  needing a schema upgrade produced a message recommending raw `alembic`
+  over the project's own `financial-agents db upgrade`, using `--no-sync`
+  (a managed-agent-only convention), and omitting the target revision.
+  `src/data/repositories/readiness.py`'s `UPGRADE_REQUIRED` message was
+  rewritten to recommend `db upgrade`, name the target revision, and
+  correctly scope its concurrency caution to a single local SQLite file.
+- `runs show`/`runs list --refresh-id` given a shortened or mistyped
+  Analysis Run ID produced a message that did not say what a valid ID
+  looks like or name the affected parameter. `_parse_run_id` in
+  `src/cli_workspace.py` now states the expected format, points to `runs
+  list`/`refresh` for a valid ID, and carries a `param_hint`. Git-style
+  prefix matching for Analysis Run/refresh IDs was considered and
+  deliberately deferred; see
+  [DEFERRED_RUN_ID_PREFIX_MATCHING.md](../DEFERRED_RUN_ID_PREFIX_MATCHING.md).
+- A broader structured-error-reporting gap for programmatic/agentic CLI
+  consumers was identified while reviewing the message above (a stable
+  `reason_code` exists, but `expected_revision`/`database_path` are not
+  exposed as JSON fields, and workspace commands have no JSON error
+  envelope at all). Deliberately deferred, not fixed on this branch; see
+  [DEFERRED_STRUCTURED_ERROR_REPORTING.md](../DEFERRED_STRUCTURED_ERROR_REPORTING.md).
+- `refresh` always saved every result with no opt-out, unlike direct
+  commands' opt-in `--save-run`. After considering and rejecting the
+  reverse change (defaulting direct commands to save, which would leave
+  every exploratory invocation as a permanent, undeletable row — Analysis
+  Runs have no delete/prune capability), `refresh` gained a `--no-save`
+  preview option instead. `RefreshJobResult` (`src/workspace/refresh.py`)
+  gained a third `outcome` state (executed, not persisted) alongside its
+  existing `run`/`error` states, threaded through both the sequential and
+  concurrent admission paths; `cli_workspace.py`'s refresh rendering shows
+  `(not saved)` in place of a fabricated run ID. Full managed gate: 3,092
+  tests passed, 91% combined coverage.
+- `docs/user/WORKSPACE.md` gained a "Saving vs. caching" section
+  disambiguating the two concepts for a non-technical reader (with a plain
+  ASCII flow diagram), and "Showing a watchlist" was reordered to
+  immediately follow watchlist creation — both to fix a reading-order
+  problem where later sections referenced concepts (watchlists, refresh)
+  before they were introduced.

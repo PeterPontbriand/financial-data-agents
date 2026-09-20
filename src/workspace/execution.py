@@ -68,6 +68,22 @@ _METHOD_VERSIONS: dict[tuple[str, str], tuple[int, int]] = {
 
 
 @dataclass(frozen=True)
+class BatchContext:
+    """Refresh/watchlist identity to attach to one run within a batch (G1+).
+
+    All four fields travel together because ``AnalysisRun`` itself requires
+    ``refresh_id``/``batch_position`` to be both set or both null, and
+    likewise for ``watchlist_id``/``watchlist_name``; a direct (non-refresh)
+    call to :func:`execute` passes no ``BatchContext`` at all.
+    """
+
+    refresh_id: UUID
+    batch_position: int
+    watchlist_id: UUID
+    watchlist_name: str
+
+
+@dataclass(frozen=True)
 class ExecutionCapture:
     """One method adapter's capture, normalized for envelope assembly.
 
@@ -115,13 +131,14 @@ def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
     return ExecutionCapture(native_evidence=capture.result, profile=capture.profile, outcome=capture.outcome)
 
 
-def execute(
+def execute(  # noqa: PLR0913
     request: AnalysisRequest,
     *,
     capture: Callable[[], ExecutionCapture],
     repository: AnalysisRunSink,
     id_factory: Callable[[], UUID] = uuid4,
     clock: Callable[[], datetime] | None = None,
+    batch: BatchContext | None = None,
 ) -> AnalysisRun:
     """Capture one method execution, assemble its envelope, and persist it.
 
@@ -134,6 +151,9 @@ def execute(
         id_factory: Produces the new run's identity; defaults to `uuid4`.
         clock: Produces aware UTC instants for `started_at`/`completed_at`;
             defaults to the wall clock.
+        batch: Refresh/watchlist identity for one job within a batch (G1+);
+            omitted entirely for a direct, non-refresh call, in which case
+            the run's refresh/batch/watchlist fields are all null.
 
     Returns:
         The exact `AnalysisRun` that was inserted.
@@ -152,6 +172,10 @@ def execute(
 
     run = AnalysisRun(
         analysis_run_id=id_factory(),
+        refresh_id=batch.refresh_id if batch is not None else None,
+        batch_position=batch.batch_position if batch is not None else None,
+        watchlist_id=batch.watchlist_id if batch is not None else None,
+        watchlist_name=batch.watchlist_name if batch is not None else None,
         ticker=request.ticker,
         analysis_id=selection.analysis_id,
         method_id=selection.method_id,
@@ -176,6 +200,7 @@ def execute(
 
 __all__ = [
     "AnalysisRunSink",
+    "BatchContext",
     "ExecutionCapture",
     "execute",
     "from_fcf_growth_capture",

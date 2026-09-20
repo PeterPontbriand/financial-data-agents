@@ -156,12 +156,31 @@ class RunQuery(_FrozenModel):
     offset: int = Field(default=0, ge=0)
 
 
+class WatchlistEntry(_FrozenModel):
+    """One (ticker, selection) pair within a watchlist, addressed by its own position.
+
+    An entry's position is its index within its watchlist's ``entries`` tuple —
+    there is no separate stored position field on the entry itself, mirroring
+    how the previous ``members``/``selections`` tuples never carried one
+    either. The same ``selection.method_id`` may appear on more than one
+    entry, whether for different tickers or for the same ticker with a
+    different provider/configuration (Amendment A1, §12): unlike the
+    superseded model, a watchlist no longer restricts itself to one
+    selection per method.
+    """
+
+    ticker: str
+    selection: AnalysisSelection
+
+
 class Watchlist(_FrozenModel):
-    """Ordered watchlist aggregate with distinct selections and unique members.
+    """Ordered watchlist aggregate: a name plus one ordered list of entries.
 
     ``display_name`` preserves the user's spelling while ``normalized_name`` is its
-    trimmed/casefolded form used for uniqueness; members keep their order and must be
-    unique, and each selection carries a distinct method identifier.
+    trimmed/casefolded form used for uniqueness. ``entries`` is the watchlist's
+    single property (Amendment A1, §12): each entry independently pairs one
+    ticker with one selection, so a watchlist no longer forces every member to
+    receive every selection.
     """
 
     watchlist_id: UUID
@@ -169,35 +188,25 @@ class Watchlist(_FrozenModel):
     normalized_name: str
     created_at: AwareDatetime
     updated_at: AwareDatetime | None = None
-    members: tuple[str, ...] = ()
-    selections: tuple[AnalysisSelection, ...] = ()
+    entries: tuple[WatchlistEntry, ...] = ()
 
     @model_validator(mode="after")
     def _validate_watchlist(self) -> "Watchlist":
-        """Enforce name normalization and uniqueness invariants (W1-W3)."""
+        """Enforce name normalization invariants (W1-W2)."""
         derived = self.display_name.strip().casefold()
         if not derived:
             raise ValueError("display_name must not be blank.")
         if self.normalized_name != derived:
             raise ValueError("normalized_name must equal display_name.strip().casefold().")
-
-        method_ids = [selection.method_id for selection in self.selections]
-        if len(method_ids) != len(set(method_ids)):
-            raise ValueError("selections must have distinct method_id values.")
-
-        if len(self.members) != len(set(self.members)):
-            raise ValueError("members must be unique.")
-
         return self
 
 
 class WatchlistSummary(_FrozenModel):
-    """Lightweight projection of a watchlist with member/selection counts."""
+    """Lightweight projection of a watchlist with an entry count."""
 
     watchlist_id: UUID
     display_name: str
-    member_count: int = Field(ge=0)
-    selection_count: int = Field(ge=0)
+    entry_count: int = Field(ge=0)
     created_at: AwareDatetime
     updated_at: AwareDatetime | None = None
 
@@ -207,5 +216,6 @@ __all__ = [
     "AnalysisRunSummary",
     "RunQuery",
     "Watchlist",
+    "WatchlistEntry",
     "WatchlistSummary",
 ]

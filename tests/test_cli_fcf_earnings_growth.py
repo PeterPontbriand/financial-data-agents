@@ -53,7 +53,7 @@ def _provider() -> ProductionFinancialFactsProvider:
 
 
 def test_cli_fcf_growth_runs_concise_and_json_from_same_typed_path() -> None:
-    with patch("src.cli._build_sec_production_provider", side_effect=[_provider(), _provider()]):
+    with patch("src.cli.build_sec_production_provider", side_effect=[_provider(), _provider()]):
         concise = runner.invoke(app, ["fcf-growth", "acme"])
         json_result = runner.invoke(app, ["fcf-growth", "ACME", "--json"])
 
@@ -74,7 +74,7 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
         instrument_name="Franklin FTSE Switzerland ETF",
     )
     with (
-        patch("src.cli._build_sec_production_provider", return_value=provider),
+        patch("src.cli.build_sec_production_provider", return_value=provider),
         patch("src.workspace.fcf_growth_execution.compose_graham_profile", return_value=profile),
         patch.object(provider, "fetch_facts", wraps=provider.fetch_facts) as fetch_facts,
     ):
@@ -92,7 +92,7 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
 
 
 def test_cli_fcf_growth_selects_per_share_classification_basis() -> None:
-    with patch("src.cli._build_sec_production_provider", return_value=_provider()):
+    with patch("src.cli.build_sec_production_provider", return_value=_provider()):
         result = runner.invoke(
             app,
             ["fcf-growth", "ACME", "--classification-basis", "fcf-per-share", "--json"],
@@ -126,7 +126,7 @@ def test_cli_fcf_growth_modes_are_mutually_exclusive() -> None:
 
 
 def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
-    with patch("src.cli._build_sec_production_provider", return_value=_provider()):
+    with patch("src.cli.build_sec_production_provider", return_value=_provider()):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--forward-policy", "hard-gate", "--json"])
 
     assert result.exit_code == 0
@@ -136,7 +136,7 @@ def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
 
 
 def test_cli_fcf_growth_rejects_unapproved_provider_without_network_work() -> None:
-    with patch("src.cli._build_sec_production_provider", return_value=_provider()):
+    with patch("src.cli.build_sec_production_provider", return_value=_provider()):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--data-provider", "massive"])
 
     assert result.exit_code == 1
