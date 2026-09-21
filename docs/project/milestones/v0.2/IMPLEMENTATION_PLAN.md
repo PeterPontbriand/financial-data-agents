@@ -18,7 +18,7 @@ retains earlier decisions and publication history.
 | 5 | Existing-analysis correctness | Initial audit/repair accepted; [renewal requirements](existing-strategy-correctness/EXISTING_STRATEGY_CORRECTNESS_PLAN.md#sequence-and-status) remain applicable. |
 | 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted. |
 | 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
-| 8 | Durable instrument profiles (P2-Profiles) | Not started; scope/contract review required. |
+| 8 | Durable instrument profiles (P2-Profiles) | Started 2026-09-20; scope/contract review (including item 8 below, Issue #33) is the immediate next activity. |
 | 9 | Existing-analysis renewal (ESC-D) | Required on the proposed screening starting revision; no unresolved correctness defects. |
 | 10 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for renewal acceptance. |
 | 11 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
@@ -136,13 +136,14 @@ See the [SQLite plan](step-3.1/STEP_3_1_SQLITE_SLICE_PLAN.md) and [field-level m
 
 ### 4.7A P2 – Durable Instrument Profiles & ETF Aggregate FCF Growth
 
-**P2-Profiles — durable instrument profiles:** Owns items 1–2 below and the
+**P2-Profiles — durable instrument profiles:** Owns items 1–2 and 8 below and the
 profile-specific fixtures in item 6. Before
 implementation, review the identity key, provider disagreement/precedence,
 freshness/invalidation, refresh, and historical-snapshot contract against the
 completed repository and data-quality boundaries. Acceptance requires migrated
 storage, deterministic reopen/reuse and ticker-reuse tests, truthful retained
-provenance, and an immutable execution snapshot suitable for Analysis Runs.
+provenance, an immutable execution snapshot suitable for Analysis Runs, and the
+unified data-quality exception hierarchy in item 8.
 No ETF holdings ingestion or aggregation belongs to this deliverable.
 
 **P2-ETF — ETF aggregation strategy:** Owns items 3–5, holdings/aggregate fixtures
@@ -161,6 +162,7 @@ speculative ETF schemas or infrastructure while implementing P2-Profiles or 3.4.
 5. Keep selection explicit and auditable. A company-level FCF request for a known ETF remains `not_applicable`; it must not silently invoke the aggregate strategy. Any later convenience routing belongs at the orchestration layer and requires its own reviewed selection behavior.
 6. Add deterministic holdings/profile fixtures and independently verified aggregate expectations. Live providers and mutable caches remain excluded from deterministic tests and Golden fixture truth.
 7. Revisit Golden coverage only after the strategy's contracts and production behavior pass their own review gate. Add cases through the existing review-directed expansion process rather than changing the original benchmark retrospectively.
+8. Standardize data-quality validation failures under a single exception hierarchy (a `DataQualityError` base with focused subclasses) so `cached_client`, the Momentum analyzer, and financial-input resolvers raise consistent, orchestrator-catchable errors instead of the current mix of `DataFetchError` and bare `ValueError`. Carry the underlying quality-decision/failure reason on the exception and update the affected unit tests accordingly. Discovered during Step 3.3 review (Issue #33).
 
 **P2 non-goals:** treating an ETF as an operating company, deriving holdings from an instrument name, hiding incomplete constituent coverage, using an LLM for aggregation mathematics, silently substituting the ETF strategy, or coupling strategy calculators directly to SQLite.
 
