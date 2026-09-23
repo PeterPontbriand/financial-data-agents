@@ -28,6 +28,7 @@ for what each stands for.
 | Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
 | Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
 | Deferred | [Prefix matching for Analysis Run/refresh IDs](DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
+| Deferred | [Deduplicate Momentum's instrument-profile composition sites](DEFERRED_MOMENTUM_PROFILE_COMPOSITION_DEDUPLICATION.md) | Not started; discovered 2026-09-21 during P2-Profiles Slice D reconnaissance, raised again in PR #39 review. Scope/contract review required; not a validation prerequisite. |
 
 ## 1. Purpose & Scope
 

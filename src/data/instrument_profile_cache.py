@@ -252,7 +252,15 @@ class CachedInstrumentProfileResolver:
             return live
 
     def _lock_for(self, ticker: str) -> threading.Lock:
-        """Return this instance's serialization lock for one normalized ticker."""
+        """Return this instance's serialization lock for one normalized ticker.
+
+        ``_ticker_locks`` is never pruned: it grows by one entry per distinct
+        ticker ever resolved through this instance. That is a deliberate,
+        bounded assumption for today's callers — one resolver per CLI
+        invocation or per watchlist refresh, both short-lived processes — not
+        an oversight. Reusing one instance across a long-lived process with
+        an unbounded ticker universe would need eviction added here.
+        """
         with self._locks_guard:
             lock = self._ticker_locks.get(ticker)
             if lock is None:
