@@ -28,16 +28,20 @@ direct command.
 
 Per the plan's own renewal requirement (§4: "Renewal reviews accumulated changes, lifecycle
 behavior, output examples and freshness on the actual proposed starting revision"), this is
-not a rubber stamp. Reconnaissance already surfaced one confirmed, previously-undecided
-regression — **ESC-18** (`ESC_A_DEFECT_LEDGER.md`): P2-Profiles' `DataQualityError`
-reclassification silently changed Momentum's provider-error message and JSON `reason_code`
-for one failure scenario, because the CLI's `execution_errors()` boundary was never updated
-to recognize the new exception type. ESC-18 has been logged and repaired (full gate: 3,124
-passed, 91% coverage) ahead of this plan, since its disposition was already decided.
+not a rubber stamp. Initial reconnaissance raised **ESC-18** (`ESC_A_DEFECT_LEDGER.md`) as an
+apparent regression in Momentum's provider-error message, reasoned from a git diff without
+confirming the affected branch was reachable; ESC-D.4's own live testing later found that
+branch was unreachable dead code both before and after P2-Profiles, and ESC-18 was corrected
+in the ledger accordingly — no real regression existed there. The harmless defensive fix made
+for it was kept; the dead-code discovery itself was escalated into a new repository-wide **R3**
+work package (`IMPLEMENTATION_PLAN.md` row 10) rather than folded into this audit's scope.
 
-Given that a targeted-inspection pass already found one live, unreviewed regression, and per
-the project owner's explicit direction, ESC-D re-runs the **complete** audit matrix from
-`EXISTING_STRATEGY_CORRECTNESS_PLAN.md` §3 — all seven dimensions across all four analyses —
+The decision to run the complete matrix rather than a targeted pass is nonetheless validated on
+its own terms: ESC-D.2's live testing of Graham Number found and repaired a genuine, previously
+undetected defect (**ESC-19** — JSON's failure reason was less specific than text modes for the
+same blocker), independent of ESC-18. Per the project owner's explicit direction, ESC-D re-runs
+the **complete** audit matrix from `EXISTING_STRATEGY_CORRECTNESS_PLAN.md` §3 — all seven
+dimensions across all four analyses —
 on the current revision, rather than limiting re-verification to the files the diff makes
 look safe by inspection.
 
