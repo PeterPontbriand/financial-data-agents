@@ -271,6 +271,5 @@ Ran the complete managed gate one final time on the current revision: ruff and m
 `ESC_A_DEFECT_LEDGER.md` is left with an unresolved disposition. Full acceptance evidence,
 reconciled across all six ESC-D slices, is recorded in
 [ESC_D_FINAL_ACCEPTANCE.md](ESC_D_FINAL_ACCEPTANCE.md), mirroring `ESC_C_FINAL_ACCEPTANCE.md`'s
-structure. ESC-D's renewal work is evidence-complete; final acceptance is a project-owner
-decision, matching the project's established gate convention (P2-Profiles' Gate A/final
-acceptance pattern) — not self-granted here.
+structure. **Final acceptance for ESC-D was granted by the project owner on 2026-09-23**,
+clearing `IMPLEMENTATION_PLAN.md` row 9 to "Complete and accepted" and unblocking row 10 (R3).

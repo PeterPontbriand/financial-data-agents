@@ -26,3 +26,9 @@ Renewal scope, sequencing, and per-slice evidence: [ESC-D renewal plan](ESC_D_RE
 
 These are documented evidence/capability limits, not deferred known repairs. Live checks do not
 certify universal upstream data accuracy or the absence of all future defects.
+
+## Final acceptance
+
+Final acceptance for ESC-D was granted by the project owner on 2026-09-23, clearing
+`IMPLEMENTATION_PLAN.md` row 9 to "Complete and accepted" and unblocking row 10
+(repository-wide dead code audit, R3), which is no longer required to wait on this renewal.
