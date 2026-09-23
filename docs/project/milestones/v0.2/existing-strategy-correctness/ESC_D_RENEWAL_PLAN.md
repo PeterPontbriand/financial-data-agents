@@ -171,3 +171,31 @@ did not change.
 
 ESC-D.2 is complete with one new finding (ESC-19, logged and repaired). Proceeding to ESC-D.3
 (Graham Growth, full seven-dimension matrix) next.
+
+## 8. ESC-D.3 evidence — Graham Growth, full seven-dimension matrix
+
+`git diff 634164b..main -- src/analysis/strategy/graham_growth/` is empty: the analyzer and
+calculation/resolver modules are byte-identical to the ESC-C-accepted baseline, same as Graham
+Number (§7). Investigated whether Graham Number's ESC-19 gap (JSON reason less specific than
+text) has a Growth equivalent: it does not, and this is a design difference rather than a defect.
+Growth's presenter has no `_growth_reason` upgrade function at all — both
+`_growth_concise_lines` (text) and `_growth_payload` (JSON) use the plain `reason` from
+`_effective_status_and_reason` directly, so text and JSON are already consistent with each other
+for Growth. Growth simply never had ESC-17-style component-specific messaging added, because
+Growth has no BVPS input for a "which component" breakdown to apply to; extending Number's BVPS-
+specific logic to Growth would not be meaningful. No ledger entry follows from this — it is a
+reviewed, accepted difference between the two methods, consistent with the project's existing
+heterogeneous-strategy-independence principle, not a gap.
+
+| Dimension | Current-revision evidence |
+| :--- | :--- |
+| Presentation | Live-checked concise/details/diagnostics/JSON for KO (success, `-g 6.5 -y 4.4`) against the same isolated disposable database. Text/JSON reason parity confirmed consistent (see above). |
+| Data lifecycle | Live-checked cache hit (repeated KO calls) and `--no-cache` bypass (`source_kind: derived`) on the current revision. |
+| Time | Live-checked `--as-of 2025-06-30`: EPS correctly restricted to the fiscal year available by that boundary (2025-02-20 availability), and current-price comparison correctly reported unavailable ("no current quote") for a historical request rather than substituting a live quote — matches `FINANCE_MATH.md`'s documented separation of historical-series data from current-market quotes. |
+| Inputs and applicability | Live-checked AAA-yield strict-positivity validation (`-y 0` and `-y -1` both correctly rejected, `invalid_input`, exit 1) and a large negative growth assumption producing a negative computed valuation P/E, correctly rejected by `calculation.py`'s own typed guard (`"Computed valuation P/E must be strictly positive (received -11.5)."`) — confirmed this is a deliberately authored domain message in unchanged production code, not a leaked raw exception, and is identical between text and JSON. |
+| Financial claims | Independent arithmetic re-verification against the live KO run: `growth value = 2.6566666666666667 × (8.5 + 2.0×6.5) × 4.4/4.4 = 57.11833333333333` (exact match); `margin_of_safety_percent = (57.11833333333333 − 88.61)/57.11833333333333 × 100 = -55.13407837530273` (exact match). Formula and constants (`base_pe=8.5`, `growth_multiplier=2.0`, `baseline_aaa_yield=4.4`) match `docs/user/FINANCE_MATH.md` §Graham Growth Value exactly, including the details view's own rendered formula line. |
+| Composition | Covered by ESC-D.1: `execute_graham_growth` preserves baseline's exact profile-composition-then-analyzer-invocation sequence, including the `policy` (growth assumptions) parameter now supplied by the caller via unchanged `cli_composition.growth_assumptions()`. |
+| Public contracts | Exit codes verified live: 0 for KO success and the historical as-of case, 1 for both AAA-yield-validation failures and the negative-valuation-P/E failure. `schema_version` unchanged. |
+
+ESC-D.3 is complete with no new finding. Proceeding to ESC-D.4 (Momentum, full seven-dimension
+matrix) next.
