@@ -206,6 +206,12 @@ package, its own contract document may further divide implementation into
 slices (`Slice A`, `Slice B1`, ...) — a local convention scoped to that one
 document, not a project-wide identifier.
 
+Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md`
+uses its own document-local `R1 → R2 → R3` sequence (evidence → implementation →
+verification), unrelated to the project-wide `R1`/`R2`/`R3` codes above — that
+document's own status line marks it closed, its evidence already folded into the
+Existing Strategy Correctness audit, so it carries no current sequencing meaning.
+
 The [research-workspace contract](milestones/v0.2/step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) defines watchlist, Analysis Run, replay and refresh interfaces with bounded implementation slices.
 
 ### **Milestone v0.2.5: Real-User Validation Checkpoint**
