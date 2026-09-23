@@ -22,7 +22,7 @@ for what each stands for.
 | 6 | [Database readiness (3.3A)](step-3.3a/STEP_3_3A_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted. |
 | 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
 | 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted; final acceptance granted 2026-09-22 (see [final summary](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#153-milestone-summary)). |
-| 9 | Existing-analysis renewal (ESC-D) | Not started; next in sequence now that P2-Profiles is accepted. Required on the proposed screening starting revision; no unresolved correctness defects. |
+| 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Scope drafted, pending review; ESC-18 (a `DataQualityError`-reclassification regression in Momentum's CLI error message, found during reconnaissance) logged and repaired ahead of the full renewal pass. Required on the proposed screening starting revision; no unresolved correctness defects. |
 | 10 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for renewal acceptance. |
 | 11 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
 | Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |

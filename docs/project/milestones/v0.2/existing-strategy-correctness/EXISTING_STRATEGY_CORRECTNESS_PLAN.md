@@ -9,7 +9,7 @@ Work-package order and status: [milestone plan](../IMPLEMENTATION_PLAN.md#sequen
 | Order | Scope | Local gate |
 | :--- | :--- | :--- |
 | ESC-A → ESC-B → ESC-C | Evidence/contracts; repairs; initial acceptance | Accepted |
-| ESC-D | Refresh lifecycle/output evidence and full gate on proposed starting revision | Pending explicit renewed acceptance; cross-package placement is in the milestone table |
+| ESC-D | [Refresh lifecycle/output evidence and full gate on proposed starting revision](ESC_D_RENEWAL_PLAN.md) | Scope drafted, pending review; cross-package placement is in the milestone table |
 
 ## 1. Scope and outcomes
 
