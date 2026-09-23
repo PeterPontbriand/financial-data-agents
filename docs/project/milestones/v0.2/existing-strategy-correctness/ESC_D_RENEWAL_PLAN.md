@@ -236,3 +236,30 @@ live network call — genuine composition-level evidence, not a mock of the deci
 
 ESC-D.4 is complete with no new finding (ESC-18, its original motivation, was corrected — see
 ledger). Proceeding to ESC-D.5 (FCF/Earnings Growth, full seven-dimension matrix) next.
+
+## 10. ESC-D.5 evidence — FCF/Earnings Growth, full seven-dimension matrix
+
+`git diff 634164b..main -- src/analysis/strategy/fcf_earnings_growth/` is empty: unchanged since
+the ESC-C baseline, consistent with all three other analyses (§7-§9). Live testing used an
+isolated disposable database, 2026-09-23 UTC. One environment-only artifact was found and ruled
+out: `fcf-growth --help` crashed with `UnicodeEncodeError` when this session's shell invoked
+Python through a legacy Windows console defaulting to `cp1252`; forcing `PYTHONIOENCODING=utf-8`
+rendered it correctly, confirming this is an artifact of this session's own shell invocation, not
+an application defect (the help text's `→` characters are unconditional plain Python strings,
+unaffected by any accumulated change) — not logged as a finding.
+
+| Dimension | Current-revision evidence |
+| :--- | :--- |
+| Presentation | Live-checked concise/details/diagnostics/JSON for KO across three distinct classification outcomes: FAIL (`total-fcf` basis, default horizon), FAIL with ESC-09's basis-aware reason text (`--classification-basis fcf-per-share`, confirmed the reason correctly says "per diluted share"), and PASS (`--as-of 2024-06-30`). Also confirmed INDETERMINATE for an invalid ticker, sanitized ("No usable operating_cash_flow facts were returned", exit 1). |
+| Data lifecycle | Live-checked cache hit and `--no-cache` bypass (`source_kind: provider` confirmed). |
+| Time | Live-checked `--as-of 2024-06-30`: correctly excluded FY2024/FY2025 (not yet available by that boundary) and correctly selected FY2018-FY2023 instead, producing a genuinely different, independently verified classification (PASS instead of FAIL) — direct proof the `as_of` boundary prevents look-ahead bias rather than merely relabeling the same data. |
+| Inputs and applicability | Live-checked explicit `--growth-years 3` (strict horizon, correctly restricted to FY2022-FY2025/4 observations, no fallback). No override options exist for FCF's annual series (confirmed via `--help`), consistent with the method's design. |
+| Financial claims | Independent arithmetic against the live KO run's full-precision JSON evidence, for both the FAIL and PASS cases: FY2020 FCF `9,844,000,000 − 1,177,000,000 = 8,667,000,000` (exact match, confirms `operating_cash_flow − normalized_capital_expenditures`); 5-year FCF CAGR `(5,296,000,000/8,667,000,000)^(1/5) − 1 ≈ -9.38%` (matches `-9.381715561220638` exactly); FCF-per-share CAGR `≈ -9.34%` (matches `-9.339733479530066`); diluted-EPS CAGR `≈ +11.17%` (matches `11.17422496891589`); PASS-case 5-year FCF CAGR `(9,747,000,000/6,079,000,000)^(1/5) − 1 ≈ +9.90%` (matches `9.902548818949697`). All formulas match `docs/user/FINANCE_MATH.md` §Free Cash Flow & Earnings Growth Strategy exactly. |
+| Composition | Covered by ESC-D.1: `execute_fcf_growth` preserves baseline's exact profile-composition-then-analyzer-invocation sequence, including the confirmed-genuine asymmetry that FCF never re-reads `result.instrument_profile` after the analyzer call (unlike Graham Number/Growth). |
+| Public contracts | `schema_version: 5`, `result_schema_version: 3` unchanged, matching `execution.py`'s recorded `_METHOD_VERSIONS` mapping. Exit codes verified live: 0 for both PASS and FAIL classifications (financial signal, not execution failure — matches `classify_fcf_growth_outcome`'s documented design), 1 for the genuinely unavailable-data case. |
+
+ESC-D.5 is complete with no new finding. All four analyses' full seven-dimension matrices
+(ESC-D.2 through ESC-D.5) are now done, with one new defect found and repaired (ESC-19) and one
+initial finding corrected (ESC-18, superseded — see ledger). Proceeding to ESC-D.6
+(reconciliation, cross-analysis dated live checks, complete managed gate, and final ESC-D
+acceptance record) next.
