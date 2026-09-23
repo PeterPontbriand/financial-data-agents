@@ -143,3 +143,31 @@ implementation, not by trusting adapter docstrings:
 No new discrepancy was found in this slice beyond ESC-18 (already logged and repaired ahead of
 this plan). ESC-D.1 is complete; proceeding to ESC-D.2 (Graham Number, full seven-dimension
 matrix) next.
+
+## 7. ESC-D.2 evidence — Graham Number, full seven-dimension matrix
+
+`git diff 634164b..main -- src/analysis/strategy/graham_number/` is empty: the analyzer,
+calculation/resolver, config, and service modules are byte-identical to the ESC-C-accepted
+baseline. `src/data/sec_edgar/`, `src/data/financial/`, and `src/analysis/shared/` are likewise
+completely unchanged. The only changed surface reaching Graham Number is CLI-level composition
+(`src/cli_composition.py`, a new file), confirmed line-for-line identical in content to
+baseline's private `_build_sec_production_provider`/`_build_massive_production_provider`/
+`_build_graham_resolver`/`_growth_assumptions` (relocated and made public for reuse by
+`cli_workspace.py`'s refresh executor, no logic changed), plus what ESC-D.1 already verified
+(the execution adapter and profile-cache wiring). Given this, the matrix below leans on ESC-C's
+already-accepted evidence for the unchanged calculation/resolution core and adds fresh,
+dated verification on the current revision rather than re-deriving coverage that provably
+did not change.
+
+| Dimension | Current-revision evidence |
+| :--- | :--- |
+| Presentation | Live-checked concise/details/diagnostics/JSON for KO (success) and MSFT `--as-of 2025-12-31` (failure) against an isolated disposable database, 2026-09-23 UTC. Found and repaired **ESC-19**: JSON's failure `reason` was less specific than text modes for the same blocker. Existing suite: `tests/reporting/test_graham_presenter.py`, `tests/reporting/test_graham_number_basis_summary.py`, `tests/reporting/test_graham_concise_hierarchy.py`. |
+| Data lifecycle | Live-checked cache hit (repeated KO calls against one disposable database) and `--no-cache` bypass (confirmed `source_kind: derived`/`provider` instead of `cache`) on the current revision. Cold/expired/legacy-metadata/provider-failure-during-refresh cases rely on unchanged `tests/analysis/graham_value/test_cache.py`, `test_resolver.py`, `test_facts.py` (calculation module byte-identical to baseline). |
+| Time | Live-checked `--as-of 2025-12-31` fiscal-period-eligibility boundary against MSFT (reproducing ESC-17's original scenario) — EPS basis correctly restricted to fiscal years available by that boundary. Unchanged `tests/analysis/graham_value/test_resolution_trace.py`, `test_bvps_basis_semantics.py`. |
+| Inputs and applicability | Live-checked `--eps`/`--bvps` explicit overrides (values used exactly, correctly labeled `user override (user supplied; not provider verified)`, both warnings rendered). Zero/negative-input `NOT_APPLICABLE` handling (`_number_reason` lines 936-949 of `src/reporting/graham.py`) and missing-preferred-share guard rely on unchanged `test_sec_bvps_hardening.py`, `test_calculators.py`. |
+| Financial claims | Independent arithmetic re-verification against the live KO run's full-precision JSON evidence: three-year-average EPS `(2.47+2.46+3.04)/3 = 2.6566666666666667` (exact match); BVPS `32,169,000,000 / (7,040,000,000 − 2,738,000,000) = 7.47768479776848` (exact match, common shares outstanding correctly derived as issued minus treasury, preferred shares correctly guarded to zero from verified absence-of-preferred-concepts evidence rather than assumed); Graham Number `sqrt(22.5 × 2.6566666666666667 × 7.47768479776848) = 21.14186862097603` (independently recomputed, matches); `margin_of_safety_percent = (21.14186862... − 88.61) / 21.14186862... × 100 = -319.1209471053333` (independently recomputed, matches, correct sign displayed as "319.12% above" per the documented convention). All formulas match `docs/user/FINANCE_MATH.md` §Graham Number exactly. |
+| Composition | Covered by ESC-D.1: `execute_graham_number` preserves baseline's exact profile-composition-then-analyzer-invocation sequence; `compose_graham_profile`'s default path is byte-identical to baseline's `_compose_analysis_profile`. |
+| Public contracts | Exit codes verified live: 0 for KO success, 1 for MSFT `input_unavailable` (both text and JSON modes). `schema_version: 5` unchanged. JSON `reason` field now consistent with text modes (ESC-19). No persistence/dependency change required. |
+
+ESC-D.2 is complete with one new finding (ESC-19, logged and repaired). Proceeding to ESC-D.3
+(Graham Growth, full seven-dimension matrix) next.
