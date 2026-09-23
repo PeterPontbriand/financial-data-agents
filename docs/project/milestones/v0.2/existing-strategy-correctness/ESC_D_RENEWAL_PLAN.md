@@ -94,3 +94,52 @@ ESC-D.1 (cross-cutting adapters/persistence/cache) is placed first because every
 findings depend on trusting that layer. If review disagrees with that ordering, or wants any
 slice split further (e.g., separating Analysis Run replay from `--save-run` itself), say so
 before ESC-D.1 begins.
+
+**Resolved 2026-09-23:** ESC-D.1 stays as one slice; project owner authorized proceeding.
+
+## 6. ESC-D.1 evidence — cross-cutting adapters, persistence, replay, and profile cache
+
+Verified by direct diff against the ESC-C baseline (`634164b`) and by reading the current
+implementation, not by trusting adapter docstrings:
+
+- **All four method adapters** (`src/workspace/graham_number_execution.py`,
+  `graham_growth_execution.py`, `fcf_growth_execution.py`, `momentum_execution.py`) preserve the
+  baseline's exact profile-composition-then-analyzer-invocation sequence on the default (no
+  `profile_cache`, no `--save-run`) path. Confirmed line-for-line against baseline's
+  `_run_graham_number`, `_run_graham_growth`, the inline `fcf-growth` command body, and the
+  inline `momentum` command body. FCF's documented asymmetry — it never reads
+  `result.instrument_profile` back after the analyzer call, unlike Graham Number/Growth's
+  `analysis.instrument_profile or composed_profile` fallback — is confirmed genuine baseline
+  behavior, not an adapter-introduced bug.
+- **`compose_graham_profile`** (`src/workspace/graham_shared.py`) reproduces baseline's
+  `_compose_analysis_profile` byte-for-byte on its default path; the new `profile_cache`
+  parameter only changes behavior when a caller explicitly supplies one (`--save-run` and
+  refresh), never on the plain direct-command path.
+- **`_maybe_save_run`/`execute()`** (`src/cli.py`, `src/workspace/execution.py`) call the same
+  adapter function exactly once and reuse its own return value (`holder[0]`) for rendering;
+  persistence never substitutes a different value than what the non-saving path would have
+  rendered, and a capture/storage exception propagates uncaught rather than being converted
+  into a fabricated stored record.
+- **Replay purity** (`src/reporting/analysis_runs.py::project_run`): Momentum's replay sets
+  `use_captured_spread=True` and reads `sma_spread`/`sma_spread_percent` from the run's own
+  stored `presentation_inputs`, with type-checked validation on reopened rows, never
+  recomputing from `evidence.metrics`. Graham Number/Growth replay applies the same
+  `friendly_graham_failure`/`*_with_public_quote_reason` helpers used by the direct commands to
+  the run's own stored `assembly`, not to a freshly computed one.
+- **`friendly_graham_failure`, `*_with_public_quote_reason`, `_public_quote_reason`**
+  (`src/reporting/graham.py`): confirmed byte-for-byte relocations of baseline's private
+  `_friendly_graham_failure`/`_*_with_public_quote_reason`/`_public_quote_reason` functions from
+  `src/cli.py`, made public (no leading underscore) so `analysis_runs.py` can reuse them for
+  replay. No logic changed in the move.
+- **`MomentumPresentation`'s new fields** (`use_captured_spread`, `captured_sma_spread`,
+  `captured_sma_spread_percent`, `src/reporting/momentum.py`) default to `False`/`None`, so
+  every existing direct-command call site computes the spread from `metrics` exactly as before;
+  only `project_run` sets them.
+- Refresh/watchlist's own use of the profile cache is not re-verified here: its
+  concurrency-safety was already established and tested under P2-Profiles (Slice D, the
+  per-ticker locking fix and its `ThreadPoolExecutor` regression test), which ESC-D treats as
+  standing evidence rather than repeating.
+
+No new discrepancy was found in this slice beyond ESC-18 (already logged and repaired ahead of
+this plan). ESC-D.1 is complete; proceeding to ESC-D.2 (Graham Number, full seven-dimension
+matrix) next.
