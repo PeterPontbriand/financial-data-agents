@@ -263,3 +263,14 @@ ESC-D.5 is complete with no new finding. All four analyses' full seven-dimension
 initial finding corrected (ESC-18, superseded — see ledger). Proceeding to ESC-D.6
 (reconciliation, cross-analysis dated live checks, complete managed gate, and final ESC-D
 acceptance record) next.
+
+## 11. ESC-D.6 — reconciliation and final acceptance record
+
+Ran the complete managed gate one final time on the current revision: ruff and mypy clean,
+**3,127 tests passed, 91% coverage** (`.tmp/quality-runs/20260923221856-1973-4277/`). No entry in
+`ESC_A_DEFECT_LEDGER.md` is left with an unresolved disposition. Full acceptance evidence,
+reconciled across all six ESC-D slices, is recorded in
+[ESC_D_FINAL_ACCEPTANCE.md](ESC_D_FINAL_ACCEPTANCE.md), mirroring `ESC_C_FINAL_ACCEPTANCE.md`'s
+structure. ESC-D's renewal work is evidence-complete; final acceptance is a project-owner
+decision, matching the project's established gate convention (P2-Profiles' Gate A/final
+acceptance pattern) — not self-granted here.
