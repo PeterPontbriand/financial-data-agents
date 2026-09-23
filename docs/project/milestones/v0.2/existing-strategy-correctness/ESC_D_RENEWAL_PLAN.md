@@ -203,3 +203,36 @@ heterogeneous-strategy-independence principle, not a gap.
 
 ESC-D.3 is complete with no new finding. Proceeding to ESC-D.4 (Momentum, full seven-dimension
 matrix) next.
+
+## 9. ESC-D.4 evidence — Momentum, full seven-dimension matrix
+
+`git diff 634164b..main -- src/analysis/strategy/momentum/` and `src/data/yfinance/` are both
+empty: the analyzer and the historical-price provider are byte-identical to the ESC-C baseline.
+The only changed dependency is the caching/error-boundary layer already investigated for ESC-18
+(§ledger; corrected — the affected branch was unreachable dead code, tracked separately as R3),
+plus what ESC-D.1 already verified for the new `use_captured_spread` replay mechanism.
+
+Live testing hit a genuine, reproducible current-data condition: every live `momentum` request
+today (2026-09-23) fails with a sanitized historical-quality rejection, because the most recent
+available trading day (2026-09-22) has non-finite OHLC values across every ticker tried (KO,
+AAPL) — a real upstream data-quality event, not a bug, and Momentum has no `--as-of` option to
+truncate around it. This gave direct, dated live evidence of the failure path (below) but ruled
+out a live success-path check today. Per the plan's own established convention for exactly this
+constraint (`ESC_A_DEFECT_LEDGER.md`'s ESC-06/12 durable reproduction recipe: "Call
+`MomentumAnalyzer().run_analysis(...)` with ... consecutive dates. No fetch is needed."), the
+success path and the new replay mechanism were verified with the real, unmodified production
+analyzer, adapter, and replay functions against a constructed clean price fixture instead of a
+live network call — genuine composition-level evidence, not a mock of the decision under test.
+
+| Dimension | Current-revision evidence |
+| :--- | :--- |
+| Presentation | Live-checked concise/details/diagnostics/JSON for the current data-quality rejection (KO and AAPL, 2026-09-23 UTC): sanitized message names the affected fields and date ("Close at 2026-09-22T00:00:00...") without leaking raw values, `reason_code: historical_quality`, exit 1 — matches ESC-11's contract exactly on the current revision. |
+| Data lifecycle | The live rejection is itself dated evidence of "provider failure during refresh"-class handling. Cache hit/expiry/legacy-metadata cases rely on unchanged `tests/data/test_cached_client.py`. |
+| Time | Not applicable to Momentum by design (no `--as-of`); the analyzer always evaluates the latest available window, confirmed unchanged in `momentum_analyzer.py`. |
+| Inputs and applicability | Offline production-composition check (`MomentumAnalyzer.run_analysis` with a 13-observation constructed fixture, short=3/long=5/rsi=3): correctly requires a valid previous SMA pair before reporting a crossover (ESC-06/12, unchanged). |
+| Financial claims | Independent arithmetic against the real analyzer's output: `short_sma = mean(last 3 closes) = 16.666666666666668` (exact match); `long_sma = mean(last 5 closes) = 15.8` (exact match); `RSI = 100 - 100/(1 + mean_gain/mean_loss)` over the last 3 changes, simple (non-Wilder) mean, `= 66.66666666666666` (exact match) — matches `docs/user/FINANCE_MATH.md` §Momentum exactly, including the simple-mean-not-Wilder-smoothing convention. |
+| Composition | **New, ESC-D-specific verification**: ran the real `run_momentum` → `capture_momentum` → `from_momentum_capture` → a genuine assembled `AnalysisRun` → the real `project_run` replay function end-to-end. Live (direct-command) rendering and replayed rendering produced byte-identical `sma_spread`/`sma_spread_percent` in both text and JSON (`0.8666666666666671` / `5.485232067510552`, exact match) — proves `use_captured_spread` genuinely prevents replay from recomputing a financial value, the guarantee that field exists to provide. |
+| Public contracts | `schema_version: 4` unchanged from ESC-C's recorded value; the new presenter fields are internal dispatch flags, not new JSON keys — `sma_spread`/`sma_spread_percent` are the same keys as before, only their computation source changed. Exit code 1 confirmed for the live rejection. |
+
+ESC-D.4 is complete with no new finding (ESC-18, its original motivation, was corrected — see
+ledger). Proceeding to ESC-D.5 (FCF/Earnings Growth, full seven-dimension matrix) next.
