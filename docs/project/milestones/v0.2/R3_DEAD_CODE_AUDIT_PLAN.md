@@ -7,9 +7,9 @@ work package.
 [the defect ledger](existing-strategy-correctness/ESC_A_DEFECT_LEDGER.md)).
 **Why scheduled here:** deliberately placed before Step 3.5, which adds five new
 quantitative-screen analyzers, so this audit covers a smaller, more tractable codebase than it
-would after that expansion. See `docs/project/MASTER_PLAN.md`'s "Reading work-package
-identifiers" for how this `R3` code relates to (and is unrelated to) other `R`-prefixed
-identifiers in this project.
+would after that expansion. See this milestone's own
+[work-package identifiers list](IMPLEMENTATION_PLAN.md#sequence-and-status) for how this `R3` code
+relates to (and is unrelated to) other `R`-prefixed identifiers in this project.
 
 ## Trigger
 
@@ -25,9 +25,9 @@ ESC-D, since removing it is not an output-correctness concern within that audit'
 
 That one confirmed instance was found only because an unrelated investigation happened to trace
 through that exact function. There has been no deliberate, repository-wide search for other
-unreachable code, and none is currently planned before Step 3.5 substantially grows `src/`. The
-longer unreachable code accumulates, the more it can mislead a future reader (or agent) about
-what a code path actually does, and the larger and more error-prone a first audit becomes.
+unreachable code before now. The longer unreachable code accumulates, the more it can mislead a
+future reader (or agent) about what a code path actually does, and the larger and more
+error-prone a first audit becomes — which is exactly why this plan exists.
 
 ## Likely scope, once picked up
 

@@ -6,7 +6,7 @@
 scope, sequencing, and status for this project. Every candidate strategy, platform feature, or
 cleanup item listed below needs its own specification and explicit approval before any
 implementation begins — inclusion here is not that approval. Where an item below has already
-been scoped and approved as a real work package (for example [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
+been scoped and sequenced as a real work package (for example [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
 or [PKG](milestones/v0.2/PKG_RENAME_PLAN.md)), that work package's own document is authoritative
 and this backlog defers to it rather than duplicating its scope.
 
@@ -98,7 +98,7 @@ differentiators.
 Library-readiness cleanup (renaming the top-level `src` package, injecting the clock into
 `run_analysis`, moving import-time configuration reads into explicit construction, typing the
 analyzer result instead of returning `Any`, and the `pyproject.toml` license correction) is not
-listed as a candidate here: it is already scoped as two approved work packages,
+listed as a candidate here: it is already scoped and sequenced as two work packages,
 [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) and
 [PKG](milestones/v0.2/PKG_RENAME_PLAN.md), sequenced after R3 and before Step 3.5. Those documents
 are authoritative for this scope; see "Suggested priorities" below for why that sequencing was

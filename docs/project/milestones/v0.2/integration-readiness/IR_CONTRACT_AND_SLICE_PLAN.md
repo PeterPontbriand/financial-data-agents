@@ -5,10 +5,11 @@ consumable by an external harness (backtester, optimizer, or other automated con
 without turning this project into that harness.
 
 Local sequence and status: this document. Cross-package placement is in the
-[milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status). A separately drafted
-[candidate backlog](../../../EVIDENCE_PROVIDER_ROADMAP.md) independently arrived at overlapping
-"library-readiness" observations; where its scope duplicated this document's, this document
-remains the authoritative source and the backlog defers to it.
+[milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status). A later, separately drafted
+[candidate backlog](../../../EVIDENCE_PROVIDER_ROADMAP.md) drew on the same originating review and
+surfaced overlapping "library-readiness" observations, not an independent conclusion; where its
+scope duplicated this document's, this document remains the authoritative source and the backlog
+defers to it.
 
 ## 1. Origin and framing
 
@@ -140,8 +141,9 @@ next begins, matching this project's established slice convention.
 
 - No existing analysis's formulas, classifications, exit codes, or presentation output changes
   for any currently-passing test or documented example, except where a slice's own scope is
-  explicitly to correct a documentation contradiction (IR.1) or add a genuinely new function
-  (IR.4, IR.5) — additive, not substitutive.
+  explicitly to add a genuinely new function (IR.4, IR.5) — additive, not substitutive. IR.1 (the
+  license declaration) and IR.2 (the analyzer return-type contract) touch neither analysis output
+  nor presentation at all.
 - The complete managed gate (`scripts/run-quality-gates.ps1` / `.sh`), ≥85% coverage, after every
   slice.
 - Each slice's own regression tests cover the specific defect it fixes.
@@ -161,3 +163,22 @@ next begins, matching this project's established slice convention.
    described in §2 item 7. Decide once IR.5 is actually scoped, not here.
 3. **Resolved:** IR.5 publishes to a checked-in `schemas/` directory as its primary artifact; see
    §2 item 7.
+4. **Open:** IR.3's independent re-check means `run_with_context` calls `publish_quality(decisions)`
+   twice for the same underlying data — once inside `MomentumInputResolver.resolve()`, once inside
+   `run_analysis`'s own newly-independent check — publishing the same quality decisions to
+   telemetry twice per call. Proposed resolution (project owner, 2026-09-24): keep `run_analysis`'s
+   own check running unconditionally (the defense-in-depth guarantee IR.3 decided on), but suppress
+   its own `publish_quality` call specifically on the path reached from `run_with_context`, where
+   the resolver has already published. `run_analysis` cannot key this off whether `df` was supplied
+   — confirmed by inspection, `run_with_context` always passes a concrete
+   `df=resolved.market_data.frame`, never `None`, so "was a frame given" cannot distinguish "the
+   resolver already published for this frame" from "an external caller supplied its own frame
+   directly" (the public preloaded-frame API, which has no resolver and must still publish). The
+   IR review should settle the exact signal `run_with_context` uses to suppress the duplicate
+   publish (for example, a private parameter it alone sets) without adding a public-facing knob
+   other callers need to know about.
+5. **Open:** Making `run_analysis`'s own quality check `as_of`-aware (IR.3) requires adding a new
+   parameter to its public signature, which today has none (`config`, `ticker`, `df` only). An
+   optional parameter defaulting to `None` preserves every existing caller's behavior exactly, so
+   this is a small, backward-compatible addition — one sentence in the IR.3 slice's own contract,
+   not a design fork.
