@@ -767,8 +767,9 @@ def _execute_momentum(
     ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     data_client = YFinanceClient()
+    executed_at = datetime.now(UTC)
     with _production_historical_client(data_client) as historical_client:
-        run = run_momentum(selection, ticker, historical_client)
+        run = run_momentum(selection, ticker, historical_client, executed_at=executed_at)
 
     def _identity_candidate() -> InstrumentProfileCandidate:
         return InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
@@ -791,11 +792,21 @@ def _execute_graham_number(
     ticker: str, selection: GrahamNumberSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     config = selection.to_graham_number_config()
-    with _production_financial_cache(enabled=config.use_cache) as cache:
+    executed_at = datetime.now(UTC)
+    with _production_financial_cache(enabled=selection.use_cache) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver, data_provider=config.security_provider_id, cache=cache
         )
-        capture = execute_graham_number(resolver, ticker, config, YFinanceClient(), profile_cache=profile_cache)
+        capture = execute_graham_number(
+            resolver,
+            ticker,
+            config,
+            YFinanceClient(),
+            as_of=selection.as_of,
+            executed_at=executed_at,
+            use_cache=selection.use_cache,
+            profile_cache=profile_cache,
+        )
     return from_graham_number_capture(capture)
 
 
@@ -804,31 +815,41 @@ def _execute_graham_growth(
 ) -> ExecutionCapture:
     config = selection.to_graham_growth_config()
     policy = growth_assumptions()
-    with _production_financial_cache(enabled=config.use_cache) as cache:
+    executed_at = datetime.now(UTC)
+    with _production_financial_cache(enabled=selection.use_cache) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamGrowthInputResolver, data_provider=config.security_provider_id, cache=cache
         )
-        capture = execute_graham_growth(resolver, ticker, config, policy, YFinanceClient(), profile_cache=profile_cache)
+        capture = execute_graham_growth(
+            resolver,
+            ticker,
+            config,
+            policy,
+            YFinanceClient(),
+            as_of=selection.as_of,
+            executed_at=executed_at,
+            use_cache=selection.use_cache,
+            profile_cache=profile_cache,
+        )
     return from_graham_growth_capture(capture)
 
 
 def _execute_fcf_growth(
     ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
-    policy = selection.to_fcf_policy()
-    boundary = selection.as_of or datetime.now(UTC)
+    config = selection.to_fcf_config()
+    executed_at = datetime.now(UTC)
+    boundary = selection.as_of or executed_at
     with _production_financial_cache(enabled=selection.use_cache) as cache:
         provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: boundary)
         capture = execute_fcf_growth(
             resolver,
             ticker,
-            policy=policy,
-            currency=selection.currency,
+            config=config,
             as_of=selection.as_of,
-            provider_id=selection.provider_id,
+            executed_at=executed_at,
             use_cache=selection.use_cache,
-            effective_as_of=boundary,
             provider=provider,
             profile_cache=profile_cache,
         )

@@ -147,7 +147,7 @@ def test_refresh_rejects_an_out_of_range_worker_count() -> None:
     assert result.exit_code == 2
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL", "MSFT"])
@@ -162,7 +162,7 @@ def test_refresh_sequential_persists_every_member_and_exits_0(mock_run: MagicMoc
     assert mock_run.call_count == 2
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_json_emits_one_stable_final_document(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])
@@ -195,7 +195,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0() -> No
     assert payload[0]["status"] == "not_applicable"
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_storage_failure_is_visible_and_nonzero_exit(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])
@@ -209,7 +209,7 @@ def test_refresh_storage_failure_is_visible_and_nonzero_exit(mock_run: MagicMock
     assert "error=1" in output or "error" in output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(mock_run: MagicMock) -> None:
     """Simulates Ctrl+C by invoking the installed handler directly (portable, no OS signal)."""
     _create_momentum_only("My Watch", ["AAPL", "MSFT"])
@@ -220,7 +220,7 @@ def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(mo
 
     call_count = 0
 
-    def fake_run_with_context(**kwargs: object) -> MomentumRun:
+    def fake_run_analysis(**kwargs: object) -> MomentumRun:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -228,7 +228,7 @@ def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(mo
             captured_handlers[0](signal.SIGINT, None)
         return _mock_momentum_run(str(kwargs["ticker"]))
 
-    mock_run.side_effect = fake_run_with_context
+    mock_run.side_effect = fake_run_analysis
 
     with patch("src.cli_workspace.signal.signal", side_effect=fake_signal):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -283,7 +283,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1() -> None:
     assert "unavailable" in output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_executes_but_persists_nothing(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL", "MSFT"])
@@ -302,7 +302,7 @@ def test_refresh_no_save_executes_but_persists_nothing(mock_run: MagicMock) -> N
     assert payload == []
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only("My Watch", ["AAPL"])

@@ -75,7 +75,7 @@ def _mock_momentum_run(ticker: str) -> MomentumRun:
     )
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(str(kwargs["ticker"]))
 

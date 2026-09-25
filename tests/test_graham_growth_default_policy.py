@@ -65,7 +65,7 @@ def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
 
     assert result.exit_code == 2
     normalized = normalize_cli_output(result.output)
-    assert "SEC EDGAR requires --eps-basis='three_year_average'" in normalized
+    assert "SEC EDGAR requires --eps-basis to be one of (fiscal_year, three_year_average)" in normalized
     assert "--eps-basis" in normalized
 
 

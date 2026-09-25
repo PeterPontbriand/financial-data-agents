@@ -150,7 +150,7 @@ def _fcf_provider() -> ProductionFinancialFactsProvider:
 # ---------------------------------------------------------------------------
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_momentum_default_call_saves_nothing(mock_run: MagicMock) -> None:
     mock_run.return_value = _mock_momentum_run()
 
@@ -161,7 +161,7 @@ def test_momentum_default_call_saves_nothing(mock_run: MagicMock) -> None:
     assert _repository().list(RunQuery()) == ()
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_persists_and_reports_id_on_stderr(mock_run: MagicMock) -> None:
     mock_run.return_value = _mock_momentum_run()
 

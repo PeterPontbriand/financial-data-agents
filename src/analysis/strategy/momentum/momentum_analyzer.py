@@ -1,5 +1,7 @@
 """Module for tracking, calculating, and presenting market price momentum indicators."""
 
+from __future__ import annotations
+
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -10,7 +12,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
-from src.analysis.base_analyzer import BaseAnalyzer
+from src.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from src.config import settings
 from src.core.constants import ConfigKeys, DataColumns, TrendStatus
 from src.core.metric_result import MetricResult, MetricStatus, ReasonCode
@@ -111,7 +113,7 @@ class MomentumConfig(BaseModel):
     rsi_period: int = Field(default=14, gt=0)
 
     @model_validator(mode="after")
-    def validate_windows(self) -> "MomentumConfig":
+    def validate_windows(self) -> MomentumConfig:
         """Require a positive short window that is smaller than the long window."""
         if self.short_window >= self.long_window:
             raise ValueError(
@@ -120,7 +122,7 @@ class MomentumConfig(BaseModel):
         return self
 
 
-class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
+class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
     """Execute vectorized financial momentum analysis over historical market metrics."""
 
     def __init__(
@@ -130,7 +132,6 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
         market_data_provider: MarketDataProvider | None = None,
     ) -> None:
         """Initialize analyzer with custom dependency injections and fallback policies."""
-        super().__init__(default_ticker=default_ticker)
         analysis_settings = settings.get_analysis_settings()
 
         default_section = analysis_settings[ConfigKeys.DEFAULT_SECTION]
@@ -141,20 +142,22 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
         self.data_client: Final[BaseDataClient] = client
         self.market_data_provider: Final[MarketDataProvider] = market_data_provider or _ClientProviderAdapter(client)
 
-    def run_with_context(
-        self,
-        config: MomentumConfig,
-        ticker: str | None = None,
-        as_of: datetime | None = None,
-    ) -> MomentumRun:
+    def resolve_ticker(self, ticker: str | None) -> str:
+        """Return the explicit ticker or this analyzer's configured fallback.
+
+        A later change relocates this TOML-fallback lookup to the CLI layer and removes it
+        from the analyzer entirely.
+        """
+        return ticker or self._fallback_ticker
+
+    def run_analysis(self, ticker: str, config: MomentumConfig, context: AnalysisContext) -> MomentumRun:
         """Fetch market data once, calculate metrics, and retain retrieval context."""
-        target_ticker = ticker or self._fallback_ticker
         resolved = MomentumInputResolver(self.market_data_provider).resolve(
-            ticker=target_ticker,
+            ticker=ticker,
             start_date=self._start_date,
-            as_of=as_of,
+            as_of=context.as_of,
         )
-        metrics = self.run_analysis(config=config, ticker=target_ticker, df=resolved.market_data.frame)
+        metrics = compute_momentum_metrics(df=resolved.market_data.frame, config=config, ticker=ticker)
         trace = resolved.resolution_trace.append(
             ResolutionEvent(
                 "momentum",
@@ -171,89 +174,79 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig]):
             data_resolution=resolved.market_data.resolution,
         )
 
-    def run_analysis(
-        self,
-        config: MomentumConfig,
-        ticker: str | None = None,
-        df: pd.DataFrame | None = None,
-    ) -> MomentumMetrics:
-        """Calculate Simple Moving Average crossover indicators for one price series.
 
-        A pre-loaded frame keeps the calculation layer stateless. When a frame
-        is not supplied, the injected client provides historical market data.
-        """
-        target_ticker = ticker or self._fallback_ticker
-        s_win = config.short_window
-        l_win = config.long_window
+def compute_momentum_metrics(df: pd.DataFrame, config: MomentumConfig, ticker: str) -> MomentumMetrics:
+    """Calculate Simple Moving Average crossover indicators for one price series.
 
-        if df is None:
-            df = self.data_client.fetch_data(target_ticker, self._start_date)
-        decisions = evaluate_historical_quality(
-            HistoricalMarketData(df, MarketDataContext()),
-            context=QualityContext(f"{target_ticker}:historical_close", datetime.now(UTC)),
+    Takes a pre-loaded frame, keeping the calculation layer stateless.
+    """
+    s_win = config.short_window
+    l_win = config.long_window
+
+    decisions = evaluate_historical_quality(
+        HistoricalMarketData(df, MarketDataContext()),
+        context=QualityContext(f"{ticker}:historical_close", datetime.now(UTC)),
+    )
+    publish_quality(decisions)
+    failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
+    if failure is not None:
+        raise HistoricalDataQualityError(decisions, df)
+
+    with setup_logger(__name__) as logger:
+        logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {ticker}")
+
+    close_series = df.loc[:, DataColumns.CLOSE]
+    sma_short = close_series.rolling(window=s_win).mean().astype(float)
+    sma_long = close_series.rolling(window=l_win).mean().astype(float)
+
+    signal_vector = np.where(sma_short > sma_long, 1, 0)
+    crossover_vector = np.diff(signal_vector, prepend=0)
+
+    try:
+        current_price = float(close_series.iloc[-1])
+        raw_short_sma = float(sma_short.iloc[-1])
+        raw_long_sma = float(sma_long.iloc[-1])
+        raw_crossover = float(crossover_vector[-1])
+    except IndexError as err:
+        raise ValueError("Insufficient historical data points to populate calculation range matrix window.") from err
+
+    if not math.isfinite(current_price):
+        raise ValueError(f"Momentum latest close must be finite (received {current_price!r}).")
+
+    short_sma_val = _metric_or_unavailable(raw_short_sma, s_win, len(close_series), "short SMA")
+    long_sma_val = _metric_or_unavailable(raw_long_sma, l_win, len(close_series), "long SMA")
+    rsi = _calculate_rsi(close_series, config.rsi_period)
+
+    if short_sma_val.value is None or long_sma_val.value is None:
+        status = TrendStatus.UNKNOWN
+        crossover_signal = MetricResult.failure(
+            MetricStatus.UNAVAILABLE,
+            ReasonCode.INSUFFICIENT_HISTORY,
+            "A crossover requires both configured moving averages.",
         )
-        publish_quality(decisions)
-        failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
-        if failure is not None:
-            raise HistoricalDataQualityError(decisions, df)
-
-        with setup_logger(__name__) as logger:
-            logger.debug(f"Executing vectorized metrics matrix: SMA({s_win}), SMA({l_win}) on {target_ticker}")
-
-        close_series = df.loc[:, DataColumns.CLOSE]
-        sma_short = close_series.rolling(window=s_win).mean().astype(float)
-        sma_long = close_series.rolling(window=l_win).mean().astype(float)
-
-        signal_vector = np.where(sma_short > sma_long, 1, 0)
-        crossover_vector = np.diff(signal_vector, prepend=0)
-
-        try:
-            current_price = float(close_series.iloc[-1])
-            raw_short_sma = float(sma_short.iloc[-1])
-            raw_long_sma = float(sma_long.iloc[-1])
-            raw_crossover = float(crossover_vector[-1])
-        except IndexError as err:
-            raise ValueError(
-                "Insufficient historical data points to populate calculation range matrix window."
-            ) from err
-
-        if not math.isfinite(current_price):
-            raise ValueError(f"Momentum latest close must be finite (received {current_price!r}).")
-
-        short_sma_val = _metric_or_unavailable(raw_short_sma, s_win, len(close_series), "short SMA")
-        long_sma_val = _metric_or_unavailable(raw_long_sma, l_win, len(close_series), "long SMA")
-        rsi = _calculate_rsi(close_series, config.rsi_period)
-
-        if short_sma_val.value is None or long_sma_val.value is None:
-            status = TrendStatus.UNKNOWN
-            crossover_signal = MetricResult.failure(
+    else:
+        status = TrendStatus.BULLISH if short_sma_val.value > long_sma_val.value else TrendStatus.BEARISH
+        crossover_signal = (
+            MetricResult.ok(raw_crossover)
+            if len(close_series) > l_win
+            else MetricResult.failure(
                 MetricStatus.UNAVAILABLE,
                 ReasonCode.INSUFFICIENT_HISTORY,
-                "A crossover requires both configured moving averages.",
+                "A crossover requires both moving averages at two consecutive observations.",
             )
-        else:
-            status = TrendStatus.BULLISH if short_sma_val.value > long_sma_val.value else TrendStatus.BEARISH
-            crossover_signal = (
-                MetricResult.ok(raw_crossover)
-                if len(close_series) > l_win
-                else MetricResult.failure(
-                    MetricStatus.UNAVAILABLE,
-                    ReasonCode.INSUFFICIENT_HISTORY,
-                    "A crossover requires both moving averages at two consecutive observations.",
-                )
-            )
-
-        return MomentumMetrics(
-            ticker=target_ticker,
-            status=status,
-            current_price=current_price,
-            short_sma_val=short_sma_val.value,
-            long_sma_val=long_sma_val.value,
-            crossover_signal=crossover_signal.value,
-            timestamp=datetime.now(UTC),
-            rsi_result=rsi,
-            crossover_result=crossover_signal,
         )
+
+    return MomentumMetrics(
+        ticker=ticker,
+        status=status,
+        current_price=current_price,
+        short_sma_val=short_sma_val.value,
+        long_sma_val=long_sma_val.value,
+        crossover_signal=crossover_signal.value,
+        timestamp=datetime.now(UTC),
+        rsi_result=rsi,
+        crossover_result=crossover_signal,
+    )
 
 
 def _metric_or_unavailable(value: float, required: int, actual: int, label: str) -> MetricResult:
@@ -414,27 +407,3 @@ class _ClientProviderAdapter:
         if end_date is None:
             return self._client.fetch_data_with_context(ticker, start_date)
         return self._client.fetch_data_with_context(ticker, start_date, end_date)
-
-
-if __name__ == "__main__":
-    analyzer = MomentumAnalyzer()
-    try:
-        default_config = MomentumConfig()
-        metrics = analyzer.run_analysis(config=default_config)
-
-        display_en = metrics.status.display_name(locale="en")
-        display_fr = metrics.status.display_name(locale="fr")
-
-        with setup_logger(__name__) as main_logger:
-            main_logger.info(f"Local Runtime Test Execution Successful for {metrics.ticker}")
-            main_logger.info(f"Trend Status (EN): {display_en}")
-            main_logger.info(f"Trend Status (FR): {display_fr}")
-            main_logger.info(f"Last Close: ${metrics.current_price:,.2f}")
-            main_logger.info(
-                "Signal Flag: %s (Generated at %s)",
-                metrics.crossover_signal if metrics.crossover_signal is not None else "unavailable",
-                metrics.timestamp,
-            )
-    except Exception as exc:
-        with setup_logger(__name__) as main_logger:
-            main_logger.critical(f"Self-test harness faulted: {exc}", exc_info=True)

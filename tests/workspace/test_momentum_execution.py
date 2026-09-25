@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.momentum.momentum_analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
@@ -56,18 +57,18 @@ def test_run_momentum_delegates_to_the_existing_analyzer_unchanged(monkeypatch: 
     canned = MomentumRun(metrics=_metrics(short=1.0, long=2.0), market_data=MarketDataContext())
     captured: dict[str, object] = {}
 
-    def fake_run_with_context(
-        self: MomentumAnalyzer, *, config: MomentumConfig, ticker: str | None = None, as_of: datetime | None = None
+    def fake_run_analysis(
+        self: MomentumAnalyzer, ticker: str, config: MomentumConfig, context: AnalysisContext
     ) -> MomentumRun:
-        del as_of
+        del context
         captured["data_client_is_ours"] = self.data_client is client
         captured["config"] = config
         captured["ticker"] = ticker
         return canned
 
-    monkeypatch.setattr(MomentumAnalyzer, "run_with_context", fake_run_with_context)
+    monkeypatch.setattr(MomentumAnalyzer, "run_analysis", fake_run_analysis)
 
-    result = run_momentum(selection, "AAPL", client)
+    result = run_momentum(selection, "AAPL", client, executed_at=STAMP)
 
     assert result is canned
     assert captured == {
@@ -80,7 +81,7 @@ def test_run_momentum_delegates_to_the_existing_analyzer_unchanged(monkeypatch: 
 def test_run_momentum_computes_real_sma_values_from_the_fixture_series() -> None:
     """Exercise the real analyzer math against a known deterministic series."""
     client = _FixtureClient()
-    run = run_momentum(_selection(), "AAPL", client)
+    run = run_momentum(_selection(), "AAPL", client, executed_at=STAMP)
 
     closes = [100.0 * (1.01**i) for i in range(5)]
     expected_short = sum(closes[-2:]) / 2
@@ -93,13 +94,13 @@ def test_run_momentum_computes_real_sma_values_from_the_fixture_series() -> None
 
 def test_run_momentum_falls_back_to_configured_default_ticker_when_none() -> None:
     client = _FixtureClient()
-    run = run_momentum(_selection(), None, client)
+    run = run_momentum(_selection(), None, client, executed_at=STAMP)
     assert run.metrics.ticker == "BTC-USD"
 
 
 def test_capture_momentum_computes_spread_and_percent_matching_reporting() -> None:
     client = _FixtureClient()
-    run = run_momentum(_selection(), "AAPL", client)
+    run = run_momentum(_selection(), "AAPL", client, executed_at=STAMP)
     profile = _profile("AAPL")
 
     capture = capture_momentum(run, profile)
@@ -147,6 +148,6 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     client = _FixtureClient()
-    run = run_momentum(_selection(), "AAPL", client)
+    run = run_momentum(_selection(), "AAPL", client, executed_at=STAMP)
     capture = capture_momentum(run, _profile("AAPL"))
     assert capture.run.metrics.ticker == "AAPL"

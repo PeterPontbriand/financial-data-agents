@@ -79,7 +79,7 @@ def _build_run(profile: InstrumentProfile | None = None) -> AnalysisRun:
 
     def capture() -> ExecutionCapture:
         client = _FixtureClient()
-        native = run_momentum(selection, "AAPL", client)
+        native = run_momentum(selection, "AAPL", client, executed_at=NOW)
         return ExecutionCapture(
             native_evidence=native,
             profile=profile,
@@ -227,7 +227,6 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
 
     run = _build_run()
     with (
-        patch.object(MomentumAnalyzer, "run_with_context", forbidden),
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
         patch("src.config.ProjectSettings.get_momentum_analysis", forbidden),
     ):

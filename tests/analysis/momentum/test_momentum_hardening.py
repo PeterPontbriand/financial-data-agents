@@ -7,10 +7,10 @@ import pytest
 
 from src.analysis.strategy.fcf_earnings_growth.models import MetricStatus, ReasonCode
 from src.analysis.strategy.momentum.momentum_analyzer import (
-    MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,
     MomentumPolicy,
+    compute_momentum_metrics,
 )
 from src.evaluation.fixtures.market_data import FixtureMarketDataProvider
 
@@ -43,10 +43,10 @@ def test_resolver_truncates_future_bars_and_retains_provenance() -> None:
 
 def test_metric_results_classify_insufficient_history() -> None:
     """SMA and RSI gaps use the standard unavailable metric contract."""
-    metrics = MomentumAnalyzer().run_analysis(
-        ticker="SHORT",
-        config=MomentumConfig(short_window=2, long_window=5, rsi_period=4),
+    metrics = compute_momentum_metrics(
         df=pd.DataFrame({"Close": [10.0, 11.0, 12.0]}),
+        config=MomentumConfig(short_window=2, long_window=5, rsi_period=4),
+        ticker="SHORT",
     )
 
     assert metrics.sma_50.status is MetricStatus.OK
@@ -64,10 +64,10 @@ def test_momentum_policy_validates_all_periods() -> None:
 
 def test_first_valid_long_window_does_not_invent_a_crossover() -> None:
     """An event needs a prior valid pair even when today's trend is known."""
-    metrics = MomentumAnalyzer().run_analysis(
-        MomentumConfig(short_window=2, long_window=3, rsi_period=2),
-        ticker="ACME",
+    metrics = compute_momentum_metrics(
         df=pd.DataFrame({"Close": [1.0, 2.0, 3.0]}),
+        config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+        ticker="ACME",
     )
     assert metrics.short_sma_val == 2.5
     assert metrics.long_sma_val == 2.0
@@ -78,8 +78,8 @@ def test_first_valid_long_window_does_not_invent_a_crossover() -> None:
 def test_supplied_frame_rejects_invalid_values_outside_latest_windows(invalid: float) -> None:
     """Rolling-window arithmetic must not conceal invalid earlier observations."""
     with pytest.raises(ValueError, match="finite"):
-        MomentumAnalyzer().run_analysis(
-            MomentumConfig(short_window=2, long_window=3, rsi_period=2),
-            ticker="ACME",
+        compute_momentum_metrics(
             df=pd.DataFrame({"Close": [invalid, 2.0, 3.0, 4.0]}),
+            config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+            ticker="ACME",
         )

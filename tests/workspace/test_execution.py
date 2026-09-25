@@ -72,7 +72,7 @@ class _FakeSink:
 
 def _momentum_native_evidence() -> MomentumRun:
     client = _FixtureClient()
-    return run_momentum(MomentumSelection(short_window=2, long_window=3), "AAPL", client)
+    return run_momentum(MomentumSelection(short_window=2, long_window=3), "AAPL", client, executed_at=NOW)
 
 
 def _momentum_request() -> AnalysisRequest:
@@ -220,7 +220,7 @@ def test_execute_calls_capture_exactly_once() -> None:
 
 def test_from_momentum_capture_maps_fields() -> None:
     client = _FixtureClient()
-    run = run_momentum(MomentumSelection(short_window=2, long_window=3), "AAPL", client)
+    run = run_momentum(MomentumSelection(short_window=2, long_window=3), "AAPL", client, executed_at=NOW)
     profile = fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
     momentum_capture = capture_momentum(run, profile)
 

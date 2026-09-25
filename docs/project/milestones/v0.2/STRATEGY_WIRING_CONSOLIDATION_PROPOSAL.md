@@ -124,6 +124,7 @@ framework.
 ```python
 # src/analysis/strategy_registry.py  (illustrative only)
 
+
 @dataclass(frozen=True)
 class StrategyDescriptor[ConfigT, ResultT]:
     analysis_id: str
@@ -135,6 +136,7 @@ class StrategyDescriptor[ConfigT, ResultT]:
     result_schema_version: int
     # ... the small number of genuinely strategy-specific callables each layer needs:
     # build_analyzer, tool_arguments_type, encode, decode, render_concise, render_json, ...
+
 
 STRATEGIES: Final[tuple[StrategyDescriptor[Any, Any], ...]] = (
     MOMENTUM_STRATEGY,

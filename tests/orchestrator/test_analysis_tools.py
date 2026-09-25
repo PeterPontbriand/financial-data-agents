@@ -13,8 +13,10 @@ from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthResult,
     ProductionAnnualGrowthSeriesResolver,
 )
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
 from src.analysis.strategy.graham_growth.service import GrahamGrowthAnalysis
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.graham_number.service import GrahamNumberAnalysis
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumRun
@@ -70,23 +72,27 @@ def _dependencies(*, clock: datetime = EXECUTION_TIME) -> AnalysisToolDependenci
     def graham_clock() -> datetime:
         return GRAHAM_NOW
 
-    graham = GrahamNumberInputResolver(provider=graham_provider, clock=graham_clock)
-    graham_growth = GrahamGrowthInputResolver(provider=graham_provider, clock=graham_clock)
+    graham_number_analyzer = GrahamNumberAnalyzer(
+        GrahamNumberInputResolver(provider=graham_provider, clock=graham_clock)
+    )
+    graham_growth_analyzer = GrahamGrowthAnalyzer(
+        GrahamGrowthInputResolver(provider=graham_provider, clock=graham_clock),
+        policy=GrahamGrowthCalculationPolicy(
+            base_pe=8.5,
+            growth_multiplier=2.0,
+            baseline_aaa_yield=4.4,
+        ),
+    )
 
     annual_facts = tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(range(2020, 2026)))
     annual_provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(annual_facts))
     fcf = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock))
     return AnalysisToolDependencies(
         momentum_analyzer=momentum,
-        graham_number_resolver=graham,
-        graham_growth_resolver=graham_growth,
+        graham_number_analyzer=graham_number_analyzer,
+        graham_growth_analyzer=graham_growth_analyzer,
         graham_security_provider_id=GRAHAM_PROVIDER_ID,
         graham_quote_provider_id=GRAHAM_PROVIDER_ID,
-        graham_growth_policy=GrahamGrowthCalculationPolicy(
-            base_pe=8.5,
-            growth_multiplier=2.0,
-            baseline_aaa_yield=4.4,
-        ),
         fcf_analyzer=fcf,
         fcf_provider_id=SEC_PROVIDER_ID,
         clock=lambda: clock,

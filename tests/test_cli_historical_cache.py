@@ -11,6 +11,7 @@ from alembic.config import Config
 from typer.testing import CliRunner
 
 from alembic import command
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
 from src.cli import app
 from src.cli_support import _production_historical_client
@@ -170,6 +171,7 @@ def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) ->
         patch.object(custom, "fetch_data_with_context", return_value=history),
     ):
         analyzer = MomentumAnalyzer(default_ticker="ACME", data_client=custom)
-        run = analyzer.run_with_context(MomentumConfig(short_window=2, long_window=3, rsi_period=3))
+        context = AnalysisContext(as_of=None, executed_at=datetime.now(UTC), use_cache=True)
+        run = analyzer.run_analysis("ACME", MomentumConfig(short_window=2, long_window=3, rsi_period=3), context)
     assert analyzer.data_client is custom
     assert run.metrics.current_price > 0

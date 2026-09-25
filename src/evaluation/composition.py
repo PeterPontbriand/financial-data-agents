@@ -8,7 +8,9 @@ from datetime import datetime
 from typing import Final
 
 from src.analysis.strategy.fcf_earnings_growth import FCFEarningsGrowthAnalyzer, ProductionAnnualGrowthSeriesResolver
+from src.analysis.strategy.graham_growth.analyzer import GrahamGrowthAnalyzer
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthCalculationPolicy, GrahamGrowthInputResolver
+from src.analysis.strategy.graham_number.analyzer import GrahamNumberAnalyzer
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputResolver
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer
 from src.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -168,6 +170,15 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
 
     graham_number_resolver = GrahamNumberInputResolver(provider=graham_provider, cache=graham_cache, clock=graham_clock)
     graham_growth_resolver = GrahamGrowthInputResolver(provider=graham_provider, cache=graham_cache, clock=graham_clock)
+    graham_number_analyzer = GrahamNumberAnalyzer(graham_number_resolver)
+    graham_growth_analyzer = GrahamGrowthAnalyzer(
+        graham_growth_resolver,
+        policy=GrahamGrowthCalculationPolicy(
+            base_pe=GOLDEN_GROWTH_BASE_PE,
+            growth_multiplier=GOLDEN_GROWTH_MULTIPLIER,
+            baseline_aaa_yield=GOLDEN_BASELINE_AAA_YIELD,
+        ),
+    )
 
     annual_facts = _annual_facts(fcf_fixture_id)
     annual_provider = sec_fpi_provider or FixtureAnnualFinancialFactsProvider(
@@ -180,15 +191,10 @@ def compose_fixture_dependencies(case: Case, *, clock_at: datetime) -> AnalysisT
     profile_resolver = _profile_resolver(fixture_ids, clock_at=clock_at)
     return AnalysisToolDependencies(
         momentum_analyzer=momentum_analyzer,
-        graham_number_resolver=graham_number_resolver,
-        graham_growth_resolver=graham_growth_resolver,
+        graham_number_analyzer=graham_number_analyzer,
+        graham_growth_analyzer=graham_growth_analyzer,
         graham_security_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
         graham_quote_provider_id=SEC_PROVIDER_ID if sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
-        graham_growth_policy=GrahamGrowthCalculationPolicy(
-            base_pe=GOLDEN_GROWTH_BASE_PE,
-            growth_multiplier=GOLDEN_GROWTH_MULTIPLIER,
-            baseline_aaa_yield=GOLDEN_BASELINE_AAA_YIELD,
-        ),
         fcf_analyzer=fcf_analyzer,
         fcf_provider_id=SEC_PROVIDER_ID,
         clock=lambda: clock_at,

@@ -258,12 +258,19 @@ Before treating a difference as a bug, compare the conventions.
 
 Ask:
 
-- three completed fiscal years averaged together or TTM?
+- three completed fiscal years averaged together, TTM, or a single completed fiscal year?
 - basic EPS or diluted EPS?
 - were stock-split adjustments handled consistently?
 - which exact fiscal periods were used?
 
-Investment Analysis Engine uses three-year-average diluted EPS for the standard Graham Number calculation.
+Investment Analysis Engine uses three-year-average diluted EPS for the standard Graham Number calculation, and the accepted `--eps-basis` values differ by method — they are not interchangeable:
+
+| Method | SEC EDGAR | Massive |
+| :--- | :--- | :--- |
+| Graham Number | `three_year_average` only (default) | `ttm` only (required) |
+| Graham Growth Value | `three_year_average` (default) or an explicit `fiscal_year` for reviewed workflows | `ttm` only (required) |
+
+`fiscal_year` (a single completed fiscal year's diluted EPS) is a Graham Growth Value-only basis; Graham Number never accepts it, with either provider. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported provider/basis combination is rejected, never silently transformed into a different basis.
 
 ### BVPS definition
 

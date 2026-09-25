@@ -139,7 +139,7 @@ def mock_momentum_run(mock_metrics: MomentumMetrics) -> MomentumRun:
     )
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -158,7 +158,7 @@ def test_cli_momentum_success_uses_investor_presenter(mock_run: MagicMock, mock_
     assert "cli_runtime" not in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     mock_run: MagicMock,
     mock_momentum_run: MomentumRun,
@@ -181,7 +181,7 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     assert payload["instrument_kind"]["kind"] == "etf"
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -192,7 +192,7 @@ def test_cli_momentum_legacy_ticker_option_still_routes(mock_run: MagicMock, moc
     assert mock_run.call_args.kwargs["ticker"] == "BTC-USD"
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -204,7 +204,7 @@ def test_cli_momentum_with_options(mock_run: MagicMock, mock_momentum_run: Momen
     assert config_passed.long_window == 30
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_reports_identity_from_retained_market_context(
     mock_run: MagicMock,
     mock_metrics: MomentumMetrics,
@@ -228,7 +228,7 @@ def test_cli_momentum_reports_identity_from_retained_market_context(
     assert "Currency: CAD" in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: MagicMock) -> None:
     metrics = MomentumMetrics(
         ticker="SHORT",
@@ -259,7 +259,7 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
     assert re.search(r"\bnan\b", result.output, flags=re.IGNORECASE) is None
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicMock) -> None:
     metrics = MomentumMetrics(
         ticker="SHORT",
@@ -296,7 +296,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert payload["source"]["observation_count"] == 3
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, mock_momentum_run: MomentumRun) -> None:
     mock_run.return_value = mock_momentum_run
 
@@ -309,7 +309,7 @@ def test_cli_momentum_diagnostics_are_retained_and_useful(mock_run: MagicMock, m
     assert "No execution trace was retained" not in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMock) -> None:
     mock_run.side_effect = DataFetchError("provider-library key currentTradingPeriod leaked here")
 
@@ -323,7 +323,7 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
     assert "Traceback" not in result.output
 
 
-@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_with_context")
+@patch("src.workspace.momentum_execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_analysis_failure_does_not_expose_internal_text(mock_run: MagicMock) -> None:
     mock_run.side_effect = ValueError("Validation error. See https://errors.pydantic.dev/2.0/v/value_error")
 

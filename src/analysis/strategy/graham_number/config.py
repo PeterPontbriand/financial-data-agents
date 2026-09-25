@@ -6,12 +6,13 @@ from typing import Self
 
 from pydantic import StrictFloat, model_validator
 
-from src.analysis.shared.graham_contracts import _GrahamConfig
+from src.analysis.shared.graham_contracts import GrahamNumberEPSBasis, _GrahamConfig
 
 
 class GrahamNumberConfig(_GrahamConfig):
     """Graham Number request, defaulting to three-year-average fiscal EPS."""
 
+    eps_basis: GrahamNumberEPSBasis | None = None
     bvps_override: StrictFloat | None = None
 
     @model_validator(mode="after")

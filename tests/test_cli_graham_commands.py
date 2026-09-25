@@ -85,8 +85,8 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
     assert config.eps_basis == "three_year_average"
     assert config.eps_override == 3.0
     assert config.quote_override == 20.0
-    assert config.as_of == datetime(2025, 12, 31, 12, tzinfo=UTC)
-    assert config.use_cache is False
+    assert run.call_args.kwargs["as_of"] == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert run.call_args.kwargs["use_cache"] is False
     assert run.call_args.kwargs["ticker"] == "KO"
     build.assert_called_once()
 

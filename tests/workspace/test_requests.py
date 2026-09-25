@@ -109,7 +109,7 @@ def test_graham_defaults_resolve_like_analyzer_config(provider: str) -> None:
     expected_basis = "three_year_average" if provider == "sec_edgar" else "ttm"
     expected_quote = "yfinance" if provider == "sec_edgar" else provider
     assert (selection.eps_basis, selection.quote_provider_id) == (expected_basis, expected_quote)
-    assert config.use_cache is True
+    assert selection.use_cache is True
 
 
 def test_graham_number_defaults() -> None:
@@ -139,8 +139,8 @@ def test_graham_normalization_and_explicit_values() -> None:
     assert (selection.security_provider_id, selection.quote_provider_id) == ("massive", "yfinance")
     config = selection.to_graham_number_config()
     assert (config.eps_override, config.bvps_override, config.quote_override) == (4.5, 20.0, 100.0)
-    assert config.as_of == as_of
-    assert config.use_cache is False
+    assert selection.as_of == as_of
+    assert selection.use_cache is False
 
 
 def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
@@ -155,8 +155,8 @@ def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
 @pytest.mark.parametrize(
     ("values", "message"),
     [
-        ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three-year average"),
-        ({"security_provider_id": "massive", "eps_basis": "three_year_average"}, "TTM"),
+        ({"security_provider_id": "sec_edgar", "eps_basis": "ttm"}, "three_year_average"),
+        ({"security_provider_id": "massive", "eps_basis": "three_year_average"}, "ttm"),
         ({"security_provider_id": "massive"}, "book value per share"),
         ({"eps_basis": "annual"}, "literal_error"),
     ],
@@ -258,7 +258,7 @@ def test_round_trip_and_conversion_do_not_read_settings(monkeypatch: pytest.Monk
     assert MomentumSelection.model_validate_json(momentum.model_dump_json()) == momentum
     assert GrahamNumberSelection.model_validate_json(graham.model_dump_json()) == graham
     assert momentum.to_momentum_config().short_window == 2
-    assert graham.to_graham_number_config().as_of == graham.as_of
+    assert graham.to_analysis_context(executed_at=graham.as_of or datetime.now(UTC)).as_of == graham.as_of
     assert MomentumSelection.from_settings(short_window=2, long_window=5) == momentum
 
 

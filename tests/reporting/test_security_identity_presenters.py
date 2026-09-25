@@ -6,12 +6,13 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 
+from src.analysis.base_analyzer import AnalysisContext
 from src.analysis.strategy.fcf_earnings_growth import (
     FCFEarningsGrowthAnalyzer,
     FCFEarningsGrowthPolicy,
     ProductionAnnualGrowthSeriesResolver,
 )
-from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthResult
+from src.analysis.strategy.fcf_earnings_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from src.analysis.strategy.graham_growth.calculation import GrahamGrowthValueResult, GrowthValueInputAssembly
 from src.analysis.strategy.graham_number.calculation import GrahamNumberInputAssembly, GrahamNumberResult
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig, MomentumMetrics
@@ -150,12 +151,9 @@ def _fcf_result() -> FCFEarningsGrowthResult:
     provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
     analyzer = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW))
     return analyzer.run_analysis(
-        ticker="ACME",
-        policy=FCFEarningsGrowthPolicy(),
-        currency="USD",
-        as_of=None,
-        provider_id=SEC_PROVIDER_ID,
-        effective_as_of=NOW,
+        "ACME",
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID),
+        AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
     )
 
 

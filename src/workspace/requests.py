@@ -21,12 +21,21 @@ another; an unsupported version is rejected at validation time.
 
 import json
 import math
+from datetime import datetime
 from typing import Annotated, Literal, cast
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictFloat, field_validator, model_validator
 
+from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.shared.graham_contracts import (
+    GRAHAM_GROWTH_EXTRA_SEC_EDGAR_BASES,
+    GrahamGrowthEPSBasis,
+    GrahamNumberEPSBasis,
+    resolve_graham_eps_basis,
+)
 from src.analysis.strategy.fcf_earnings_growth.models import (
     FCFClassificationBasis,
+    FCFEarningsGrowthConfig,
     FCFEarningsGrowthPolicy,
     ForwardPolicy,
     HistoricalHorizon,
@@ -36,6 +45,7 @@ from src.analysis.strategy.graham_number.config import GrahamNumberConfig
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumConfig
 from src.config import settings
 from src.core.constants import ConfigKeys
+from src.data.instrument_profile import InstrumentProfile
 
 # Provider identifiers supported by the current CLI composition. These mirror the
 # stable IDs declared in ``src.data.massive.constants``,
@@ -127,6 +137,19 @@ class MomentumSelection(_FrozenSelection):
             rsi_period=self.rsi_period,
         )
 
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot.
+
+        Momentum has no persisted ``as_of``/``use_cache`` fields yet; ``as_of`` is always
+        ``None`` and ``use_cache`` always ``True`` until a later change adds real,
+        CLI-wired ones.
+        """
+        return AnalysisContext(
+            as_of=None, executed_at=executed_at, use_cache=True, instrument_profile=instrument_profile
+        )
+
 
 class _GrahamSelection(_FrozenSelection):
     """Shared provider choices and immutable scalar configuration for Graham methods."""
@@ -135,7 +158,7 @@ class _GrahamSelection(_FrozenSelection):
     config_schema_version: Literal[1] = 1
     security_provider_id: str = "sec_edgar"
     quote_provider_id: str | None = None
-    eps_basis: Literal["three_year_average", "ttm"] | None = None
+    eps_basis: str | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
     as_of: AwareDatetime | None = None
@@ -183,37 +206,54 @@ class _GrahamSelection(_FrozenSelection):
         """Normalize explicit basis strings before validating supported literals."""
         return value.strip().lower() if isinstance(value, str) else value
 
-    @model_validator(mode="after")
-    def _resolve_effective_configuration(self) -> "_GrahamSelection":
-        """Resolve the effective EPS basis/quote provider and enforce compatibility."""
-        security_provider_id = self.security_provider_id
-        if self.quote_provider_id is None:
-            resolved_quote = "yfinance" if security_provider_id == "sec_edgar" else security_provider_id
-        else:
-            resolved_quote = self.quote_provider_id
+    def _resolve_effective_configuration(self, *, extra_allowed_sec_edgar_bases: frozenset[str] = frozenset()) -> None:
+        """Resolve the effective EPS basis/quote provider for one method's own accepted bases.
 
-        eps_basis = self.eps_basis or ("three_year_average" if security_provider_id == "sec_edgar" else "ttm")
-
-        if security_provider_id == "sec_edgar" and eps_basis != "three_year_average":
-            raise ValueError("SEC EDGAR financial data requires the three-year average EPS basis.")
-        if security_provider_id == "massive" and eps_basis != "ttm":
-            raise ValueError("Massive financial data requires the TTM EPS basis.")
-
+        Delegates to :func:`resolve_graham_eps_basis`, the single definition shared with
+        ``_GrahamConfig`` at the analyzer boundary, so the two production entry points cannot
+        silently diverge. ``extra_allowed_sec_edgar_bases`` mirrors ``_GrahamConfig``'s own
+        argument exactly — only Graham Growth widens SEC EDGAR's accepted bases beyond the
+        three-year-average default, per `docs/user/FINANCE_MATH.md` §"EPS basis".
+        """
+        default_basis = "three_year_average" if self.security_provider_id == "sec_edgar" else "ttm"
+        basis, resolved_quote = resolve_graham_eps_basis(
+            self.eps_basis,
+            self.security_provider_id,
+            self.quote_provider_id,
+            default_basis,
+            extra_allowed_sec_edgar_bases=extra_allowed_sec_edgar_bases,
+        )
         object.__setattr__(self, "quote_provider_id", resolved_quote)
-        object.__setattr__(self, "eps_basis", eps_basis)
-        return self
+        object.__setattr__(self, "eps_basis", basis)
+
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
+        return AnalysisContext(
+            as_of=self.as_of,
+            executed_at=executed_at,
+            use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
+        )
 
 
 class GrahamNumberSelection(_GrahamSelection):
     """Immutable Graham Number selection with an optional book-value override."""
 
     method_id: Literal["graham_number"] = "graham_number"
+    eps_basis: GrahamNumberEPSBasis | None = None
     bvps_override: StrictFloat | None = None
 
     @field_validator("bvps_override")
     @classmethod
     def _finite_book_value(cls, value: float | None) -> float | None:
         return cls._require_finite_overrides(value)
+
+    @model_validator(mode="after")
+    def _resolve_configuration(self) -> "GrahamNumberSelection":
+        self._resolve_effective_configuration()
+        return self
 
     @model_validator(mode="after")
     def _require_massive_book_value(self) -> "GrahamNumberSelection":
@@ -230,8 +270,6 @@ class GrahamNumberSelection(_GrahamSelection):
             eps_override=self.eps_override,
             bvps_override=self.bvps_override,
             quote_override=self.quote_override,
-            as_of=self.as_of,
-            use_cache=self.use_cache,
         )
 
 
@@ -239,6 +277,7 @@ class GrahamGrowthSelection(_GrahamSelection):
     """Graham growth-value selection requiring explicit growth and AAA yield percentages."""
 
     method_id: Literal["graham_growth_value"] = "graham_growth_value"
+    eps_basis: GrahamGrowthEPSBasis | None = None
     expected_growth: StrictFloat
     aaa_yield_override: StrictFloat
 
@@ -247,6 +286,11 @@ class GrahamGrowthSelection(_GrahamSelection):
     def _finite_assumption(cls, value: float) -> float:
         cls._require_finite_overrides(value)
         return value
+
+    @model_validator(mode="after")
+    def _resolve_configuration(self) -> "GrahamGrowthSelection":
+        self._resolve_effective_configuration(extra_allowed_sec_edgar_bases=GRAHAM_GROWTH_EXTRA_SEC_EDGAR_BASES)
+        return self
 
     def to_graham_growth_config(self) -> GrahamGrowthConfig:
         """Return the existing config without deriving assumptions or calculation policy."""
@@ -258,8 +302,6 @@ class GrahamGrowthSelection(_GrahamSelection):
             quote_override=self.quote_override,
             expected_growth=self.expected_growth,
             aaa_yield_override=self.aaa_yield_override,
-            as_of=self.as_of,
-            use_cache=self.use_cache,
         )
 
 
@@ -321,6 +363,23 @@ class FCFGrowthSelection(_FrozenSelection):
     def to_fcf_policy(self) -> FCFEarningsGrowthPolicy:
         """Return the existing policy type for explicit analyzer invocation."""
         return self.policy.to_policy()
+
+    def to_fcf_config(self) -> FCFEarningsGrowthConfig:
+        """Return the analyzer's complete per-call configuration for this snapshot."""
+        return FCFEarningsGrowthConfig(
+            policy=self.to_fcf_policy(), currency=self.currency, provider_id=self.provider_id
+        )
+
+    def to_analysis_context(
+        self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None
+    ) -> AnalysisContext:
+        """Return the run context for this snapshot's persisted ``as_of``/``use_cache``."""
+        return AnalysisContext(
+            as_of=self.as_of,
+            executed_at=executed_at,
+            use_cache=self.use_cache,
+            instrument_profile=instrument_profile,
+        )
 
 
 AnalysisSelection = Annotated[

@@ -1,17 +1,20 @@
 """Unit tests for validating the stateless MomentumAnalyzer indicator logic."""
 
 from collections.abc import Generator
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig
+from src.analysis.base_analyzer import AnalysisContext
+from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumConfig, compute_momentum_metrics
 from src.core.constants import TrendStatus
 from src.data.base_client import DataFetchError
 from src.data.market_data import HistoricalMarketData, MarketDataContext
+
+_CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
 
 
 @pytest.fixture(autouse=True)
@@ -95,12 +98,10 @@ def test_fetch_market_data_handles_multiindex_flattening(mock_download: MagicMoc
     assert "Close" in df.columns
 
 
-@patch("src.data.yfinance.client.YFinanceClient.fetch_data")
-def test_analyze_momentum_bullish(mock_fetch: MagicMock, bullish_dataframe: pd.DataFrame) -> None:
-    mock_fetch.return_value = bullish_dataframe
-
-    analyzer = MomentumAnalyzer()
-    metrics = analyzer.run_analysis(ticker="BTC-USD", config=MomentumConfig(short_window=2, long_window=5))
+def test_analyze_momentum_bullish(bullish_dataframe: pd.DataFrame) -> None:
+    metrics = compute_momentum_metrics(
+        df=bullish_dataframe, config=MomentumConfig(short_window=2, long_window=5), ticker="BTC-USD"
+    )
 
     assert metrics.ticker == "BTC-USD"
     assert metrics.status == TrendStatus.BULLISH
@@ -111,12 +112,10 @@ def test_analyze_momentum_bullish(mock_fetch: MagicMock, bullish_dataframe: pd.D
     assert isinstance(metrics.timestamp, datetime)
 
 
-@patch("src.data.yfinance.client.YFinanceClient.fetch_data")
-def test_analyze_momentum_bearish(mock_fetch: MagicMock, bearish_dataframe: pd.DataFrame) -> None:
-    mock_fetch.return_value = bearish_dataframe
-
-    analyzer = MomentumAnalyzer()
-    metrics = analyzer.run_analysis(ticker="BTC-USD", config=MomentumConfig(short_window=2, long_window=5))
+def test_analyze_momentum_bearish(bearish_dataframe: pd.DataFrame) -> None:
+    metrics = compute_momentum_metrics(
+        df=bearish_dataframe, config=MomentumConfig(short_window=2, long_window=5), ticker="BTC-USD"
+    )
 
     assert metrics.status == TrendStatus.BEARISH
     assert metrics.current_price == 8.0
@@ -125,7 +124,7 @@ def test_analyze_momentum_bearish(mock_fetch: MagicMock, bearish_dataframe: pd.D
     assert metrics.short_sma_val < metrics.long_sma_val
 
 
-def test_run_with_context_retains_market_metadata(bullish_dataframe: pd.DataFrame) -> None:
+def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -> None:
     market_data = HistoricalMarketData(
         frame=bullish_dataframe,
         context=MarketDataContext(
@@ -140,9 +139,10 @@ def test_run_with_context_retains_market_metadata(bullish_dataframe: pd.DataFram
     client.fetch_data_with_context.return_value = market_data
     analyzer = MomentumAnalyzer(data_client=client)
 
-    run = analyzer.run_with_context(
+    run = analyzer.run_analysis(
         ticker="BTC-USD",
         config=MomentumConfig(short_window=2, long_window=5),
+        context=_CONTEXT,
     )
 
     assert run.metrics.status is TrendStatus.BULLISH
@@ -152,13 +152,8 @@ def test_run_with_context_retains_market_metadata(bullish_dataframe: pd.DataFram
 
 def test_insufficient_window_history_returns_unknown_without_nan() -> None:
     df = pd.DataFrame({"Close": [10.0, 11.0, 12.0]})
-    analyzer = MomentumAnalyzer()
 
-    metrics = analyzer.run_analysis(
-        ticker="SHORT",
-        config=MomentumConfig(short_window=2, long_window=5),
-        df=df,
-    )
+    metrics = compute_momentum_metrics(df=df, config=MomentumConfig(short_window=2, long_window=5), ticker="SHORT")
 
     assert metrics.status is TrendStatus.UNKNOWN
     assert metrics.current_price == 12.0
@@ -169,22 +164,15 @@ def test_insufficient_window_history_returns_unknown_without_nan() -> None:
 
 def test_non_finite_latest_price_is_rejected() -> None:
     df = pd.DataFrame({"Close": [10.0, 11.0, float("nan")]})
-    analyzer = MomentumAnalyzer()
 
     with pytest.raises(ValueError, match="numeric and finite.*Close at row 2"):
-        analyzer.run_analysis(
-            ticker="BAD",
-            config=MomentumConfig(short_window=2, long_window=3),
-            df=df,
-        )
+        compute_momentum_metrics(df=df, config=MomentumConfig(short_window=2, long_window=3), ticker="BAD")
 
 
-@patch("src.data.yfinance.client.YFinanceClient.fetch_data")
-def test_analyze_momentum_ticker_override_invariant(mock_fetch: MagicMock, sample_ohlcv_data: pd.DataFrame) -> None:
-    mock_fetch.return_value = sample_ohlcv_data
-
-    analyzer = MomentumAnalyzer()
-    metrics = analyzer.run_analysis(ticker="ETH-USD", config=MomentumConfig(short_window=3, long_window=7))
+def test_analyze_momentum_ticker_override_invariant(sample_ohlcv_data: pd.DataFrame) -> None:
+    metrics = compute_momentum_metrics(
+        df=sample_ohlcv_data, config=MomentumConfig(short_window=3, long_window=7), ticker="ETH-USD"
+    )
 
     assert metrics.ticker == "ETH-USD"
 
@@ -194,10 +182,10 @@ def test_analyze_momentum_window_validation() -> None:
         MomentumConfig(short_window=20, long_window=10)
 
 
-@patch("src.data.yfinance.client.YFinanceClient.fetch_data")
+@patch("src.data.yfinance.client.YFinanceClient.fetch_data_with_context")
 def test_analyze_momentum_empty_dataset_fault(mock_fetch: MagicMock) -> None:
     mock_fetch.side_effect = DataFetchError("No market data was returned for ticker 'XYZ'.")
 
     analyzer = MomentumAnalyzer()
     with pytest.raises(DataFetchError, match="No market data was returned"):
-        analyzer.run_analysis(ticker="XYZ", config=MomentumConfig())
+        analyzer.run_analysis(ticker="XYZ", config=MomentumConfig(), context=_CONTEXT)

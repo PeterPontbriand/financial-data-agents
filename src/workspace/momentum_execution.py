@@ -19,6 +19,7 @@ evidence for a later execution service to assemble.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from src.analysis.strategy.momentum.momentum_analyzer import MomentumAnalyzer, MomentumMetrics, MomentumRun
 from src.data.base_client import BaseDataClient
@@ -61,7 +62,9 @@ def _sma_spread_percent(metrics: MomentumMetrics) -> float | None:
     return (spread / long_sma) * 100.0
 
 
-def run_momentum(selection: MomentumSelection, ticker: str | None, historical_client: BaseDataClient) -> MomentumRun:
+def run_momentum(
+    selection: MomentumSelection, ticker: str | None, historical_client: BaseDataClient, *, executed_at: datetime
+) -> MomentumRun:
     """Run Momentum through the existing analyzer with a borrowed data client.
 
     Args:
@@ -69,12 +72,16 @@ def run_momentum(selection: MomentumSelection, ticker: str | None, historical_cl
         ticker: The requested ticker, or None to use the analyzer's
             configured fallback ticker (matching the existing CLI behavior).
         historical_client: A borrowed client; not constructed or closed here.
+        executed_at: The run's own execution clock, a single aware read of
+            "now" taken once by the caller.
 
     Returns:
         The unmodified native analyzer result.
     """
     analyzer = MomentumAnalyzer(default_ticker=ticker, data_client=historical_client)
-    return analyzer.run_with_context(config=selection.to_momentum_config(), ticker=ticker)
+    resolved_ticker = analyzer.resolve_ticker(ticker)
+    context = selection.to_analysis_context(executed_at=executed_at)
+    return analyzer.run_analysis(ticker=resolved_ticker, config=selection.to_momentum_config(), context=context)
 
 
 def capture_momentum(run: MomentumRun, profile: InstrumentProfile | None) -> MomentumCapture:
