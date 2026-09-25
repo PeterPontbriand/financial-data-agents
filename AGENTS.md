@@ -2,6 +2,19 @@
 
 These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 
+## 0. Pre-Step-3.5 consolidation period (temporary)
+
+Until Step 3.5 implementation begins, the project's priority is making the existing codebase fully consistent before new strategies copy its patterns. During this period, for work packages R3, IR, PKG, and any consolidation package added before Step 3.5:
+
+- Stored data has no compatibility value. Persisted selection, evidence, and result shapes may change without migration or compatibility code; local databases may be discarded. Bump the relevant version fields whenever a stored shape changes.
+- Public interfaces, constructors, and signatures may be changed or removed when the approved work package requires it.
+- The approved work package's plan defines the file scope; scope extensions within that plan's stated goals need no separate authorization.
+- An explicit, statically declared list of strategies with shared generic wiring is permitted where it removes per-strategy duplication. Discovery-based plugin loading and speculative frameworks remain prohibited.
+
+Unchanged during this period: no formula or classification changes (correctness issues go through the existing-strategy correctness process), no NaN/Inf, no network or LLM calls in tests, the full managed quality gate on every slice, and no AI/tool attribution. "Open items" are not an acceptable outcome of a design decision in this period; decide, or escalate to the project owner.
+
+Remove this section when Step 3.5 implementation begins.
+
 # 1. Project Instructions
 
 You are an expert Python developer specializing in financial data analysis, pandas, NumPy, and quantitative workflows. Always prioritize correctness, readability, and performance. Use type hints and docstrings where helpful.
@@ -87,7 +100,7 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Run the relevant pytest suite before declaring work complete.
 - Mock external APIs and local LLM endpoints in deterministic tests.
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
-- Run the complete quality gate specified by the active milestone plan before completion.
+- Run the complete quality gate specified by the active milestone plan before completion of any change that touches Python source, tests, or a file the tooling actually parses/executes. A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
 
 ## 8. Financial-analysis guardrails
 
@@ -100,10 +113,14 @@ When editing a legacy file that currently uses a different logging pattern, do n
 
 ## 9. Heterogeneous strategy independence
 
-- Select/implement analyzers according to the task, not according to which analyzer existed first.
-- Do not treat Momentum as the universal financial-analysis shape.
-- A new strategy may legitimately use different config fields, data inputs, and result metrics.
-- Reuse `BaseAnalyzer` where sufficient; do not invent a parallel strategy framework speculatively.
+Strategies differ in what they compute, not in how they are invoked.
+
+- Select/implement analyzers according to the task, not according to which analyzer existed first. Do not treat Momentum, or any existing analyzer, as the template for a new strategy's configuration, inputs, calculation, or result.
+- Each strategy owns its typed configuration, data inputs, calculation, and result type, and may legitimately differ from existing strategies in all four.
+- Every strategy shares one invocation envelope: it subclasses `BaseAnalyzer[ConfigT, ResultT]`, receives its dependencies (resolvers, providers, policies, clock) at construction, and is invoked as `run_analysis(ticker, config, context)`, where `AnalysisContext` carries cross-cutting execution concerns (point-in-time boundary, effective execution time, cache use, instrument profile). `ResultT` is the complete evidence type production callers consume.
+- Do not add per-strategy parameters for concerns `AnalysisContext` already carries, and do not bypass a strategy's analyzer by calling its service or calculation functions from composition, orchestration, CLI, or workspace code.
+- Every strategy follows the shared outcome conventions: `MetricResult` for metrics, explicit reason codes instead of silent defaults, and retained provenance.
+- Change the envelope or conventions only through an explicit plan change, never by working around them in one strategy. Do not build registries, plugin loaders, or factories on top of the envelope speculatively.
 
 ## 10. OS, shell & execution
 

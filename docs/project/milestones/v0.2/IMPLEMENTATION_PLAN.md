@@ -30,12 +30,19 @@ current codes:
 - `IR` — short for "Integration Readiness"
   ([contract](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)): makes the existing four
   analyses safely consumable by an external harness (point-in-time evidence/filter provider, not a
-  trading-signal generator), scheduled after `R3` and before Step 3.5 for the same reason `R3`
-  precedes it — corrected before, not after, more analyzers are added.
+  trading-signal generator). **Reordered 2026-09-24 to run before `R3` and `SWC`**, not after —
+  IR.2 itself removes dead code and the per-strategy dispatch shape both of those packages would
+  otherwise have to audit or delete separately; see row 10's note.
 - `PKG` — the `src` → real top-level package rename ([plan](PKG_RENAME_PLAN.md)), split out of `IR`
   given its scale. Not `R4`, deliberately: that code is already used as a document-local
   requirement/test-ID label elsewhere, and reusing it here would recreate the same collision noted
   below for `graham-comparison`'s local `R1`/`R2`/`R3`.
+- `SWC` — short for "Strategy Wiring Consolidation"
+  ([proposal](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md)): replaces the per-strategy hand-wiring
+  duplicated across the orchestrator, workspace, codec, and reporting layers (and evaluation's
+  fixture composition) with one statically-declared strategy descriptor list, before Step 3.5
+  multiplies that duplication by five. Accepted 2026-09-24; not yet scoped into slices. Absorbs
+  IR.5's scope (typed JSON envelope models and generated schemas).
 
 Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
 document-local `R1 → R2 → R3` sequence (evidence → implementation → verification), unrelated to
@@ -54,11 +61,12 @@ sequencing meaning.
 | 7 | [Research workspace (3.4)](step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-20 (Amendment A1's I3). |
 | 8 | [Durable instrument profiles (P2-Profiles)](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Complete and accepted; final acceptance granted 2026-09-22 (see [final summary](p2-profiles/P2_PROFILES_CONTRACT_AND_SLICE_PLAN.md#153-milestone-summary)). |
 | 9 | [Existing-analysis renewal (ESC-D)](existing-strategy-correctness/ESC_D_RENEWAL_PLAN.md) | Complete and accepted; final acceptance granted 2026-09-23 (see [final acceptance record](existing-strategy-correctness/ESC_D_FINAL_ACCEPTANCE.md)). Full seven-dimension audit-matrix re-run found and repaired ESC-19; ESC-18 was corrected (its branch was already unreachable dead code, tracked as R3). No unresolved correctness defects. |
-| 10 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Not started; next in sequence now that ESC-D is accepted. Scope/contract review required before implementation. |
-| 11 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) | Scope drafted, pending review; scheduled after R3 and before Step 3.5 so the codebase's integration surface is corrected before more analyzers are added on top of it. |
-| 12 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Not started; scheduled after IR and before Step 3.5, so Step 3.5's five new analyzers are written once under the final import path. |
-| 13 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for the dead code audit (R3), integration readiness (IR), and the package rename (PKG). |
-| 14 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
+| 10 | [Integration readiness (IR)](integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md) | Scope drafted, pending review; **reordered ahead of R3 (2026-09-24)** — IR.2 itself removes a verified set of dead code as an intrinsic consequence of unifying the analyzer envelope, so R3's general sweep runs against an already-smaller, already-cleaned codebase instead of duplicating IR.2's reachability analysis. IR.1, IR.2, and IR.3 (renumbered from IR.4) remain in this work package; the old IR.3 (Momentum purity) folded into IR.2 (2026-09-24); IR.5 moved to SWC (below). |
+| 11 | [Strategy wiring consolidation (SWC)](STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md) | Accepted as a work package 2026-09-24; not yet scoped into slices. Scheduled after IR (the shared `run_analysis(ticker, config, context)` envelope is this package's prerequisite — see the proposal's §6) and before R3, since it deletes the per-strategy dispatch chains (`isinstance` chains, per-strategy dicts) R3 would otherwise have to individually audit as dead-or-not. Absorbs IR.5's scope (typed JSON envelope models and generated schemas are per-strategy wiring, built once on the shared descriptor rather than hand-written per strategy). |
+| 12 | [Repository-wide dead code audit (R3)](R3_DEAD_CODE_AUDIT_PLAN.md) | Not started; **reordered after IR and SWC (2026-09-24)**, for the reasons in rows 10–11. Scope/contract review required before implementation. |
+| 13 | [`src` package rename (PKG)](PKG_RENAME_PLAN.md) | Not started; scheduled after R3 and before Step 3.5, so Step 3.5's five new analyzers are written once under the final import path, against an already-consolidated and already-cleaned codebase. |
+| 14 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#sequence-and-status) | Plan accepted; implementation waits for integration readiness (IR), strategy wiring consolidation (SWC), the dead code audit (R3), and the package rename (PKG). |
+| 15 | Light Mode (3.6) | Not started; includes empirical model/schema and end-to-end workflow validation. |
 | Deferred | ETF aggregation (P2-ETF) | Separate prioritization and provider/product-policy approval after 3.6; not a validation prerequisite. |
 | Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Decided as its own future work package; not started, and not to be scheduled until after Step 3.5. Discovered 2026-09 via the evidence provider roadmap. |
 | Deferred | [Structured error reporting for programmatic/agentic CLI consumers](DEFERRED_STRUCTURED_ERROR_REPORTING.md) | Not started; discovered 2026-09-20 during 3.4 review. Scope/contract review required; not a validation prerequisite. |
