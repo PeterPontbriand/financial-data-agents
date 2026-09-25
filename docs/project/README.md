@@ -52,7 +52,7 @@ If governing documents conflict, surface the conflict rather than blending incom
 
 ## Quality gates
 
-Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete:
+Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete, whenever the change touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration):
 
 ```bash
 uv run ruff check .
@@ -62,6 +62,8 @@ uv run pytest
 ```
 
 These commands verify lint, formatting, strict typing, deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls.
+
+A change confined to non-executable declarative metadata with no import-time or runtime effect — for example, a single project-metadata field such as `license`, or a prose-only documentation edit — does not require the full pytest run. Confirm the file still parses (e.g. the relevant `uv`/build command succeeds) and note in the record that no source changed; that is sufficient. If there is any doubt whether a change is actually confined in this sense, run the full gate.
 
 The commands above are the ordinary developer and CI interface. Managed agents whose sandbox cannot write to Windows user-profile temp/cache directories should run the portable wrapper for their active shell instead:
 
